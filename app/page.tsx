@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowIcon } from "@/components/icons";
+import { ArrowIcon, GlobeIcon, LeafIcon, SparkleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { ProductArt } from "@/components/product-art";
 import { products, stoneTypes } from "@/lib/catalog";
@@ -47,9 +47,9 @@ export default function HomePage() {
       </section>
 
       <section className="page-container trust-bar" aria-label="Store promises">
-        <div className="trust-item"><span>◊</span><span>Authentic Indonesian Stones</span></div>
-        <div className="trust-item"><span>◎</span><span>Worldwide Shipping</span></div>
-        <div className="trust-item"><span>✦</span><span>Selected with care</span></div>
+        <div className="trust-item"><LeafIcon /><span>Authentic Indonesian Stones</span></div>
+        <div className="trust-item"><GlobeIcon /><span>Worldwide Shipping</span></div>
+        <div className="trust-item"><SparkleIcon /><span>Selected with care</span></div>
       </section>
     </>
   );
