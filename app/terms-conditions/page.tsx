@@ -1,0 +1,5 @@
+import { ContentPage } from "@/components/content-page";
+
+export default function TermsPage() {
+  return <ContentPage eyebrow="Store terms" title="Terms & conditions." intro="This placeholder page keeps the planned legal route visible while the production terms are prepared for review." sections={[{ title: "Product descriptions", body: "Natural stones vary in color, pattern, inclusions, and shape. Product images and measurements should be read together with each listing's written details." }, { title: "Orders and payment", body: "Orders are confirmed after successful PayPal payment. Availability remains open until payment succeeds, according to the agreed stock rule." }, { title: "Shipping", body: "Shipping charges are calculated according to the checkout rate presented before payment, subject to the final shipping and returns policy." }, { title: "Final review", body: "The legal owner and operator should approve the final terms before the storefront moves from prototype to production." }]} />;
+}
