@@ -9,6 +9,7 @@ import { CatalogModule } from "./catalog/catalog.module";
 import { ContentModule } from "./content/content.module";
 import { CustomersModule } from "./customers/customers.module";
 import { DiscountsModule } from "./discounts/discounts.module";
+import { HealthModule } from "./health/health.module";
 import { InboxModule } from "./inbox/inbox.module";
 import { OrdersModule } from "./orders/orders.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -27,6 +28,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     ContentModule,
     CustomersModule,
     DiscountsModule,
+    HealthModule,
     InboxModule,
     OrdersModule,
     ReportsModule,

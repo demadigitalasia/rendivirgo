@@ -716,7 +716,14 @@ export class ProductsService {
     const categories = await this.prisma.category.findMany();
     const categoryBySlug = new Map(categories.map((category) => [category.slug, category]));
 
-    const results = { created: 0, skipped: 0, errors: [] as string[] };
+    const results = { created: 0, categoriesCreated: 0, skipped: 0, errors: [] as string[] };
+
+    const titleFromSlug = (slug: string) =>
+      slug
+        .split("-")
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
 
     for (const line of lines.slice(1)) {
       const values = parseLine(line);
@@ -725,11 +732,19 @@ export class ProductsService {
         record[column] = values[index]?.trim() ?? "";
       });
 
-      const category = categoryBySlug.get(record.categorySlug ?? "");
+      const slug = slugify(record.categorySlug || "uncategorised");
+      let category = categoryBySlug.get(slug);
       if (!category) {
-        results.skipped += 1;
-        results.errors.push(`Row "${record.name}": unknown category "${record.categorySlug}"`);
-        continue;
+        category = await this.prisma.category.create({
+          data: {
+            slug,
+            name: titleFromSlug(slug),
+            description: "Imported from CSV",
+            sortOrder: categoryBySlug.size,
+          },
+        });
+        categoryBySlug.set(slug, category);
+        results.categoriesCreated += 1;
       }
       if (!record.name || !record.price) {
         results.skipped += 1;
@@ -783,7 +798,7 @@ export class ProductsService {
       adminId: context.adminId,
       action: "product.import_csv",
       entityType: "Product",
-      summary: `Imported ${results.created} product(s) from CSV (${results.skipped} skipped)`,
+      summary: `Imported ${results.created} product(s) from CSV (${results.categoriesCreated} new categories, ${results.skipped} skipped)`,
       metadata: results,
       ip: context.ip,
       userAgent: context.userAgent,

@@ -1,21 +1,8 @@
 import type { NextConfig } from "next";
 
-const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:4000";
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${apiOrigin}/api/:path*`,
-      },
-      {
-        source: "/uploads/:path*",
-        destination: `${apiOrigin}/uploads/:path*`,
-      },
-    ];
-  },
+  output: "standalone",
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
@@ -23,6 +10,11 @@ const nextConfig: NextConfig = {
         protocol: "http",
         hostname: "localhost",
         port: "4000",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "rendivirgo.com",
         pathname: "/uploads/**",
       },
     ],
