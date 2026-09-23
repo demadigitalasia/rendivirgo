@@ -3,16 +3,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Product } from "@/lib/catalog";
-import { formatUSD } from "@/lib/catalog";
-import { useCart } from "@/components/providers";
+import { formatUSD, maxQuantityFor } from "@/lib/catalog";
+import { useCart, useCopy } from "@/components/providers";
 import { HeartIcon } from "@/components/icons";
 import { ProductArt } from "@/components/product-art";
 
 const wishlistStorageKey = "rendi-virgo-wishlist";
 
 export function ProductCard({ product }: { product: Product }) {
-  const { addToCart } = useCart();
+  const t = useCopy();
+  const { addToCart, quantityInCart } = useCart();
+  const maxQuantity = maxQuantityFor(product);
+  const inCart = quantityInCart(product.id);
   const unavailable = product.status !== "Available";
+  const reachedLimit = inCart >= maxQuantity;
   const [wishlisted, setWishlisted] = useState(false);
 
   useEffect(() => {
@@ -38,21 +42,48 @@ export function ProductCard({ product }: { product: Product }) {
     }
   };
 
+  const statusLabel = product.status === "Sold" ? t.common.sold : product.status === "Reserved" ? t.common.reserved : t.common.available;
+  const buttonLabel = unavailable
+    ? statusLabel
+    : reachedLimit
+      ? maxQuantity === 1
+        ? t.common.inCart
+        : t.common.maxReached
+      : t.common.addToCart;
+
   return (
     <article className="product-card">
       <div className="product-card__visual">
         <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="product-card__image-link">
-          <ProductArt tone={product.tone} label={product.stoneType} />
-          <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>{product.status === "Available" ? "Available" : product.status}</span>
+          {product.images[0] ? (
+            <img className="product-card__photo" src={product.images[0]} alt={`${product.name} — ${product.stoneType}`} loading="lazy" />
+          ) : (
+            <ProductArt tone={product.tone} label={product.stoneType} />
+          )}
+          <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>{statusLabel}</span>
         </Link>
-        <button className={`wishlist-button ${wishlisted ? "is-active" : ""}`} type="button" aria-pressed={wishlisted} aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`} onClick={toggleWishlist}><HeartIcon /></button>
+        <button
+          className={`wishlist-button ${wishlisted ? "is-active" : ""}`}
+          type="button"
+          aria-pressed={wishlisted}
+          aria-label={wishlisted ? t.wishlist.remove(product.name) : t.wishlist.add(product.name)}
+          onClick={toggleWishlist}
+        >
+          <HeartIcon />
+        </button>
       </div>
       <div className="product-card__body">
-        <div className="eyebrow">{product.category} · {product.origin.split(",")[0]}</div>
-        <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="product-card__name">{product.name}</Link>
+        <div className="eyebrow">
+          {product.category} · {product.origin.split(",")[0]}
+        </div>
+        <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="product-card__name">
+          {product.name}
+        </Link>
         <div className="product-card__footer">
           <strong>{formatUSD(product.price)}</strong>
-          <button className="text-button" type="button" disabled={unavailable} onClick={() => addToCart(product)}>{unavailable ? product.status : "Add to cart"}</button>
+          <button className="text-button" type="button" disabled={unavailable || reachedLimit} onClick={() => addToCart(product)}>
+            {buttonLabel}
+          </button>
         </div>
       </div>
     </article>

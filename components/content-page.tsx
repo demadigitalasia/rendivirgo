@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DraftNote } from "@/components/draft-note";
 
 type ContentSection = { title: string; body: string };
 
@@ -10,6 +11,7 @@ export function ContentPage({ eyebrow, title, intro, sections, cta }: { eyebrow:
         <h1>{title}</h1>
         <p>{intro}</p>
       </div>
+      <DraftNote />
       <div className="content-sections">
         {sections.map((section) => <section className="content-card" key={section.title}><h2>{section.title}</h2><p>{section.body}</p></section>)}
       </div>

@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "dev:api": "npm --prefix api run dev",
+    "dev:all": "npm run dev:api & npm run dev",
+    "build:api": "npm --prefix api run build",
+    "db:migrate": "npm --prefix api run prisma:migrate",
+    "db:seed": "npm --prefix api run db:seed",
+    "db:studio": "npm --prefix api run prisma:studio"
   },
   "dependencies": {
     "next": "16.3.3",

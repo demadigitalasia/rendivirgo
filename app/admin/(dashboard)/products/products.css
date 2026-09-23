@@ -1,0 +1,62 @@
+.rv-thumb-empty {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px dashed var(--rv-line);
+  background: #f4f1ea;
+  color: var(--rv-muted);
+}
+
+.rv-product-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rv-product-cell a {
+  font-weight: 500;
+}
+
+.rv-price-compare {
+  color: var(--rv-muted);
+  font-size: 0.78rem;
+  text-decoration: line-through;
+}
+
+.rv-toolbar--bulk {
+  background: #f7f4ec;
+}
+
+.rv-import-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  margin: 0;
+  padding-left: 18px;
+  overflow-y: auto;
+  color: var(--rv-danger);
+  font-size: 0.82rem;
+}
+
+.rv-variants-table td {
+  padding: 8px 6px;
+}
+
+.rv-variants-table td .rv-input,
+.rv-variants-table td .rv-select {
+  min-width: 84px;
+}
+
+.rv-form-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--rv-line-soft);
+  background: var(--rv-surface);
+}

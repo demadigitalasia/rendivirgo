@@ -1,0 +1,161 @@
+.rv-invoice {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 26px 24px 80px;
+}
+
+.rv-invoice__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.rv-invoice__sheet {
+  background: #fffefa;
+  border: 1px solid #ddd7cb;
+  border-radius: 10px;
+  padding: 38px 42px;
+}
+
+.rv-invoice__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #103b2c;
+}
+
+.rv-invoice__brand {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  letter-spacing: 0.14em;
+}
+
+.rv-invoice__seller {
+  margin-top: 10px;
+  color: #6b7069;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.rv-invoice__meta {
+  text-align: right;
+  color: #6b7069;
+  font-size: 0.84rem;
+  line-height: 1.7;
+}
+
+.rv-invoice__title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: #1c201d;
+}
+
+.rv-invoice__parties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  margin: 26px 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.rv-invoice__parties h3 {
+  margin-bottom: 6px;
+  color: #6b7069;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.rv-invoice__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 18px;
+}
+
+.rv-invoice__table th,
+.rv-invoice__table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #eae5da;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.rv-invoice__table th {
+  color: #6b7069;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rv-invoice__table .is-num {
+  text-align: right;
+}
+
+.rv-invoice__totals {
+  width: min(340px, 100%);
+  margin: 20px 0 0 auto;
+}
+
+.rv-invoice__totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+}
+
+.rv-invoice__totals-row--grand {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #ddd7cb;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.rv-invoice__footer {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid #eae5da;
+  color: #6b7069;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  .rv-sidebar,
+  .rv-topbar,
+  .rv-mobile-nav-toggle,
+  .rv-toaster,
+  .rv-invoice__actions {
+    display: none !important;
+  }
+
+  .rv-admin {
+    display: block;
+    background: #fff;
+  }
+
+  .rv-main {
+    display: block;
+  }
+
+  .rv-invoice {
+    max-width: none;
+    padding: 0;
+  }
+
+  .rv-invoice__sheet {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: #fff;
+  }
+}

@@ -1,25 +1,30 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Providers } from "@/components/providers";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://rendivirgo.com"),
   title: "RENDI VIRGO | Authentic Indonesian Stones",
   description: "Natural Indonesian stones selected by RENDI VIRGO for collectors and makers around the world.",
   icons: { icon: "/favicon.svg" },
+  openGraph: {
+    type: "website",
+    siteName: "RENDI VIRGO",
+    title: "RENDI VIRGO | Authentic Indonesian Stones",
+    description: "Natural Indonesian stones selected by RENDI VIRGO for collectors and makers around the world.",
+    images: ["/images/rendi-virgo-hero-stones.webp"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RENDI VIRGO | Authentic Indonesian Stones",
+    description: "Natural Indonesian stones selected by RENDI VIRGO for collectors and makers around the world.",
+    images: ["/images/rendi-virgo-hero-stones.webp"],
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body>
-        <Providers>
-          <SiteHeader />
-          <main>{children}</main>
-          <SiteFooter />
-        </Providers>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

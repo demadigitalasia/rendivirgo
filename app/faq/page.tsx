@@ -1,5 +1,0 @@
-import { ContentPage } from "@/components/content-page";
-
-export default function FaqPage() {
-  return <ContentPage eyebrow="Helpful details" title="Questions, answered simply." intro="A few practical notes for choosing, paying for, and receiving natural stones from RENDI VIRGO." sections={[{ title: "Are the stones natural?", body: "Listings identify the condition of each piece. Natural is the default collection standard; any treated or dyed material will be labeled clearly." }, { title: "What payment method is supported?", body: "PayPal is the international payment method planned for launch, with prices displayed in USD." }, { title: "How is shipping calculated?", body: "The default shipping rate is calculated through the shipping API using one parcel and the combined total weight of the order. Admins can override the rate when needed." }, { title: "When is stock reserved?", body: "A product remains available until PayPal payment succeeds. The live backend will enforce this rule at payment confirmation." }]} cta={{ label: "Read shipping & returns", href: "/shipping-returns" }} />;
-}
