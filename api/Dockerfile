@@ -1,6 +1,8 @@
 # ------------------------------------------------------------------ build
 FROM node:24-bookworm-slim AS builder
 
+ARG NODE_ENV
+
 WORKDIR /app
 
 RUN apt-get update \
@@ -8,7 +10,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 
 COPY prisma ./prisma
 COPY prisma7.config.ts nest-cli.json tsconfig.json tsconfig.build.json ./

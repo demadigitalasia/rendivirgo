@@ -2,10 +2,11 @@
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 
 # ------------------------------------------------------------------ build
 FROM node:24-bookworm-slim AS builder
+ARG NODE_ENV
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
