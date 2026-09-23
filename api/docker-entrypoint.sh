@@ -6,6 +6,9 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
+masked_url=$(printf '%s' "$DATABASE_URL" | sed -E 's|://([^:/@]+):[^@]*@|://\1:***@|')
+echo "Using DATABASE_URL: $masked_url"
+
 echo "Applying database migrations..."
 npx prisma migrate deploy
 
