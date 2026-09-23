@@ -1,6 +1,6 @@
 /* RENDI VIRGO admin workspace */
 
-.rv-admin {
+:root {
   --rv-bg: #f2f0ea;
   --rv-surface: #fffefa;
   --rv-line: #ddd7cb;
@@ -15,6 +15,9 @@
   --rv-warning: #a8772c;
   --rv-info: #3c6e9a;
   --rv-radius: 10px;
+}
+
+.rv-admin {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 256px minmax(0, 1fr);
@@ -771,7 +774,7 @@
   display: grid;
   place-items: center;
   padding: 30px 20px;
-  background: radial-gradient(1200px 600px at 20% -10%, #14452f 0%, #08261d 55%, #061d15 100%);
+  background: radial-gradient(1200px 600px at 20% -10%, #14452f 0%, var(--rv-forest-deep) 55%, #061d15 100%);
 }
 
 .rv-login__card {
@@ -786,7 +789,7 @@
   font-family: var(--font-display);
   font-size: 1.4rem;
   letter-spacing: 0.16em;
-  color: #103b2c;
+  color: var(--rv-forest);
   text-align: center;
 }
 
