@@ -68,6 +68,9 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     const errorPayload = (isJson ? payload : { message: String(payload) }) as ApiErrorPayload;
     const rawMessage = errorPayload?.message;
     const message = Array.isArray(rawMessage) ? rawMessage.join(", ") : (rawMessage ?? `Request failed with status ${response.status}`);
+    if (response.status === 401 && typeof window !== "undefined" && !path.startsWith("/api/auth/login")) {
+      window.location.assign("/admin/login?expired=1");
+    }
     throw new ApiError(message, response.status, errorPayload);
   }
 

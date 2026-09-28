@@ -4,7 +4,7 @@ import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
 import { EmailService } from "../email/email.service";
-import { renderNewMessageAdminEmail } from "../email/email.templates";
+import { renderNewMessageAdminEmail, renderReplyToCustomerEmail } from "../email/email.templates";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
 import { CreateMessageDto, MessageQueryDto, UpdateMessageDto } from "./dto/inbox.dto";
@@ -37,7 +37,7 @@ export class MessagesService {
         type: "Message",
         title: `New message from ${message.name}`,
         body: message.subject,
-        href: `/admin/messages/${message.id}`,
+        href: `/admin/messages?open=${message.id}`,
         entityType: "Message",
         entityId: message.id,
       },
@@ -146,7 +146,22 @@ export class MessagesService {
   }
 
   async reply(id: string, adminReply: string, context: AuditContext) {
-    return this.update(id, { adminReply }, context);
+    const message = await this.update(id, { adminReply }, context);
+
+    if (message.adminReply) {
+      await this.email.send({
+        to: message.email,
+        subject: `Re: ${message.subject} — RENDI VIRGO`,
+        html: renderReplyToCustomerEmail({
+          name: message.name,
+          subject: message.subject,
+          reply: message.adminReply,
+          original: message.body,
+        }),
+      });
+    }
+
+    return message;
   }
 
   async remove(id: string, context: AuditContext) {

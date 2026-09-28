@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   apiFetch,
@@ -67,15 +68,22 @@ export default function AdminMessagesPage() {
   const [sending, setSending] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const listRefresh = state.refresh;
+  const searchParams = useSearchParams();
+  const openId = searchParams.get("open");
+
+  useEffect(() => {
+    if (openId && !selectedId) setSelectedId(openId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
 
   useEffect(() => {
     if (!selected) return;
+    setReply(selected.adminReply ?? "");
     listRefresh();
   }, [selected?.id, listRefresh]);
 
   const openMessage = (message: Message) => {
     setSelectedId(message.id);
-    setReply(message.adminReply ?? "");
   };
 
   const sendReply = async () => {

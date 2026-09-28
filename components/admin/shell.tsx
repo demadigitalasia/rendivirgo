@@ -27,9 +27,9 @@ export function AdminShell({
   const navToggleRef = useRef<HTMLButtonElement>(null);
 
   const loadUnread = useCallback(() => {
-    apiFetch<{ count: number }>("/api/admin/notifications/unread-count")
+    apiFetch<{ unreadCount: number }>("/api/admin/notifications/unread-count")
       .then((result) => {
-        setUnread(result.count);
+        setUnread(result.unreadCount ?? 0);
         setUnreadSyncError(false);
       })
       .catch(() => setUnreadSyncError(true));

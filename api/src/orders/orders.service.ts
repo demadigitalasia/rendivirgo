@@ -7,7 +7,14 @@ import { paginated, skipTake } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
 import { signMagicToken, verifyMagicToken } from "../common/utils/magic-token";
 import { EmailService } from "../email/email.service";
-import { renderNewOrderAdminEmail, renderOrderReceivedEmail, renderOrdersLinkEmail } from "../email/email.templates";
+import {
+  renderNewOrderAdminEmail,
+  renderOrderCancelledEmail,
+  renderOrderCompletedEmail,
+  renderOrderReceivedEmail,
+  renderOrderShippedEmail,
+  renderOrdersLinkEmail,
+} from "../email/email.templates";
 import { buildOrderEmailData } from "../email/order-email-data";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
@@ -891,6 +898,7 @@ export class OrdersService {
           entityId: updated.id,
         },
       });
+      await this.sendStatusEmail(updated, dto.status);
     }
 
     await this.audit.log({
@@ -907,8 +915,38 @@ export class OrdersService {
     return this.toApiOrder(updated);
   }
 
-  async addEvent(id: string, dto: CreateOrderEventDto, context: AuditContext) {
-    const order = await this.prisma.order.findUnique({ where: { id }, select: { id: true, orderNumber: true } });
+  private async sendStatusEmail(order: OrderWithRelations, status: OrderStatus): Promise<void> {
+    const notificationSettings = await this.settings.getNotificationSettings();
+    if (!notificationSettings.orderConfirmation) return;
+
+    const data = buildOrderEmailData(order);
+    if (status === "Shipped") {
+      await this.email.send({
+        to: order.email,
+        subject: `Order ${order.orderNumber} has shipped`,
+        html: renderOrderShippedEmail({
+          ...data,
+          carrier: order.carrier,
+          trackingNumber: order.trackingNumber,
+          trackingUrl: order.trackingUrl,
+        }),
+      });
+    } else if (status === "Completed") {
+      await this.email.send({
+        to: order.email,
+        subject: `Order ${order.orderNumber} is complete`,
+        html: renderOrderCompletedEmail(data),
+      });
+    } else if (status === "Cancelled") {
+      await this.email.send({
+        to: order.email,
+        subject: `Order ${order.orderNumber} was cancelled`,
+        html: renderOrderCancelledEmail({ ...data, reason: order.internalNote }),
+      });
+    }
+  }
+
+  async addEvent(id: string, dto: CreateOrderEventDto, context: AuditContext) {    const order = await this.prisma.order.findUnique({ where: { id }, select: { id: true, orderNumber: true } });
     if (!order) throw new NotFoundException("Order not found");
 
     const event = await this.prisma.orderEvent.create({

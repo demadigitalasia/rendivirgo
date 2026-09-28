@@ -41,7 +41,11 @@ COPY --from=builder /app/dist ./dist
 COPY prisma ./prisma
 COPY prisma7.config.ts ./
 COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh && mkdir -p uploads
+RUN chmod +x docker-entrypoint.sh && mkdir -p uploads && chown -R node:node /app
+
+ENV HOME=/tmp
+
+USER node
 
 EXPOSE 4000
 

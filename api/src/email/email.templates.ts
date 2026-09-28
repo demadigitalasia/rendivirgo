@@ -147,6 +147,57 @@ export const renderOrdersLinkEmail = (data: { link: string; expiresMinutes: numb
     footer: "If you did not request this, you can safely ignore this email.",
   });
 
+export const renderReplyToCustomerEmail = (message: {
+  name: string;
+  subject: string;
+  reply: string;
+  original: string;
+}): string =>
+  layout({
+    heading: "Reply from RENDI VIRGO",
+    intro: `Hi ${message.name}, thank you for reaching out about "${message.subject}".`,
+    body: `<div style="font-size:14px;line-height:1.6;color:#3d3931;white-space:pre-wrap;">${escapeHtml(message.reply)}</div>
+      <hr style="border:none;border-top:1px solid #efeae0;margin:18px 0;" />
+      <p style="font-size:12px;color:#8a8477;white-space:pre-wrap;margin:0;">Your message: ${escapeHtml(message.original)}</p>`,
+    footer: "RENDI VIRGO · rendivirgo.com",
+  });
+
+export const renderOrderShippedEmail = (
+  data: OrderEmailData & { carrier?: string | null; trackingNumber?: string | null; trackingUrl?: string | null },
+): string =>
+  layout({
+    heading: "Your order is on its way",
+    intro: `Order ${data.orderNumber} has shipped.${data.carrier ? ` Carrier: ${data.carrier}.` : ""}`,
+    body: `${itemsTable(data)}${
+      data.trackingNumber
+        ? `<p style="font-size:14px;color:#3d3931;">Tracking number: <strong>${escapeHtml(data.trackingNumber)}</strong></p>`
+        : ""
+    }${
+      data.trackingUrl
+        ? `<p style="margin:6px 0 0;"><a href="${escapeHtml(data.trackingUrl)}">Track your parcel</a></p>`
+        : ""
+    }`,
+    footer: `Order ${escapeHtml(data.orderNumber)} · Shipped · rendivirgo.com`,
+  });
+
+export const renderOrderCompletedEmail = (data: OrderEmailData): string =>
+  layout({
+    heading: "Your order is complete",
+    intro: `Order ${data.orderNumber} has been marked complete. Thank you for collecting with us — we would love to hear what you think of your stones.`,
+    body: itemsTable(data),
+    footer: `Order ${escapeHtml(data.orderNumber)} · Completed · rendivirgo.com`,
+  });
+
+export const renderOrderCancelledEmail = (data: OrderEmailData & { reason?: string | null }): string =>
+  layout({
+    heading: "Your order was cancelled",
+    intro: `Order ${data.orderNumber} has been cancelled. If payment was taken, a refund will follow shortly.`,
+    body: `${itemsTable(data)}${
+      data.reason ? `<p style="font-size:13px;color:#6f695e;">Reason: ${escapeHtml(data.reason)}</p>` : ""
+    }`,
+    footer: `Order ${escapeHtml(data.orderNumber)} · Cancelled · rendivirgo.com`,
+  });
+
 export const renderPasswordResetEmail = (data: { name: string; link: string; expiresMinutes: number }): string =>
   layout({
     heading: "Reset your admin password",

@@ -3,7 +3,7 @@ import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { CategoriesService } from "./categories.service";
-import { CategoryQueryDto, CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
+import { CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
 
 @Controller("categories")
 export class CategoriesController {
@@ -11,8 +11,8 @@ export class CategoriesController {
 
   @Public()
   @Get()
-  list(@Query() query: CategoryQueryDto) {
-    return query.includeInactive ? this.categoriesService.listAdmin() : this.categoriesService.listPublic();
+  list() {
+    return this.categoriesService.listPublic();
   }
 
   @Public()
