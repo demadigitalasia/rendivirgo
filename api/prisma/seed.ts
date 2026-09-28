@@ -130,12 +130,12 @@ const siteSettings: Record<string, unknown> = {
   "store.hours": "Monday – Saturday, 09:00 – 18:00 (GMT+7)",
   "home.heroTitle": "Explore the Collection",
   "home.heroSubtitle": "Rare semi-precious stones from Indonesia, selected for collectors, makers, and quiet moments of wonder.",
-  "home.heroImage": "/images/hero-stones.svg",
+  "home.heroImage": "/images/rendi-virgo-hero-stones.webp",
   "home.ownerName": "RENDI VIRGO",
   "home.ownerRole": "Founder & Curator",
   "home.ownerBio":
     "A lifelong passion for Indonesia's natural treasures. RENDI VIRGO is dedicated to sharing the beauty and authenticity of our local stones with the world.",
-  "home.ownerImage": "/images/owner-portrait.svg",
+  "home.ownerImage": "/images/rendi-virgo-owner.webp",
   "home.ownerCtaLabel": "About Us",
   "home.ownerCtaHref": "/about-us",
   "shipping.overrideEnabled": false,
@@ -146,6 +146,7 @@ const siteSettings: Record<string, unknown> = {
     "One-of-a-kind cabochons, rough, specimens, beads, and faceted gemstones sourced directly from Indonesia. Worldwide shipping in USD.",
   "notifications.orderConfirmation": true,
   "notifications.lowStock": true,
+  "notifications.lowStockThreshold": 3,
   "notifications.newMessage": true,
   "payments.paypalEnabled": true,
   "payments.paypalEmail": "admin@rendivirgo.com",
@@ -158,13 +159,17 @@ async function main() {
 
   // ---------------------------------------------------------------- admin
   const adminEmail = (process.env.ADMIN_EMAIL ?? "admin@rendivirgo.com").toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword || adminPassword.length < 12) {
+    throw new Error("ADMIN_PASSWORD is required and must be at least 12 characters long");
+  }
   const admin = await prisma.admin.upsert({
     where: { email: adminEmail },
     update: {},
     create: {
       email: adminEmail,
       name: process.env.ADMIN_NAME ?? "Rendi Virgo",
-      passwordHash: await bcrypt.hash(process.env.ADMIN_PASSWORD ?? "RendiVirgo!2026", 12),
+      passwordHash: await bcrypt.hash(adminPassword, 12),
     },
   });
 
@@ -317,7 +322,7 @@ async function main() {
             name: variant.name,
             price: new Prisma.Decimal(variant.price),
             stockQuantity: variant.stockQuantity,
-            weightGram: variant.weightGram,
+            weightGram: Math.round(variant.weightGram),
             lengthMm: variant.dimensionsMm.length,
             widthMm: variant.dimensionsMm.width,
             heightMm: variant.dimensionsMm.height,
@@ -547,7 +552,7 @@ async function main() {
                 sku: product.sku,
                 unitPrice: new Prisma.Decimal(unitPrice),
                 quantity,
-                weightGram: product.weightGram,
+        weightGram: Math.round(product.weightGram),
                 lineTotal: new Prisma.Decimal(subtotal),
                 imageUrl: product.images[0]?.url ?? null,
               },

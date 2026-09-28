@@ -130,6 +130,7 @@ const settings = {
     "One-of-a-kind cabochons, rough, specimens, beads, and faceted gemstones sourced directly from Indonesia. Worldwide shipping in USD.",
   "notifications.orderConfirmation": true,
   "notifications.lowStock": true,
+  "notifications.lowStockThreshold": 3,
   "notifications.newMessage": true,
   "payments.paypalEnabled": true,
   "payments.paypalEmail": "admin@rendivirgo.com",

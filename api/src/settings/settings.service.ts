@@ -15,14 +15,14 @@ export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "store.socials": { instagram: "", facebook: "", youtube: "", tiktok: "" },
   "seo.defaultTitle": "RENDI VIRGO",
   "seo.defaultDescription": "",
-  "notifications.orderEmails": true,
-  "notifications.messageEmails": true,
-  "notifications.lowStockAlerts": true,
+  "notifications.orderConfirmation": true,
+  "notifications.newMessage": true,
+  "notifications.lowStock": true,
   "notifications.lowStockThreshold": 3,
   "payments.paypalEnabled": true,
+  "payments.paypalEmail": "",
   "payments.bankTransferEnabled": false,
-  "payments.manualEnabled": false,
-  "payments.bankInstructions": "",
+  "payments.currency": "USD",
 };
 
 export const SHIPPING_SETTINGS_DEFAULTS = {
@@ -45,6 +45,18 @@ export type ShippingSettings = {
   overrideEnabled: boolean;
   overrideAmount: number;
   freeShippingThreshold: number;
+};
+
+export type NotificationSettings = {
+  orderConfirmation: boolean;
+  newMessage: boolean;
+  lowStock: boolean;
+  lowStockThreshold: number;
+};
+
+export type PaymentSettings = {
+  paypalEnabled: boolean;
+  bankTransferEnabled: boolean;
 };
 
 @Injectable()
@@ -76,7 +88,52 @@ export class SettingsService {
       result[key] = stored.has(key) ? stored.get(key) : fallback;
     }
 
+    const payments = await this.getPaymentSettings();
+    result["payments.paypalEnabled"] = payments.paypalEnabled;
+
     return result;
+  }
+
+  async getNotificationSettings(): Promise<NotificationSettings> {
+    const stored = await this.readStored();
+    const boolean = (key: string, fallback: boolean): boolean => {
+      const value = stored.get(key);
+      return typeof value === "boolean" ? value : fallback;
+    };
+    const number = (key: string, fallback: number): number => {
+      const value = stored.get(key);
+      return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+    };
+
+    return {
+      orderConfirmation: boolean("notifications.orderConfirmation", true),
+      newMessage: boolean("notifications.newMessage", true),
+      lowStock: boolean("notifications.lowStock", true),
+      lowStockThreshold: number("notifications.lowStockThreshold", 3),
+    };
+  }
+
+  async getPaymentSettings(): Promise<PaymentSettings> {
+    const stored = await this.readStored();
+    const boolean = (key: string, fallback: boolean): boolean => {
+      const value = stored.get(key);
+      return typeof value === "boolean" ? value : fallback;
+    };
+
+    return {
+      paypalEnabled: boolean("payments.paypalEnabled", true),
+      bankTransferEnabled: boolean("payments.bankTransferEnabled", false),
+    };
+  }
+
+  async getStoreEmail(): Promise<string> {
+    const stored = await this.readStored();
+    const candidates = ["store.adminEmail", "store.email"];
+    for (const key of candidates) {
+      const value = stored.get(key);
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return String(SETTINGS_DEFAULTS["store.email"]);
   }
 
   async getAdminSettings(): Promise<GroupedSettings> {

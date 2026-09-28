@@ -21,6 +21,24 @@ export class ChangePasswordDto {
   newPassword: string;
 }
 
+export class ForgotPasswordDto {
+  @IsEmail()
+  @MaxLength(200)
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  token: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(200)
+  newPassword: string;
+}
+
 export class UpdateProfileDto {
   @IsOptional()
   @IsString()

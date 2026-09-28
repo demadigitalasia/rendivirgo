@@ -18,7 +18,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   });
 
   if (!response.ok) {
-    redirect("/admin/login");
+    redirect("/admin/login?expired=1");
   }
 
   const payload = (await response.json()) as { admin: { name: string; email: string } };

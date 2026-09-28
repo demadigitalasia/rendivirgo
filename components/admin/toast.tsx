@@ -51,9 +51,14 @@ export function Toaster() {
   if (!current.length) return null;
 
   return (
-    <div className="rv-toaster" role="status" aria-live="polite">
+    <div className="rv-toaster" aria-live="polite">
       {current.map((item) => (
-        <div key={item.id} className={`rv-toast rv-toast--${item.tone}`}>
+        <div
+          key={item.id}
+          className={`rv-toast rv-toast--${item.tone}`}
+          role={item.tone === "error" ? "alert" : "status"}
+          aria-live={item.tone === "error" ? "assertive" : "polite"}
+        >
           {item.message}
         </div>
       ))}

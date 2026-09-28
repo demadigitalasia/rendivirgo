@@ -36,7 +36,15 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
     sku: product.sku,
     description: product.description,
     category: product.category,
+    image: product.images,
     brand: { "@type": "Brand", name: "RENDI VIRGO" },
+    weight: { "@type": "QuantitativeValue", value: product.weightGram, unitCode: "GRM" },
+    additionalProperty: [
+      { "@type": "PropertyValue", name: "Stone type", value: product.stoneType },
+      { "@type": "PropertyValue", name: "Origin", value: product.origin },
+      { "@type": "PropertyValue", name: "Condition", value: product.condition },
+      ...(product.mohsHardness ? [{ "@type": "PropertyValue", name: "Mohs hardness", value: product.mohsHardness }] : []),
+    ],
     offers: {
       "@type": "Offer",
       priceCurrency: "USD",
@@ -48,7 +56,7 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <ProductDetailClient product={product} related={related} />
     </>
   );

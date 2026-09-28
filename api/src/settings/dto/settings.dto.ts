@@ -44,6 +44,14 @@ export class ShippingQuoteDto {
   @IsOptional()
   @IsIn(["Standard", "Fragile", "Oversized"])
   shippingClass?: "Standard" | "Fragile" | "Oversized";
+
+  @IsOptional()
+  @IsBoolean()
+  fragile?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  oversized?: boolean;
 }
 
 // ---------------------------------------------------------------- rates

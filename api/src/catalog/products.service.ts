@@ -5,7 +5,8 @@ import type { AuditContext } from "../common/types/audit-context";
 import { paginated, skipTake, type Paginated } from "../common/dto/pagination.dto";
 import { slugify, uniqueSlug } from "../common/utils/slug";
 import { PrismaService } from "../prisma/prisma.service";
-import { BulkProductActionDto, CreateProductDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
+import { BulkProductActionDto, CatalogPdfQueryDto, CreateProductDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
+import { CatalogPdfService } from "./catalog-pdf.service";
 
 export const productInclude = {
   category: true,
@@ -29,6 +30,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly catalogPdf: CatalogPdfService,
   ) {}
 
   // ------------------------------------------------------------ mapping
@@ -177,6 +179,40 @@ export class ProductsService {
     ]);
 
     return paginated(products.map((product) => this.toApiProduct(product)), total, query.page, query.pageSize);
+  }
+
+  async exportCatalogPdf(query: CatalogPdfQueryDto) {
+    const ids = (query.ids ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 500);
+
+    if (!ids.length && !query.all) {
+      throw new BadRequestException("Select products or choose all filtered products for the catalog");
+    }
+
+    const filterQuery: ProductQueryDto = {
+      page: 1,
+      pageSize: 100,
+      search: query.search,
+      category: query.category,
+      stoneType: query.stoneType,
+      origin: query.origin,
+      condition: query.condition,
+      inStock: true,
+      sort: query.sort,
+    };
+    const baseWhere = this.buildWhere(filterQuery, true);
+    const where: Prisma.ProductWhereInput = ids.length && !query.all ? { AND: [baseWhere, { id: { in: ids } }] } : baseWhere;
+    const orderBy = sortMap[query.sort ?? "name"] ?? sortMap.name;
+    const products = await this.prisma.product.findMany({ where, orderBy, include: productInclude, take: 500 });
+
+    if (!products.length) {
+      throw new BadRequestException("No published in-stock products matched the catalog selection");
+    }
+
+    return this.catalogPdf.generate(products, { includePrice: query.includePrice !== false });
   }
 
   async getPublicBySlug(slug: string) {

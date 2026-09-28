@@ -125,6 +125,8 @@ model Admin {
   avatarUrl    String?
   totpSecret   String?
   totpEnabled  Boolean   @default(false)
+  resetTokenHash String?
+  resetTokenExpiresAt DateTime?
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

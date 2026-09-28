@@ -20,8 +20,8 @@ async function main() {
   const password = process.env.ADMIN_PASSWORD;
   const name = process.env.ADMIN_NAME || "Rendi Virgo";
 
-  if (!password || password.length < 8) {
-    console.error("ADMIN_PASSWORD is required and must be at least 8 characters");
+  if (!password || password.length < 12) {
+    console.error("ADMIN_PASSWORD is required and must be at least 12 characters");
     process.exit(1);
   }
 

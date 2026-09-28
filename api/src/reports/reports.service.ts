@@ -44,6 +44,16 @@ export class ReportsService {
     return { from: addDays(startOfDay(now), -(days - 1)), to: now, granularity: "day" };
   }
 
+  private resolvePreviousRange(range: ReportRange, from: Date): { from: Date; to: Date } {
+    if (range === "12m") {
+      const to = addDays(startOfMonth(from), -1);
+      return { from: addMonths(startOfMonth(to), -11), to };
+    }
+    const days = range === "7d" ? 7 : range === "90d" ? 90 : 30;
+    const to = new Date(startOfDay(from).getTime() - 1);
+    return { from: addDays(startOfDay(to), -(days - 1)), to };
+  }
+
   private paidOrderWhere(from: Date, to: Date): Prisma.OrderWhereInput {
     return { placedAt: { gte: from, lte: to }, paymentStatus: { in: [...PAID_PAYMENT_STATUSES] } };
   }
@@ -90,8 +100,10 @@ export class ReportsService {
 
   async overview(query: ReportRangeQueryDto) {
     const { from, to, granularity } = this.resolveRange(query.range);
+    const previousRange = this.resolvePreviousRange(query.range, from);
     const placedInRange = { gte: from, lte: to };
     const paidInRange = this.paidOrderWhere(from, to);
+    const previousPaidInRange = this.paidOrderWhere(previousRange.from, previousRange.to);
     const sixtyDaysAgo = new Date(Date.now() - 60 * DAY_MS);
 
     const [
@@ -109,6 +121,10 @@ export class ReportsService {
       topItemGroups,
       lowStockProducts,
       categoryItems,
+      previousPaidAggregate,
+      previousPaidOrderCount,
+      previousOrderCount,
+      previousNewCustomers,
     ] = await Promise.all([
       this.prisma.order.aggregate({ where: paidInRange, _sum: { total: true, refundedAmount: true } }),
       this.prisma.order.count({ where: paidInRange }),
@@ -175,10 +191,17 @@ export class ReportsService {
           product: { select: { category: { select: { id: true, name: true } } } },
         },
       }),
+      this.prisma.order.aggregate({ where: previousPaidInRange, _sum: { total: true, refundedAmount: true } }),
+      this.prisma.order.count({ where: previousPaidInRange }),
+      this.prisma.order.count({ where: { placedAt: { gte: previousRange.from, lte: previousRange.to } } }),
+      this.prisma.customer.count({ where: { createdAt: { gte: previousRange.from, lte: previousRange.to } } }),
     ]);
 
     const revenue = round2(Number(paidAggregate._sum.total ?? 0) - Number(paidAggregate._sum.refundedAmount ?? 0));
     const avgOrderValue = paidOrderCount > 0 ? round2(revenue / paidOrderCount) : 0;
+    const previousRevenue = round2(
+      Number(previousPaidAggregate._sum.total ?? 0) - Number(previousPaidAggregate._sum.refundedAmount ?? 0),
+    );
 
     const buckets = this.buildBuckets(from, to, granularity);
     for (const order of salesOrders) {
@@ -250,9 +273,20 @@ export class ReportsService {
       range: query.range,
       from,
       to,
+      generatedAt: new Date(),
+      comparison: {
+        from: previousRange.from,
+        to: previousRange.to,
+        revenue: previousRevenue,
+        orders: previousPaidOrderCount,
+        allOrders: previousOrderCount,
+        newCustomers: previousNewCustomers,
+        paidOrders: previousPaidOrderCount,
+      },
       kpis: {
         revenue,
-        orders: orderCount,
+        orders: paidOrderCount,
+        allOrders: orderCount,
         avgOrderValue,
         newCustomers,
         pendingOrders,

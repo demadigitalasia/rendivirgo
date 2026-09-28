@@ -68,6 +68,15 @@ ADMIN_PASSWORD=<password kuat pilihan Anda>
 ADMIN_NAME=Rendi Virgo
 UPLOAD_DIR=uploads
 PUBLIC_API_URL=https://rendivirgo.com
+TRUST_PROXY=1
+ORDER_RESERVATION_MINUTES=60
+PAYPAL_ENV=live
+PAYPAL_CLIENT_ID=<PayPal REST app client id>
+PAYPAL_CLIENT_SECRET=<PayPal REST app secret>
+PAYPAL_WEBHOOK_ID=<webhook id dari langkah 3b>
+RESEND_API_KEY=<API key Resend>
+EMAIL_FROM="RENDI VIRGO <orders@rendivirgo.com>"
+EMAIL_REPLY_TO=cs@rendivirgo.com
 ```
 
 Konfigurasi **Storages** (agar foto produk tidak hilang saat redeploy):
@@ -81,6 +90,21 @@ Klik **Deploy**. Saat start, container otomatis menjalankan `prisma migrate depl
 Setelah sukses, salin **Internal URL** aplikasi `api` dari halaman aplikasi (format `http://<nama>-<id>:4000`). Ini dipakai di langkah 4.
 
 > Catatan: image API ±1 GB karena menyertakan Prisma CLI untuk migrasi.
+
+### 3b. PayPal & Resend (opsional tapi disarankan)
+
+**PayPal** (paypal.com → Developer → Apps & Credentials → buat REST app Live):
+
+1. Isi `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, dan `PAYPAL_ENV=live` di env aplikasi `api`.
+2. Buat webhook di dashboard PayPal: URL `https://rendivirgo.com/api/payments/paypal/webhook`, event minimal `PAYMENT.CAPTURE.COMPLETED` (dan opsional `PAYMENT.CAPTURE.DENIED`). Salin **Webhook ID** ke `PAYPAL_WEBHOOK_ID`.
+3. Uji dengan sandbox dulu: `PAYPAL_ENV=sandbox` + kredensial sandbox, lalu bayar pakai akun personal sandbox.
+
+**Resend** (resend.com):
+
+1. Verifikasi domain pengirim (mis. `rendivirgo.com`) di Resend → API Keys → buat key.
+2. Isi `RESEND_API_KEY` dan `EMAIL_FROM` (harus dari domain terverifikasi). Tanpa key, email dilewati dengan peringatan di log (order tetap dibuat).
+
+**Stok tertahan:** order yang belum dibayar melepas stok otomatis setelah `ORDER_RESERVATION_MINUTES` (default 60 menit).
 
 ---
 

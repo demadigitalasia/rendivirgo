@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Req, Res, UnauthorizedException, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
@@ -7,7 +7,7 @@ import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedAdmin, AuthenticatedRequest } from "../common/types/authenticated-request";
 import { AuditService } from "../audit/audit.service";
 import { AuthService, SESSION_COOKIE_NAME } from "./auth.service";
-import { ChangePasswordDto, LoginDto, UpdateProfileDto } from "./dto/auth.dto";
+import { ChangePasswordDto, ForgotPasswordDto, LoginDto, ResetPasswordDto, UpdateProfileDto } from "./dto/auth.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -33,6 +33,13 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const admin = await this.authService.validateCredentials(dto.email, dto.password);
     if (!admin) {
+      await this.auditService.log({
+        action: "auth.login_failed",
+        entityType: "Admin",
+        summary: "Failed admin login attempt",
+        ip: request.ip ?? null,
+        userAgent: request.headers["user-agent"] ?? null,
+      });
       throw new UnauthorizedException("Invalid email or password");
     }
 
@@ -54,6 +61,37 @@ export class AuthController {
     });
 
     return { admin, expiresAt };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post("forgot-password")
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() request: Request) {
+    await this.authService.requestPasswordReset(dto.email);
+    await this.auditService.log({
+      action: "auth.password_reset_requested",
+      entityType: "Admin",
+      summary: `Password reset requested for ${dto.email.trim().toLowerCase()}`,
+      ip: request.ip ?? null,
+      userAgent: request.headers["user-agent"] ?? null,
+    });
+    return { ok: true };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post("reset-password")
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() request: Request) {
+    const done = await this.authService.resetPassword(dto.token, dto.newPassword);
+    if (!done) throw new BadRequestException("This reset link is invalid or has expired");
+    await this.auditService.log({
+      action: "auth.password_reset",
+      entityType: "Admin",
+      summary: "Admin password reset with a recovery link; all sessions revoked",
+      ip: request.ip ?? null,
+      userAgent: request.headers["user-agent"] ?? null,
+    });
+    return { ok: true };
   }
 
   @Post("logout")

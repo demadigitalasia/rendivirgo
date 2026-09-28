@@ -4,7 +4,12 @@ import type { Customer, OrderItem } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
+import { EmailService } from "../email/email.service";
+import { renderNewOrderAdminEmail, renderOrderReceivedEmail } from "../email/email.templates";
+import { buildOrderEmailData } from "../email/order-email-data";
 import { PrismaService } from "../prisma/prisma.service";
+import { SettingsService } from "../settings/settings.service";
+import { ShippingService } from "../settings/shipping.service";
 import {
   CreateOrderDto,
   CreateOrderEventDto,
@@ -49,7 +54,8 @@ type CheckoutLine = {
 };
 
 type ResolvedShipping = {
-  rate: Prisma.ShippingRateGetPayload<Record<never, never>>;
+  name: string;
+  carrier: string | null;
   shippingCost: Prisma.Decimal;
 };
 
@@ -70,6 +76,9 @@ const SELLER = {
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly shipping: ShippingService,
+    private readonly settings: SettingsService,
+    private readonly email: EmailService,
     private readonly audit: AuditService,
   ) {}
 
@@ -203,35 +212,20 @@ export class OrdersService {
 
   private async resolveShipping(
     shippingRateId: string | undefined,
+    subtotal: Prisma.Decimal,
     totalWeightGram: number,
+    countryCode: string | undefined,
     fragile: boolean,
     oversized: boolean,
   ): Promise<ResolvedShipping> {
-    const rate = shippingRateId
-      ? await this.prisma.shippingRate.findUnique({ where: { id: shippingRateId } })
-      : await this.prisma.shippingRate.findFirst({
-          where: {
-            isActive: true,
-            minWeightGram: { lte: totalWeightGram },
-            OR: [{ maxWeightGram: null }, { maxWeightGram: { gte: totalWeightGram } }],
-          },
-          orderBy: [{ sortOrder: "asc" }, { price: "asc" }],
-        });
-
-    if (!rate) {
-      throw shippingRateId
-        ? new BadRequestException("The selected shipping rate is not available")
-        : new BadRequestException("No shipping rate is available for this order");
-    }
-    if (!rate.isActive) throw new BadRequestException("The selected shipping rate is not available");
-
-    const shippingCost = rate.price
-      .plus(rate.handlingFee)
-      .plus(fragile ? rate.fragileFee : new Prisma.Decimal(0))
-      .plus(oversized ? rate.oversizedFee : new Prisma.Decimal(0))
-      .toDecimalPlaces(2);
-
-    return { rate, shippingCost };
+    return this.shipping.resolveOrderShipping({
+      shippingRateId,
+      subtotal,
+      weightGram: totalWeightGram,
+      countryCode,
+      fragile,
+      oversized,
+    });
   }
 
   private async resolveDiscount(
@@ -276,6 +270,50 @@ export class OrdersService {
     if (discountTotal.greaterThan(subtotal)) discountTotal = subtotal;
 
     return { discount, discountTotal, shippingCost: nextShippingCost };
+  }
+
+  // ------------------------------------------------------------ inventory
+
+  // Shared by admin cancellation and the unpaid-order expiry job.
+  async releaseOrderInventory(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
+    const items = await tx.orderItem.findMany({
+      where: { orderId },
+      include: { product: { select: { id: true, stockModel: true, stockQuantity: true } } },
+    });
+
+    for (const item of items) {
+      if (!item.productId || !item.product) continue;
+      if (item.product.stockModel === "Quantity") {
+        if (item.variantId) {
+          await tx.productVariant.updateMany({
+            where: { id: item.variantId },
+            data: { stockQuantity: { increment: item.quantity } },
+          });
+        } else if (item.product.stockQuantity !== null) {
+          await tx.product.updateMany({
+            where: { id: item.productId },
+            data: { stockQuantity: { increment: item.quantity } },
+          });
+        }
+      } else {
+        await tx.product.updateMany({
+          where: { id: item.productId, status: { in: ["Reserved", "Sold"] } },
+          data: { status: "Published" },
+        });
+      }
+    }
+  }
+
+  async markUniqueProductsSold(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
+    const items = await tx.orderItem.findMany({ where: { orderId }, select: { productId: true } });
+    const productIds = [
+      ...new Set(items.map((item) => item.productId).filter((value): value is string => Boolean(value))),
+    ];
+    if (!productIds.length) return;
+    await tx.product.updateMany({
+      where: { id: { in: productIds }, stockModel: "Unique" },
+      data: { status: "Sold" },
+    });
   }
 
   // ------------------------------------------------------------ checkout
@@ -349,12 +387,15 @@ export class OrdersService {
 
     const fragile = lines.some((line) => line.fragile);
     const oversized = lines.some((line) => line.oversized);
-    const { rate, shippingCost: baseShippingCost } = await this.resolveShipping(
+    const shippingResult = await this.resolveShipping(
       dto.shippingRateId,
+      subtotal,
       totalWeightGram,
+      dto.shippingAddress.countryCode,
       fragile,
       oversized,
     );
+    const baseShippingCost = shippingResult.shippingCost;
     const discountResult = await this.resolveDiscount(dto.discountCode, subtotal, baseShippingCost);
 
     const shippingCost = discountResult?.shippingCost ?? baseShippingCost;
@@ -439,8 +480,8 @@ export class OrdersService {
           total,
           discountId: discountResult?.discount.id ?? null,
           discountCode: discountResult?.discount.code ?? null,
-          shippingName: rate.name,
-          carrier: rate.carrier ?? null,
+          shippingName: shippingResult.name,
+          carrier: shippingResult.carrier,
           totalWeightGram,
           shippingLine1: dto.shippingAddress.line1,
           shippingLine2: dto.shippingAddress.line2 ?? null,
@@ -494,7 +535,32 @@ export class OrdersService {
       },
     });
 
+    await this.sendOrderEmails(order);
+
     return this.toApiOrder(order);
+  }
+
+  private async sendOrderEmails(order: OrderWithRelations): Promise<void> {
+    const emailData = buildOrderEmailData(order);
+    const [notificationSettings, paymentSettings, storeEmail] = await Promise.all([
+      this.settings.getNotificationSettings(),
+      this.settings.getPaymentSettings(),
+      this.settings.getStoreEmail(),
+    ]);
+
+    if (notificationSettings.orderConfirmation) {
+      await this.email.send({
+        to: order.email,
+        subject: `Order ${order.orderNumber} received — payment pending`,
+        html: renderOrderReceivedEmail({ ...emailData, paypalEnabled: paymentSettings.paypalEnabled }),
+      });
+    }
+
+    await this.email.send({
+      to: storeEmail,
+      subject: `New order ${order.orderNumber} — ${order.currency} ${Number(order.total).toFixed(2)}`,
+      html: renderNewOrderAdminEmail({ ...emailData, email: order.email }),
+    });
   }
 
   async track(orderNumber: string, email?: string) {
@@ -602,12 +668,7 @@ export class OrdersService {
   // ------------------------------------------------------------ admin mutations
 
   async update(id: string, dto: UpdateOrderDto, context: AuditContext) {
-    const existing = await this.prisma.order.findUnique({
-      where: { id },
-      include: {
-        items: { include: { product: { select: { id: true, stockModel: true, stockQuantity: true } } } },
-      },
-    });
+    const existing = await this.prisma.order.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Order not found");
 
     const now = new Date();
@@ -650,8 +711,6 @@ export class OrdersService {
       events.push({ type: "payment", message: `Payment status changed from ${existing.paymentStatus} to ${dto.paymentStatus}` });
     }
 
-    const productIds = [...new Set(existing.items.map((item) => item.productId).filter((value): value is string => Boolean(value)))];
-
     const updated = await this.prisma.$transaction(async (tx) => {
       if (events.length) {
         await tx.orderEvent.createMany({
@@ -660,34 +719,11 @@ export class OrdersService {
       }
 
       if (statusChanged && dto.status === "Cancelled") {
-        for (const item of existing.items) {
-          if (!item.productId || !item.product) continue;
-          if (item.product.stockModel === "Quantity") {
-            if (item.variantId) {
-              await tx.productVariant.updateMany({
-                where: { id: item.variantId },
-                data: { stockQuantity: { increment: item.quantity } },
-              });
-            } else if (item.product.stockQuantity !== null) {
-              await tx.product.updateMany({
-                where: { id: item.productId },
-                data: { stockQuantity: { increment: item.quantity } },
-              });
-            }
-          } else {
-            await tx.product.updateMany({
-              where: { id: item.productId, status: { in: ["Reserved", "Sold"] } },
-              data: { status: "Published" },
-            });
-          }
-        }
+        await this.releaseOrderInventory(tx, id);
       }
 
-      if (paymentChanged && dto.paymentStatus === "Paid" && productIds.length) {
-        await tx.product.updateMany({
-          where: { id: { in: productIds }, stockModel: "Unique" },
-          data: { status: "Sold" },
-        });
+      if (paymentChanged && dto.paymentStatus === "Paid") {
+        await this.markUniqueProductsSold(tx, id);
       }
 
       return tx.order.update({ where: { id }, data, include: orderInclude });

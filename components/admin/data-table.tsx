@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Button, EmptyState, SkeletonRows } from "./ui";
 
 export type Column<T> = {
@@ -20,6 +20,8 @@ export function DataTable<T>({
   emptyDescription,
   emptyAction,
   selectable,
+  ariaLabel = "Data table",
+  getRowLabel,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
@@ -32,10 +34,20 @@ export function DataTable<T>({
   emptyDescription?: string;
   emptyAction?: ReactNode;
   selectable?: boolean;
+  ariaLabel?: string;
+  getRowLabel?: (item: T) => string;
   selectedIds?: string[];
   onToggleSelect?: (id: string) => void;
   onToggleSelectAll?: (checked: boolean) => void;
 }) {
+  const allSelected = Boolean(selectable && selectedIds?.length && items.every((item) => selectedIds.includes(rowKey(item))));
+  const someSelected = Boolean(selectable && selectedIds?.length && !allSelected && items.some((item) => selectedIds.includes(rowKey(item))));
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
+  }, [someSelected]);
+
   if (loading) {
     return <SkeletonRows rows={6} />;
   }
@@ -44,19 +56,19 @@ export function DataTable<T>({
     return <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />;
   }
 
-  const allSelected = selectable && selectedIds && items.every((item) => selectedIds.includes(rowKey(item)));
-
   return (
     <div className="rv-table-wrap">
-      <table className="rv-table">
+      <table className="rv-table" aria-label={ariaLabel}>
         <thead>
           <tr>
             {selectable ? (
               <th style={{ width: 40 }}>
                 <input
+                  ref={selectAllRef}
                   type="checkbox"
                   aria-label="Select all"
                   checked={Boolean(allSelected)}
+                  aria-checked={someSelected ? "mixed" : Boolean(allSelected)}
                   onChange={(event) => onToggleSelectAll?.(event.target.checked)}
                 />
               </th>
@@ -77,7 +89,7 @@ export function DataTable<T>({
                   <td>
                     <input
                       type="checkbox"
-                      aria-label={`Select row ${id}`}
+                      aria-label={`Select row ${getRowLabel?.(item) ?? id}`}
                       checked={Boolean(selectedIds?.includes(id))}
                       onChange={() => onToggleSelect?.(id)}
                     />
@@ -114,7 +126,7 @@ export function TablePagination({
   const to = Math.min(total, page * pageSize);
 
   return (
-    <div className="rv-pagination">
+    <nav className="rv-pagination" aria-label="Table pagination">
       <span>
         {from}–{to} of {total}
       </span>
@@ -126,6 +138,6 @@ export function TablePagination({
           Next
         </Button>
       </div>
-    </div>
+    </nav>
   );
 }

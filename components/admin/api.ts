@@ -84,6 +84,7 @@ export type ApiState<T> = {
   data: T | null;
   error: string | null;
   loading: boolean;
+  lastUpdated: Date | null;
   refresh: () => void;
   setData: (updater: T | ((current: T | null) => T | null)) => void;
 };
@@ -92,6 +93,7 @@ export function useApi<T>(path: string | null, options?: { enabled?: boolean }):
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(path));
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [version, setVersion] = useState(0);
   const enabled = options?.enabled ?? true;
 
@@ -102,9 +104,11 @@ export function useApi<T>(path: string | null, options?: { enabled?: boolean }):
     }
     const controller = new AbortController();
     setLoading(true);
+    setError(null);
     apiFetch<T>(path, { signal: controller.signal })
       .then((result) => {
         setData(result);
+        setLastUpdated(new Date());
         setError(null);
       })
       .catch((caught) => {
@@ -117,7 +121,7 @@ export function useApi<T>(path: string | null, options?: { enabled?: boolean }):
 
   const refresh = useCallback(() => setVersion((value) => value + 1), []);
 
-  return { data, error, loading, refresh, setData };
+  return { data, error, loading, lastUpdated, refresh, setData };
 }
 
 export type ListParams = QueryParams & { page?: number; pageSize?: number };
@@ -131,8 +135,18 @@ export type PaginatedResponse<T> = {
 };
 
 export function useList<T>(path: string, initialParams: ListParams = {}) {
-  const [params, setParams] = useState<ListParams>({ page: 1, pageSize: 20, ...initialParams });
-  const [searchInput, setSearchInput] = useState(String(initialParams.search ?? ""));
+  const [params, setParams] = useState<ListParams>(() => {
+    const defaults = { page: 1, pageSize: 20, ...initialParams };
+    if (typeof window === "undefined") return defaults;
+
+    const search = new URLSearchParams(window.location.search);
+    const restored = { ...defaults } as ListParams;
+    for (const [key, value] of search.entries()) {
+      restored[key] = key === "page" || key === "pageSize" ? Number(value) : value;
+    }
+    return restored;
+  });
+  const [searchInput, setSearchInput] = useState(String(params.search ?? ""));
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -144,6 +158,17 @@ export function useList<T>(path: string, initialParams: ListParams = {}) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [searchInput]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === null || value === "") continue;
+      search.set(key, String(value));
+    }
+    const query = search.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+  }, [params]);
 
   const url = useMemo(() => apiUrl(path, params), [path, params]);
   const state = useApi<PaginatedResponse<T>>(url);

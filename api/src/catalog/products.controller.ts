@@ -3,7 +3,7 @@ import type { Response } from "express";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
-import { BulkProductActionDto, CreateProductDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
+import { BulkProductActionDto, CatalogPdfQueryDto, CreateProductDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
 import { ProductsService } from "./products.service";
 
 @Controller("products")
@@ -50,6 +50,14 @@ export class AdminProductsController {
     response.setHeader("Content-Type", "text/csv; charset=utf-8");
     response.setHeader("Content-Disposition", `attachment; filename="rendi-virgo-products-${Date.now()}.csv"`);
     response.send(csv);
+  }
+
+  @Get("catalog.pdf")
+  async exportCatalogPdf(@Query() query: CatalogPdfQueryDto, @Res() response: Response) {
+    const pdf = await this.productsService.exportCatalogPdf(query);
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", `attachment; filename="rendi-virgo-catalog-${Date.now()}.pdf"`);
+    response.send(pdf);
   }
 
   @Post("import")

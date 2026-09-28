@@ -310,3 +310,43 @@ export class ProductQueryDto {
   @IsEnum(["newest", "oldest", "price-asc", "price-desc", "name", "weight-desc"])
   sort?: "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
 }
+
+export class CatalogPdfQueryDto {
+  @IsOptional()
+  @IsString()
+  ids?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === "true" ? true : value === "false" ? false : value))
+  @IsBoolean()
+  all?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === "true" ? true : value === "false" ? false : value))
+  @IsBoolean()
+  includePrice: boolean = true;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @IsOptional()
+  @IsString()
+  stoneType?: string;
+
+  @IsOptional()
+  @IsString()
+  origin?: string;
+
+  @IsOptional()
+  @IsEnum(StoneCondition)
+  condition?: StoneCondition;
+
+  @IsOptional()
+  @IsEnum(["newest", "oldest", "price-asc", "price-desc", "name", "weight-desc"])
+  sort?: "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
+}

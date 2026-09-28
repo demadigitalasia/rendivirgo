@@ -3,13 +3,18 @@ import { Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
+import { EmailService } from "../email/email.service";
+import { renderNewMessageAdminEmail } from "../email/email.templates";
 import { PrismaService } from "../prisma/prisma.service";
+import { SettingsService } from "../settings/settings.service";
 import { CreateMessageDto, MessageQueryDto, UpdateMessageDto } from "./dto/inbox.dto";
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly settings: SettingsService,
+    private readonly email: EmailService,
     private readonly audit: AuditService,
   ) {}
 
@@ -37,6 +42,22 @@ export class MessagesService {
         entityId: message.id,
       },
     });
+
+    const notificationSettings = await this.settings.getNotificationSettings();
+    if (notificationSettings.newMessage) {
+      const storeEmail = await this.settings.getStoreEmail();
+      await this.email.send({
+        to: storeEmail,
+        replyTo: message.email,
+        subject: `New contact message — ${message.subject}`,
+        html: renderNewMessageAdminEmail({
+          name: message.name,
+          email: message.email,
+          subject: message.subject,
+          body: message.body,
+        }),
+      });
+    }
 
     return { ok: true, id: message.id };
   }

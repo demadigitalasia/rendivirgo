@@ -185,6 +185,7 @@ export function mapProduct(item: ApiProduct): Product {
     categorySlug: item.categorySlug,
     stoneType: item.stoneType,
     origin: item.origin,
+    mohsHardness: item.mohsHardness,
     price: item.price,
     currency: "USD",
     unit: item.unit,

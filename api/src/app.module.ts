@@ -9,9 +9,11 @@ import { CatalogModule } from "./catalog/catalog.module";
 import { ContentModule } from "./content/content.module";
 import { CustomersModule } from "./customers/customers.module";
 import { DiscountsModule } from "./discounts/discounts.module";
+import { EmailModule } from "./email/email.module";
 import { HealthModule } from "./health/health.module";
 import { InboxModule } from "./inbox/inbox.module";
 import { OrdersModule } from "./orders/orders.module";
+import { PaymentsModule } from "./payments/payments.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReportsModule } from "./reports/reports.module";
 import { SettingsModule } from "./settings/settings.module";
@@ -23,6 +25,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 300 }]),
     PrismaModule,
     AuditModule,
+    EmailModule,
     AuthModule,
     CatalogModule,
     ContentModule,
@@ -31,6 +34,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     HealthModule,
     InboxModule,
     OrdersModule,
+    PaymentsModule,
     ReportsModule,
     SettingsModule,
     UploadsModule,

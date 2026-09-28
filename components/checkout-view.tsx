@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart, useCopy } from "@/components/providers";
 import { formatUSD } from "@/lib/catalog";
 
@@ -75,6 +76,35 @@ type Discount = {
   message: string;
 };
 
+type PaymentNotice = "cancelled" | "unavailable" | "failed" | "review";
+
+type PaymentResult = {
+  orderId: string;
+  orderNumber: string;
+  total: number;
+  paymentStatus: "Paid" | "Pending";
+  notice?: PaymentNotice;
+};
+
+type StoredOrder = {
+  orderId: string;
+  orderNumber: string;
+  total: number;
+  email: string;
+};
+
+const LAST_ORDER_KEY = "rv.lastOrder";
+
+const readLastOrder = (): StoredOrder | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LAST_ORDER_KEY);
+    return raw ? (JSON.parse(raw) as StoredOrder) : null;
+  } catch {
+    return null;
+  }
+};
+
 const sourceLabel: Record<Quote["source"], string> = {
   CarrierAPI: "API default",
   AdminOverride: "Admin override",
@@ -83,6 +113,7 @@ const sourceLabel: Record<Quote["source"], string> = {
 
 export function CheckoutView() {
   const t = useCopy();
+  const searchParams = useSearchParams();
   const { lines, subtotal, totalWeight, clearCart } = useCart();
 
   const [country, setCountry] = useState("United States");
@@ -104,12 +135,16 @@ export function CheckoutView() {
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [discountLoading, setDiscountLoading] = useState(false);
   const [placing, setPlacing] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState<{ orderNumber: string; total: number } | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const [result, setResult] = useState<PaymentResult | null>(null);
+  const handledReturn = useRef(false);
 
   const countryCode = useMemo(() => countries.find((item) => item.name === country)?.code ?? "", [country]);
   const hasFragile = lines.some((line) => line.fragile);
-  const shippingClass = hasFragile ? "Fragile" : lines.some((line) => line.shipping.shippingClass === "Oversized") ? "Oversized" : "Standard";
+  const hasOversized = lines.some((line) => line.shipping.shippingClass === "Oversized");
 
   const loadQuote = useCallback(async () => {
     if (!lines.length) return;
@@ -118,9 +153,23 @@ export function CheckoutView() {
       const response = await fetch("/api/shipping/quote", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ weightGram: totalWeight, subtotal, countryCode, shippingClass }),
+        body: JSON.stringify({
+          weightGram: totalWeight,
+          subtotal,
+          countryCode,
+          fragile: hasFragile,
+          oversized: hasOversized,
+        }),
       });
+      if (!response.ok) {
+        setQuote(null);
+        return;
+      }
       const payload = (await response.json()) as Quote;
+      if (!Array.isArray(payload?.options)) {
+        setQuote(null);
+        return;
+      }
       setQuote(payload);
       setSelectedRateId((current) => {
         if (payload.options.some((option) => option.id === current)) return current;
@@ -131,7 +180,7 @@ export function CheckoutView() {
     } finally {
       setQuoteLoading(false);
     }
-  }, [lines.length, totalWeight, subtotal, countryCode, shippingClass]);
+  }, [lines.length, totalWeight, subtotal, countryCode, hasFragile, hasOversized]);
 
   useEffect(() => {
     void loadQuote();
@@ -141,6 +190,108 @@ export function CheckoutView() {
   const shippingCost = discount?.freeShipping ? 0 : (selectedOption?.price ?? 0);
   const discountTotal = discount?.valid ? discount.discountAmount : 0;
   const total = Math.max(0, subtotal - discountTotal) + shippingCost;
+
+  const startPayment = useCallback(
+    async (orderId: string, orderNumber: string, orderTotal: number) => {
+      setRedirecting(true);
+      setPaymentError(null);
+      try {
+        const response = await fetch("/api/payments/paypal/orders", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as { approveUrl?: string; message?: string };
+        if (!response.ok || !payload.approveUrl) {
+          setResult({
+            orderId,
+            orderNumber,
+            total: orderTotal,
+            paymentStatus: "Pending",
+            notice: response.status === 503 ? "unavailable" : "failed",
+          });
+          return;
+        }
+        window.location.assign(payload.approveUrl);
+      } catch {
+        setResult({ orderId, orderNumber, total: orderTotal, paymentStatus: "Pending", notice: "failed" });
+      } finally {
+        setRedirecting(false);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (handledReturn.current) return;
+    const mode = searchParams.get("paypal");
+    if (!mode) return;
+    handledReturn.current = true;
+
+    const orderId = searchParams.get("orderId") ?? readLastOrder()?.orderId ?? "";
+    const token = searchParams.get("token") ?? "";
+
+    if (mode === "cancel") {
+      const stored = readLastOrder();
+      if (orderId && stored && stored.orderId === orderId) {
+        setResult({
+          orderId: stored.orderId,
+          orderNumber: stored.orderNumber,
+          total: stored.total,
+          paymentStatus: "Pending",
+          notice: "cancelled",
+        });
+      } else if (orderId) {
+        setResult({ orderId, orderNumber: "", total: 0, paymentStatus: "Pending", notice: "cancelled" });
+      }
+      return;
+    }
+
+    if (mode !== "return" || !token) return;
+
+    setCapturing(true);
+    void (async () => {
+      try {
+        const response = await fetch("/api/payments/paypal/capture", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ paypalOrderId: token }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          status?: string;
+          orderId?: string;
+          orderNumber?: string;
+          total?: number;
+          message?: string;
+        };
+        if (!response.ok) throw new Error(payload?.message ?? "capture failed");
+
+        const stored = readLastOrder();
+        const paid = payload.status === "Paid";
+        setResult({
+          orderId: payload.orderId ?? orderId,
+          orderNumber: payload.orderNumber ?? stored?.orderNumber ?? "",
+          total: Number(payload.total ?? stored?.total ?? 0),
+          paymentStatus: paid ? "Paid" : "Pending",
+          notice: paid ? undefined : "review",
+        });
+        clearCart();
+        if (paid) window.localStorage.removeItem(LAST_ORDER_KEY);
+      } catch {
+        const stored = readLastOrder();
+        setPaymentError(t.checkout.paymentFailed);
+        setResult({
+          orderId: stored?.orderId ?? orderId,
+          orderNumber: stored?.orderNumber ?? "",
+          total: stored?.total ?? 0,
+          paymentStatus: "Pending",
+          notice: "failed",
+        });
+      } finally {
+        setCapturing(false);
+      }
+    })();
+  }, [searchParams, clearCart, t]);
 
   const applyDiscount = async () => {
     const code = discountInput.trim();
@@ -202,14 +353,28 @@ export function CheckoutView() {
           items: lines.map((line) => ({ productId: line.id, variantId: line.variantId, quantity: line.quantity })),
         }),
       });
-      const payload = (await response.json()) as { orderNumber?: string; total?: number; message?: string | string[] };
-      if (!response.ok) {
+      const payload = (await response.json()) as {
+        id?: string;
+        orderNumber?: string;
+        total?: number;
+        message?: string | string[];
+      };
+      if (!response.ok || !payload.id || !payload.orderNumber) {
         const raw = payload?.message;
         setOrderError(Array.isArray(raw) ? raw.join(", ") : (raw ?? t.checkout.orderError));
         return;
       }
-      setConfirmed({ orderNumber: payload.orderNumber ?? "", total: Number(payload.total ?? total) });
+
+      const orderTotal = Number(payload.total ?? total);
+      const stored: StoredOrder = {
+        orderId: payload.id,
+        orderNumber: payload.orderNumber,
+        total: orderTotal,
+        email,
+      };
+      window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(stored));
       clearCart();
+      await startPayment(stored.orderId, stored.orderNumber, stored.total);
     } catch {
       setOrderError(t.checkout.orderError);
     } finally {
@@ -217,7 +382,68 @@ export function CheckoutView() {
     }
   };
 
-  if (!lines.length && !confirmed) {
+  if (capturing || redirecting) {
+    return (
+      <div className="page-container content-page">
+        <div className="success-state">
+          <div className="eyebrow">{t.checkout.eyebrow}</div>
+          <h2>{capturing ? t.checkout.processingTitle : t.checkout.redirecting}</h2>
+          <p className="muted">{t.checkout.processingBody}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (result) {
+    const paid = result.paymentStatus === "Paid";
+    const canRetry = result.notice === "cancelled" || result.notice === "failed";
+    const pendingMessage =
+      result.notice === "unavailable"
+        ? t.checkout.paypalUnavailable
+        : result.notice === "cancelled"
+          ? t.checkout.paymentCancelled
+          : result.notice === "review"
+            ? t.checkout.paymentPendingReview
+            : result.notice === "failed"
+              ? t.checkout.paymentFailed
+              : t.checkout.successPending;
+
+    return (
+      <div className="page-container content-page">
+        <div className="success-state">
+          <div className="eyebrow">{paid ? t.checkout.successEyebrow : t.checkout.pendingEyebrow}</div>
+          <h2>{result.orderNumber ? t.checkout.successOrder(result.orderNumber) : t.checkout.successTitle}</h2>
+          <p>{paid ? t.checkout.successPaid : pendingMessage}</p>
+          {paid ? <p style={{ marginTop: 8 }}>{t.checkout.ordersEmailNote}</p> : null}
+          {paymentError ? (
+            <p className="form-status form-status--error" role="alert">
+              {paymentError}
+            </p>
+          ) : null}
+          {result.total > 0 ? (
+            <p style={{ marginTop: 12 }}>
+              <strong>{formatUSD(result.total)}</strong>
+            </p>
+          ) : null}
+          {!paid && canRetry && result.orderId ? (
+            <button
+              type="button"
+              className="button"
+              style={{ marginTop: 18 }}
+              onClick={() => void startPayment(result.orderId, result.orderNumber, result.total)}
+            >
+              {result.notice === "failed" ? t.checkout.retryPayment : t.checkout.payNow(formatUSD(result.total))}
+            </button>
+          ) : null}
+          <Link href="/shop" className="button" style={{ marginTop: 18 }}>
+            {t.checkout.continue}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!lines.length) {
     return (
       <div className="page-container content-page">
         <div className="eyebrow">{t.checkout.eyebrow}</div>
@@ -228,26 +454,6 @@ export function CheckoutView() {
         <Link href="/shop" className="button">
           {t.checkout.browse}
         </Link>
-      </div>
-    );
-  }
-
-  if (confirmed) {
-    return (
-      <div className="page-container content-page">
-        <div className="success-state">
-          <div className="eyebrow">{t.checkout.successEyebrow}</div>
-          <h2>{t.checkout.successOrder(confirmed.orderNumber)}</h2>
-          <p>
-            {t.checkout.successBody} {t.checkout.paymentPending}
-          </p>
-          <p style={{ marginTop: 12 }}>
-            <strong>{formatUSD(confirmed.total)}</strong>
-          </p>
-          <Link href="/shop" className="button" style={{ marginTop: 20 }}>
-            {t.checkout.continue}
-          </Link>
-        </div>
       </div>
     );
   }
@@ -321,11 +527,11 @@ export function CheckoutView() {
           </div>
 
           <div className="field">
-            <label>{t.checkout.shippingTitle}</label>
+            <label id="shipping-method-label">{t.checkout.shippingTitle}</label>
             {quoteLoading ? (
               <p className="muted">{t.checkout.shippingCalculating}</p>
             ) : quote?.options.length ? (
-              <div className="shipping-options">
+              <div className="shipping-options" role="radiogroup" aria-labelledby="shipping-method-label">
                 {quote.options.map((option) => (
                   <label key={option.id} className={`shipping-option ${selectedRateId === option.id ? "is-selected" : ""}`}>
                     <input
@@ -361,6 +567,12 @@ export function CheckoutView() {
                 name="discount"
                 value={discountInput}
                 onChange={(event) => setDiscountInput(event.target.value.toUpperCase())}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (!discountLoading && discountInput.trim()) void applyDiscount();
+                  }
+                }}
                 placeholder="WELCOME10"
               />
               {discount?.valid ? (
@@ -383,10 +595,14 @@ export function CheckoutView() {
 
           <div className="payment-box">
             <strong>{t.checkout.paypalTitle}</strong>
-            <span>{country === "Indonesia" ? t.checkout.paypalDomestic : t.checkout.paypalInternational}</span>
+            <span>{t.checkout.paypalRedirectHint}</span>
           </div>
 
-          {orderError ? <p className="form-status form-status--error">{orderError}</p> : null}
+          {orderError ? (
+            <p className="form-status form-status--error" role="alert">
+              {orderError}
+            </p>
+          ) : null}
 
           <button className="button button--full" type="submit" disabled={placing || !selectedOption}>
             {placing ? t.checkout.placing : t.checkout.placeOrder(formatUSD(total))}
@@ -415,7 +631,13 @@ export function CheckoutView() {
           ) : null}
           <div className="summary-row">
             <span>{t.checkout.shipping}</span>
-            <strong>{shippingCost === 0 ? t.checkout.freeShipping : formatUSD(shippingCost)}</strong>
+            <strong>
+              {selectedOption
+                ? shippingCost === 0
+                  ? t.checkout.freeShipping
+                  : formatUSD(shippingCost)
+                : "—"}
+            </strong>
           </div>
           <div className="summary-row summary-row--total">
             <span>{t.checkout.total}</span>

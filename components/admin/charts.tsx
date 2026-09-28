@@ -8,10 +8,12 @@ export function BarChart({
   data,
   formatValue = (value: number) => formatNumber(value),
   height = 220,
+  ariaLabel = "Bar chart",
 }: {
   data: ChartPoint[];
   formatValue?: (value: number) => string;
   height?: number;
+  ariaLabel?: string;
 }) {
   if (!data.length) {
     return <p className="rv-hint">No data for this period yet.</p>;
@@ -20,7 +22,8 @@ export function BarChart({
   const max = Math.max(...data.map((point) => point.value), 1);
 
   return (
-    <div className="rv-bars" style={{ height }}>
+    <>
+      <div className="rv-bars" style={{ height }} role="img" aria-label={ariaLabel}>
       {data.map((point) => (
         <div className="rv-bars__item" key={point.label} title={`${point.label}: ${formatValue(point.value)}`}>
           <span className="rv-hint" style={{ fontSize: "0.68rem" }}>
@@ -30,11 +33,25 @@ export function BarChart({
           <span className="rv-bars__label">{point.label}</span>
         </div>
       ))}
-    </div>
+      </div>
+      <ul className="rv-sr-only" aria-label={`${ariaLabel} data points`}>
+        {data.map((point) => <li key={point.label}>{point.label}: {formatValue(point.value)}</li>)}
+      </ul>
+    </>
   );
 }
 
-export function LineChart({ data, height = 200 }: { data: ChartPoint[]; height?: number }) {
+export function LineChart({
+  data,
+  height = 200,
+  ariaLabel = "Trend chart",
+  formatValue = (value: number) => formatNumber(value),
+}: {
+  data: ChartPoint[];
+  height?: number;
+  ariaLabel?: string;
+  formatValue?: (value: number) => string;
+}) {
   if (data.length < 2) {
     return <p className="rv-hint">Not enough data to draw a trend yet.</p>;
   }
@@ -53,12 +70,12 @@ export function LineChart({ data, height = 200 }: { data: ChartPoint[]; height?:
   const area = `${path} L${points[points.length - 1].x.toFixed(1)},${height - padding} L${points[0].x.toFixed(1)},${height - padding} Z`;
 
   return (
-    <svg className="rv-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="Trend chart">
+    <svg className="rv-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={ariaLabel}>
       <path d={area} fill="rgba(71, 125, 104, 0.14)" />
       <path d={path} fill="none" stroke="#477d68" strokeWidth="2" />
       {points.map((point) => (
         <circle key={point.label} cx={point.x} cy={point.y} r="2.5" fill="#103b2c">
-          <title>{`${point.label}: ${formatNumber(point.value)}`}</title>
+          <title>{`${point.label}: ${formatValue(point.value)}`}</title>
         </circle>
       ))}
     </svg>

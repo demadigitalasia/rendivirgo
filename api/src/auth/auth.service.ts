@@ -2,10 +2,13 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import * as bcrypt from "bcryptjs";
+import { EmailService } from "../email/email.service";
+import { renderPasswordResetEmail } from "../email/email.templates";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AuthenticatedAdmin } from "../common/types/authenticated-request";
 
 export const SESSION_COOKIE_NAME = "rv_admin_session";
+const RESET_TOKEN_TTL_MINUTES = 30;
 
 export type SessionContext = {
   ip?: string | null;
@@ -20,6 +23,7 @@ export class AuthService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly email: EmailService,
   ) {
     this.ttlHours = Number(this.config.get("SESSION_TTL_HOURS") ?? 12);
   }
@@ -34,8 +38,15 @@ export class AuthService implements OnModuleInit {
 
   private async ensureBootstrapAdmin() {
     const email = (this.config.get<string>("ADMIN_EMAIL") ?? "admin@rendivirgo.com").toLowerCase();
-    const password = this.config.get<string>("ADMIN_PASSWORD") ?? "RendiVirgo!2026";
+    const password = this.config.get<string>("ADMIN_PASSWORD");
     const name = this.config.get<string>("ADMIN_NAME") ?? "Rendi Virgo";
+
+    if (!password) {
+      throw new Error("ADMIN_PASSWORD must be configured before the API can bootstrap an admin account");
+    }
+    if (password.length < 12) {
+      throw new Error("ADMIN_PASSWORD must be at least 12 characters long");
+    }
 
     const existing = await this.prisma.admin.findUnique({ where: { email } });
     if (existing) return;
@@ -152,6 +163,65 @@ export class AuthService implements OnModuleInit {
       },
       select: { id: true, email: true, name: true, avatarUrl: true, totpEnabled: true },
     });
+  }
+
+  // ------------------------------------------------------------ password reset
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const admin = await this.prisma.admin.findUnique({ where: { email: email.trim().toLowerCase() } });
+    if (!admin) {
+      this.logger.warn(`Password reset requested for unknown email ${email}`);
+      return;
+    }
+
+    const token = randomBytes(32).toString("base64url");
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: {
+        resetTokenHash: this.hashToken(token),
+        resetTokenExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000),
+      },
+    });
+
+    const origin = (this.config.get<string>("APP_ORIGIN") ?? "http://localhost:3000")
+      .split(",")[0]
+      .trim()
+      .replace(/\/+$/, "");
+    const link = `${origin}/admin/reset-password?token=${encodeURIComponent(token)}`;
+
+    await this.email.send({
+      to: admin.email,
+      subject: "Reset your RENDI VIRGO admin password",
+      html: renderPasswordResetEmail({ name: admin.name, link, expiresMinutes: RESET_TOKEN_TTL_MINUTES }),
+    });
+
+    this.logger.log(`Password reset link issued for ${admin.email}`);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const admin = await this.prisma.admin.findFirst({
+      where: {
+        resetTokenHash: this.hashToken(token.trim()),
+        resetTokenExpiresAt: { gt: new Date() },
+      },
+    });
+    if (!admin) return false;
+
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: {
+        passwordHash: await bcrypt.hash(newPassword, 12),
+        resetTokenHash: null,
+        resetTokenExpiresAt: null,
+      },
+    });
+    await this.prisma.adminSession.updateMany({
+      where: { adminId: admin.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    this.logger.log(`Password reset completed for ${admin.email}; all sessions revoked`);
+    return true;
   }
 
   safeCompare(a: string, b: string) {

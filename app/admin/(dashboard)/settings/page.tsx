@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi, type ApiState } from "@/components/admin/api";
 import { toast } from "@/components/admin/toast";
-import { Button, Card, Field, Loading, PageHeader, Switch, Tabs, TextArea, TextInput } from "@/components/admin/ui";
+import { Badge, Button, Card, Field, Loading, PageHeader, Switch, Tabs, TextArea, TextInput } from "@/components/admin/ui";
 
 type GroupedSettings = Record<"general" | "seo" | "notifications" | "payments", Record<string, unknown>>;
 
@@ -110,6 +110,7 @@ export default function AdminSettingsPage() {
   const [form, setForm] = useState<SettingsForm>(emptyForm);
   const [saved, setSaved] = useState<SettingsForm>(emptyForm);
   const [busy, setBusy] = useState(false);
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved);
 
   useEffect(() => {
     if (!state.data) return;
@@ -120,6 +121,16 @@ export default function AdminSettingsPage() {
 
   const update = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warnBeforeLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeave);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeave);
+  }, [dirty]);
 
   const save = async () => {
     const payload: Record<string, unknown> = {};
@@ -201,7 +212,8 @@ export default function AdminSettingsPage() {
             <Button onClick={state.refresh} disabled={state.loading}>
               Refresh
             </Button>
-            <Button variant="primary" loading={busy} disabled={!data} onClick={save}>
+            {dirty ? <Badge tone="amber">Unsaved changes</Badge> : null}
+            <Button variant="primary" loading={busy} disabled={!data || !dirty} onClick={save}>
               Save changes
             </Button>
           </div>

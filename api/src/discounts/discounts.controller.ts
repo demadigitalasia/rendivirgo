@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
@@ -10,6 +11,7 @@ export class DiscountsController {
   constructor(private readonly discountsService: DiscountsService) {}
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post("validate")
   validate(@Body() dto: ValidateDiscountDto) {
     return this.discountsService.validate(dto);

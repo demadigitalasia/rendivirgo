@@ -39,6 +39,7 @@ export type Product = {
   categorySlug: string;
   stoneType: string;
   origin: string;
+  mohsHardness?: number | null;
   price: number;
   currency: "USD";
   unit: Unit;

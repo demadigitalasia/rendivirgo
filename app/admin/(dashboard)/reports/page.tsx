@@ -255,13 +255,18 @@ function SalesTab({
           </div>
 
           <Card title="Revenue trend" actions={<Badge tone="green">{data.groupBy}</Badge>}>
-            <LineChart data={data.series.map((point) => ({ label: point.label, value: point.revenue }))} />
+            <LineChart
+              data={data.series.map((point) => ({ label: point.label, value: point.revenue }))}
+              ariaLabel="Revenue by period in USD"
+              formatValue={(value) => formatUSD(value)}
+            />
           </Card>
 
           <Card title="Orders per period">
             <BarChart
               data={data.series.map((point) => ({ label: point.label, value: point.orders }))}
               formatValue={(value) => formatNumber(value)}
+              ariaLabel="Orders by period"
             />
           </Card>
 
@@ -366,6 +371,7 @@ function ProductsTab({ range }: { range: RangeValue }) {
               <BarChart
                 data={data.categoryRevenue.slice(0, 8).map((category) => ({ label: category.name, value: category.revenue }))}
                 formatValue={(value) => formatUSD(value, { maximumFractionDigits: 0 })}
+                ariaLabel="Revenue by category in USD"
               />
             </Card>
 
@@ -477,6 +483,7 @@ function CustomersTab({ range }: { range: RangeValue }) {
                 ]}
                 formatValue={(value) => formatNumber(value)}
                 height={160}
+                ariaLabel="New versus repeat customers"
               />
             </Card>
           </div>
@@ -525,6 +532,7 @@ function TrafficTab() {
                 <BarChart
                   data={data.series.map((point) => ({ label: point.label, value: point.value }))}
                   formatValue={(value) => formatNumber(value)}
+                  ariaLabel="Traffic by period"
                 />
               ) : (
                 <p className="rv-hint">No traffic data for this period.</p>

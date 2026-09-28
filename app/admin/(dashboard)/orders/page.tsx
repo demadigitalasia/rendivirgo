@@ -171,8 +171,10 @@ export default function AdminOrdersPage() {
             items={data?.items ?? []}
             loading={state.loading && !data}
             rowKey={(order) => order.id}
+            ariaLabel="Orders"
             emptyTitle="No orders found"
             emptyDescription={hasFilters ? "Try adjusting the filters." : "Orders will appear here as customers check out."}
+            emptyAction={hasFilters ? <Button size="sm" onClick={state.reset}>Clear filters</Button> : <Button size="sm" href="/admin/products">View products</Button>}
           />
 
           {data ? (

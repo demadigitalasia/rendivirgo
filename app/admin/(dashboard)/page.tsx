@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useApi, formatDate, formatNumber, formatUSD, type ApiState } from "@/components/admin/api";
+import { useApi, formatDate, formatDateTime, formatNumber, formatUSD, type ApiState } from "@/components/admin/api";
 import { BarChart } from "@/components/admin/charts";
 import { Badge, Button, Card, Loading, PageHeader, Stat, StatusBadge } from "@/components/admin/ui";
 
@@ -10,9 +10,20 @@ type Overview = {
   range: string;
   from: string;
   to: string;
+  generatedAt: string;
+  comparison: {
+    from: string;
+    to: string;
+    revenue: number;
+    orders: number;
+    allOrders: number;
+    newCustomers: number;
+    paidOrders: number;
+  };
   kpis: {
     revenue: number;
     orders: number;
+    allOrders: number;
     avgOrderValue: number;
     newCustomers: number;
     pendingOrders: number;
@@ -52,6 +63,37 @@ const ranges = [
   { value: "12m", label: "12 months" },
 ];
 
+function compactSeries(series: Overview["salesSeries"], range: string) {
+  if (range !== "30d" || series.length < 14) return series;
+
+  return Array.from({ length: Math.ceil(series.length / 7) }, (_, index) => {
+    const bucket = series.slice(index * 7, index * 7 + 7);
+    const first = bucket[0];
+    const last = bucket[bucket.length - 1];
+    return {
+      label: `${first.label.slice(5)}–${last.label.slice(5)}`,
+      revenue: bucket.reduce((total, point) => total + point.revenue, 0),
+      orders: bucket.reduce((total, point) => total + point.orders, 0),
+    };
+  });
+}
+
+function changePercent(current: number, previous: number) {
+  if (previous === 0) return current === 0 ? "No change" : "New";
+  const percent = ((current - previous) / Math.abs(previous)) * 100;
+  return `${percent >= 0 ? "+" : ""}${percent.toFixed(1)}%`;
+}
+
+function MetricHint({ current, previous, detail }: { current: number; previous: number; detail: string }) {
+  const change = changePercent(current, previous);
+  const tone = change.startsWith("-") ? "rv-kpi-delta rv-kpi-delta--down" : "rv-kpi-delta rv-kpi-delta--up";
+  return (
+    <span>
+      {detail} · <span className={tone}>{change} vs previous period</span>
+    </span>
+  );
+}
+
 export default function AdminDashboardPage() {
   const [range, setRange] = useState("30d");
   const state: ApiState<Overview> = useApi<Overview>(`/api/admin/reports/overview?range=${range}`);
@@ -90,36 +132,98 @@ export default function AdminDashboardPage() {
         ) : null}
 
         {state.error ? (
-          <Card title="Could not load dashboard">
+          <Card title={data ? "Dashboard update failed" : "Could not load dashboard"}>
             <p className="rv-error-text">{state.error}</p>
+            {data ? <p className="rv-hint">Showing the last successful snapshot. Try refresh again before making decisions.</p> : null}
+            <Button size="sm" onClick={state.refresh}>Try again</Button>
           </Card>
         ) : null}
 
         {data ? (
           <>
-            <div className="rv-stat-grid">
-              <Stat label="Revenue" value={formatUSD(data.kpis.revenue)} hint="Paid orders in range, net of refunds" />
-              <Stat label="Orders" value={formatNumber(data.kpis.orders)} hint={`Average ${formatUSD(data.kpis.avgOrderValue)}`} />
-              <Stat label="New customers" value={formatNumber(data.kpis.newCustomers)} hint="First purchase or signup in range" />
-              <Stat label="Pending orders" value={formatNumber(data.kpis.pendingOrders)} hint="New and processing" />
-              <Stat label="Unread messages" value={formatNumber(data.kpis.unreadMessages)} hint="Contact form inbox" />
-              <Stat label="Low stock" value={formatNumber(data.kpis.lowStockCount)} hint="Quantity items at 3 or fewer" />
-            </div>
-
-            <Card
-              title="Revenue trend"
-              description="Paid orders, net of refunds"
-              actions={<Badge tone="green">{range}</Badge>}
-            >
-              <BarChart
-                data={data.salesSeries.map((point) => ({ label: point.label, value: point.revenue }))}
-                formatValue={(value) => formatUSD(value, { maximumFractionDigits: 0 })}
+            <section className="rv-dashboard-section" aria-labelledby="core-performance-heading">
+              <div className="rv-dashboard-section__heading">
+                <div>
+                  <h2 id="core-performance-heading" className="rv-dashboard-section__title">Core performance</h2>
+                  <p className="rv-dashboard-section__hint">Selected period · revenue, paid orders, and new customers.</p>
+                </div>
+              </div>
+              <div className="rv-stat-grid rv-stat-grid--primary">
+              <Stat
+                label="Revenue"
+                value={formatUSD(data.kpis.revenue)}
+                hint={<MetricHint current={data.kpis.revenue} previous={data.comparison.revenue} detail="Net paid orders" />}
+                tone="primary"
               />
+              <Stat
+                label="Paid orders"
+                value={formatNumber(data.kpis.orders)}
+                hint={<MetricHint current={data.kpis.orders} previous={data.comparison.orders} detail={`All orders ${formatNumber(data.kpis.allOrders)} · Average ${formatUSD(data.kpis.avgOrderValue)}`} />}
+                tone="primary"
+              />
+              <Stat
+                label="New customers"
+                value={formatNumber(data.kpis.newCustomers)}
+                hint={<MetricHint current={data.kpis.newCustomers} previous={data.comparison.newCustomers} detail="First purchase or signup" />}
+                tone="primary"
+              />
+              </div>
+            </section>
+
+            <section className="rv-dashboard-section rv-dashboard-section--attention" aria-labelledby="needs-attention-heading">
+              <div className="rv-dashboard-section__heading">
+                <div>
+                  <h2 id="needs-attention-heading" className="rv-dashboard-section__title">Needs attention</h2>
+                  <p className="rv-dashboard-section__hint">Current operating state · independent of the selected period.</p>
+                </div>
+              </div>
+              <div className="rv-stat-grid rv-stat-grid--attention">
+                <Stat href="/admin/orders" label="Pending orders" value={formatNumber(data.kpis.pendingOrders)} hint="New and processing · Open orders" tone="attention" />
+                <Stat href="/admin/messages" label="Unread messages" value={formatNumber(data.kpis.unreadMessages)} hint="Contact form inbox · Open inbox" tone="attention" />
+                <Stat href="/admin/products" label="Low stock" value={formatNumber(data.kpis.lowStockCount)} hint="Quantity items at 3 or fewer · Review stock" tone="danger" />
+              </div>
+            </section>
+
+            <Card className="rv-card--priority" title="Quick actions" description="Common tasks for the current operating day">
+              <div className="rv-inline">
+                <Button variant="primary" href="/admin/products/new">New product</Button>
+                <Button href="/admin/orders">Review orders ({formatNumber(data.kpis.pendingOrders)})</Button>
+                <Button href="/admin/messages">Open inbox ({formatNumber(data.kpis.unreadMessages)})</Button>
+                <Button href="/admin/products">Review stock ({formatNumber(data.kpis.lowStockCount)})</Button>
+              </div>
             </Card>
+
+            <div className="rv-split rv-split--charts">
+              <Card
+                title="Revenue trend"
+                description={`Net paid orders · ${range === "30d" ? "weekly" : "period"} view · USD`}
+                actions={<Badge tone="green">{range}</Badge>}
+              >
+                <BarChart
+                  data={compactSeries(data.salesSeries, range).map((point) => ({ label: point.label, value: point.revenue }))}
+                  formatValue={(value) => formatUSD(value, { maximumFractionDigits: 0 })}
+                  ariaLabel={`Revenue by period for ${range}, in USD`}
+                  height={180}
+                />
+              </Card>
+              <Card
+                title="Orders trend"
+                description={`Paid orders · ${range === "30d" ? "weekly" : "period"} view · count`}
+                actions={<Badge tone="blue">{range}</Badge>}
+              >
+                <BarChart
+                  data={compactSeries(data.salesSeries, range).map((point) => ({ label: point.label, value: point.orders }))}
+                  formatValue={(value) => formatNumber(value)}
+                  ariaLabel={`Paid orders by period for ${range}`}
+                  height={180}
+                />
+              </Card>
+            </div>
 
             <div className="rv-split">
               <Card
                 title="Recent orders"
+                description="Current snapshot · latest orders across the store"
                 flush
                 actions={
                   <Link className="rv-btn rv-btn--sm" href="/admin/orders">
@@ -148,7 +252,7 @@ export default function AdminDashboardPage() {
               </Card>
 
               <div className="rv-stack">
-                <Card title="Order pipeline" flush>
+                <Card title="Order pipeline" description="Current snapshot · all order statuses" flush>
                   <div className="rv-list">
                     {data.statusBreakdown
                       .filter((entry) => entry.count > 0)
@@ -164,7 +268,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </Card>
 
-                <Card title="Low stock & aged unique pieces" flush>
+                <Card title="Low stock & aged unique pieces" description="Current inventory snapshot" flush>
                   <div className="rv-list">
                     {data.lowStock.length ? (
                       data.lowStock.map((product) => (
@@ -193,7 +297,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="rv-split">
-              <Card title="Top products" flush>
+              <Card title="Top products" description="Selected period · paid orders" flush>
                 <div className="rv-table-wrap">
                   <table className="rv-table">
                     <thead>
@@ -227,7 +331,7 @@ export default function AdminDashboardPage() {
                 </div>
               </Card>
 
-              <Card title="Revenue by category" flush>
+              <Card title="Revenue by category" description="Selected period · paid orders" flush>
                 <div className="rv-list">
                   {data.categoryRevenue.length ? (
                     data.categoryRevenue.slice(0, 8).map((category) => (
@@ -247,8 +351,8 @@ export default function AdminDashboardPage() {
             </div>
 
             <p className="rv-hint">
-              Range: {formatDate(data.from)} – {formatDate(data.to)}. {data.kpis.soldUniqueCount} unique piece(s) sold in this
-              range.
+              Selected period: {formatDate(data.from)} – {formatDate(data.to)} · previous period: {formatDate(data.comparison.from)} – {formatDate(data.comparison.to)}. Current operations are live snapshot data. {data.kpis.soldUniqueCount} unique piece(s) sold in the selected
+              period. Last updated: {formatDateTime(state.lastUpdated ?? data.generatedAt)}.
             </p>
           </>
         ) : null}

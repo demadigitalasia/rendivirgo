@@ -10,3 +10,6 @@ coverage/
 .env.*.local
 .refact/
 tsconfig.tsbuildinfo
+
+output/
+tmp/

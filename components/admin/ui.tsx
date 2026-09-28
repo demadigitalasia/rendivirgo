@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from "react";
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
@@ -87,7 +87,7 @@ export function Button({
   }
 
   return (
-    <button className={classes} type={type} onClick={onClick} disabled={disabled || loading}>
+    <button className={classes} type={type} onClick={onClick} disabled={disabled || loading} aria-busy={loading || undefined}>
       {loading ? <span className="rv-spinner" /> : null}
       {children}
     </button>
@@ -130,23 +130,55 @@ export function StatusBadge({ status }: { status: string | null | undefined }) {
 
 export function Field({
   label,
+  inputId,
   hint,
   error,
   children,
   className,
 }: {
   label: string;
+  inputId?: string;
   hint?: string;
   error?: string;
   children: ReactNode;
   className?: string;
 }) {
+  const generatedId = `rv-field-${useId().replace(/:/g, "")}`;
+  const fallbackId = inputId ?? generatedId;
+  let controlId = fallbackId;
+  let control = children;
+  let managedControl = false;
+
+  if (isValidElement(children)) {
+    const child = children as ReactElement<Record<string, unknown>>;
+    const childProps = child.props;
+    controlId = typeof childProps.id === "string" ? childProps.id : fallbackId;
+    const isNativeControl = typeof child.type === "string" && ["input", "select", "textarea"].includes(child.type);
+    const isManagedControl = child.type === TextInput || child.type === Select || child.type === TextArea;
+    managedControl = isNativeControl || isManagedControl;
+
+    if (managedControl) {
+      const describedBy = [hint ? `${controlId}-hint` : "", error ? `${controlId}-error` : ""].filter(Boolean).join(" ") || undefined;
+      control = isNativeControl
+        ? cloneElement(child, {
+            id: controlId,
+            "aria-describedby": childProps["aria-describedby"] ?? describedBy,
+            "aria-invalid": childProps["aria-invalid"] ?? (error ? true : undefined),
+          })
+        : cloneElement(child, {
+            id: controlId,
+            ariaDescribedBy: childProps.ariaDescribedBy ?? describedBy,
+            ariaInvalid: childProps.ariaInvalid ?? (error ? true : undefined),
+          });
+    }
+  }
+
   return (
     <div className={className ? `rv-field ${className}` : "rv-field"}>
-      <label className="rv-label">{label}</label>
-      {children}
-      {hint ? <span className="rv-hint">{hint}</span> : null}
-      {error ? <span className="rv-error-text">{error}</span> : null}
+      <label className="rv-label" htmlFor={managedControl || inputId ? controlId : undefined}>{label}</label>
+      {control}
+      {hint ? <span id={`${controlId}-hint`} className="rv-hint">{hint}</span> : null}
+      {error ? <span id={`${controlId}-error`} className="rv-error-text" role="alert">{error}</span> : null}
     </div>
   );
 }
@@ -161,6 +193,10 @@ export function TextInput({
   step,
   disabled,
   id,
+  name,
+  required,
+  ariaInvalid,
+  ariaDescribedBy,
   autoComplete,
 }: {
   value: string | number;
@@ -172,6 +208,10 @@ export function TextInput({
   step?: number | string;
   disabled?: boolean;
   id?: string;
+  name?: string;
+  required?: boolean;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
   autoComplete?: string;
 }) {
   return (
@@ -180,11 +220,15 @@ export function TextInput({
       className="rv-input"
       type={type}
       value={value}
+      name={name}
       placeholder={placeholder}
       min={min}
       max={max}
       step={step}
       disabled={disabled}
+      required={required}
+      aria-invalid={ariaInvalid || undefined}
+      aria-describedby={ariaDescribedBy}
       autoComplete={autoComplete}
       onChange={(event) => onChange(event.target.value)}
     />
@@ -197,19 +241,34 @@ export function TextArea({
   rows,
   placeholder,
   code,
+  id,
+  name,
+  required,
+  ariaInvalid,
+  ariaDescribedBy,
 }: {
   value: string;
   onChange: (value: string) => void;
   rows?: number;
   placeholder?: string;
   code?: boolean;
+  id?: string;
+  name?: string;
+  required?: boolean;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
 }) {
   return (
     <textarea
+      id={id}
       className={code ? "rv-textarea rv-textarea--code" : "rv-textarea"}
       value={value}
+      name={name}
       rows={rows}
       placeholder={placeholder}
+      required={required}
+      aria-invalid={ariaInvalid || undefined}
+      aria-describedby={ariaDescribedBy}
       onChange={(event) => onChange(event.target.value)}
     />
   );
@@ -221,15 +280,35 @@ export function Select({
   options,
   placeholder,
   disabled,
+  id,
+  name,
+  required,
+  ariaInvalid,
+  ariaDescribedBy,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
   placeholder?: string;
   disabled?: boolean;
+  id?: string;
+  name?: string;
+  required?: boolean;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
 }) {
   return (
-    <select className="rv-select" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+    <select
+      id={id}
+      className="rv-select"
+      value={value}
+      name={name}
+      disabled={disabled}
+      required={required}
+      aria-invalid={ariaInvalid || undefined}
+      aria-describedby={ariaDescribedBy}
+      onChange={(event) => onChange(event.target.value)}
+    >
       {placeholder ? <option value="">{placeholder}</option> : null}
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -270,21 +349,48 @@ export function Tabs({
   tabs,
   value,
   onChange,
+  ariaLabel = "Sections",
 }: {
   tabs: Array<{ value: string; label: string; count?: number }>;
   value: string;
   onChange: (value: string) => void;
+  ariaLabel?: string;
 }) {
+  const id = useId().replace(/:/g, "");
+  const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.value === value));
+
+  const move = (index: number) => onChange(tabs[(index + tabs.length) % tabs.length].value);
+
   return (
-    <div className="rv-tabs" role="tablist">
-      {tabs.map((tab) => (
+    <div className="rv-tabs" role="tablist" aria-label={ariaLabel}>
+      {tabs.map((tab, index) => (
         <button
           key={tab.value}
+          id={`${id}-${tab.value}`}
           type="button"
           role="tab"
           aria-selected={value === tab.value}
+          tabIndex={value === tab.value ? 0 : -1}
           className={value === tab.value ? "is-active" : ""}
           onClick={() => onChange(tab.value)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+              event.preventDefault();
+              move(activeIndex + 1);
+            }
+            if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+              event.preventDefault();
+              move(activeIndex - 1);
+            }
+            if (event.key === "Home") {
+              event.preventDefault();
+              move(0);
+            }
+            if (event.key === "End") {
+              event.preventDefault();
+              move(tabs.length - 1);
+            }
+          }}
         >
           {tab.label}
           {tab.count !== undefined ? ` (${tab.count})` : ""}
@@ -306,7 +412,7 @@ export function EmptyState({ title, description, action }: { title: string; desc
 
 export function Loading({ label = "Loading…" }: { label?: string }) {
   return (
-    <div className="rv-loading">
+    <div className="rv-loading" role="status" aria-live="polite">
       <span className="rv-spinner" />
       {label}
     </div>
@@ -339,26 +445,63 @@ export function Modal({
   wide?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusPanel = () => {
+      const focusable = panelRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      focusable?.focus();
+    };
+    const focusTimer = window.setTimeout(focusPanel, 0);
+
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = [...panelRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )].filter((element) => !element.hasAttribute("disabled"));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = previousOverflow;
+      returnFocusRef.current?.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
-    <div className="rv-modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => {
+    <div className="rv-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
       <div className={wide ? "rv-modal__panel rv-modal__panel--wide" : "rv-modal__panel"} ref={panelRef}>
         <div className="rv-modal__header">
-          <h2>{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close">
+          <h2 id={titleId}>{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close dialog">
             ×
           </button>
         </div>
@@ -425,14 +568,17 @@ export function ConfirmButton({
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
-  return (
-    <div className="rv-stat">
+export function Stat({ label, value, hint, tone, href }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "primary" | "attention" | "danger"; href?: string }) {
+  const content = (
+    <>
       <span className="rv-stat__label">{label}</span>
       <strong className="rv-stat__value">{value}</strong>
       {hint ? <div className="rv-stat__hint">{hint}</div> : null}
-    </div>
+    </>
   );
+  const className = ["rv-stat", tone ? `rv-stat--${tone}` : "", href ? "rv-stat--link" : ""].filter(Boolean).join(" ");
+
+  return href ? <Link className={className} href={href}>{content}</Link> : <div className={className}>{content}</div>;
 }
 
 export function KeyValue({ entries }: { entries: Array<{ label: string; value: ReactNode }> }) {

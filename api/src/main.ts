@@ -3,7 +3,7 @@ import { Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import cookieParser from "cookie-parser";
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { join } from "node:path";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
@@ -13,13 +13,42 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: true });
   const config = app.get(ConfigService);
   const port = Number(config.get("PORT") ?? 4000);
-  const origins = (config.get<string>("APP_ORIGIN") ?? "http://localhost:3002")
+  const configuredOrigins = (config.get<string>("APP_ORIGIN") ?? "http://localhost:3002")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const origins = Array.from(
+    new Set(
+      config.get<string>("NODE_ENV") === "production"
+        ? configuredOrigins
+        : [...configuredOrigins, "http://localhost:3000", "http://localhost:3002"],
+    ),
+  );
+  const allowedOrigins = new Set(origins);
+
+  const trustProxySetting = config.get<string>("TRUST_PROXY") ?? "1";
+  const trustProxy =
+    trustProxySetting === "false" || trustProxySetting === "0"
+      ? false
+      : Number.isFinite(Number(trustProxySetting))
+        ? Number(trustProxySetting)
+        : trustProxySetting;
+  (app.getHttpAdapter().getInstance() as { set(setting: string, value: unknown): void }).set(
+    "trust proxy",
+    trustProxy,
+  );
 
   app.setGlobalPrefix("api");
   app.use(cookieParser());
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    const mutating = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
+    const origin = request.headers.origin;
+    if (mutating && origin && !allowedOrigins.has(origin)) {
+      response.status(403).json({ statusCode: 403, message: "Invalid request origin" });
+      return;
+    }
+    next();
+  });
   app.use(
     "/uploads",
     express.static(join(process.cwd(), config.get<string>("UPLOAD_DIR") ?? "uploads"), {

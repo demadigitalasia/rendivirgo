@@ -21,7 +21,6 @@ import {
   Badge,
   Button,
   Card,
-  ConfirmButton,
   Field,
   Modal,
   PageHeader,
@@ -34,7 +33,7 @@ import "./products.css";
 
 type ApiCategory = { id: string; slug: string; name: string; productCount: number };
 
-type BulkAction = "Publish" | "Unpublish" | "Archive" | "Restore" | "Delete";
+type BulkAction = "Publish" | "Unpublish" | "Archive" | "Restore";
 
 type ImportResult = { created: number; skipped: number; errors: string[] };
 
@@ -60,7 +59,7 @@ const flagOptions = [
   { value: "true", label: "Yes" },
 ];
 
-const bulkActions: BulkAction[] = ["Publish", "Unpublish", "Archive", "Restore", "Delete"];
+const bulkActions: BulkAction[] = ["Publish", "Unpublish", "Archive", "Restore"];
 
 export default function AdminProductsPage() {
   const router = useRouter();
@@ -115,16 +114,6 @@ export default function AdminProductsPage() {
       const copy = await apiFetch<ApiProduct>(`/api/admin/products/${product.id}/duplicate`, { method: "POST" });
       toast.success(`Duplicated "${product.name}"`);
       router.push(`/admin/products/${copy.id}`);
-    } catch (error) {
-      toast.error(errorMessage(error));
-    }
-  };
-
-  const remove = async (product: ApiProduct) => {
-    try {
-      await apiFetch(`/api/admin/products/${product.id}?hard=true`, { method: "DELETE" });
-      toast.success(`Deleted "${product.name}"`);
-      list.refresh();
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -245,15 +234,6 @@ export default function AdminProductsPage() {
               Archive
             </Button>
           )}
-          <ConfirmButton
-            size="sm"
-            title={`Delete "${product.name}"?`}
-            description="This permanently removes the product and cannot be undone."
-            confirmLabel="Delete permanently"
-            onConfirm={() => remove(product)}
-          >
-            Delete
-          </ConfirmButton>
         </div>
       ),
     },
@@ -322,24 +302,11 @@ export default function AdminProductsPage() {
           {selectedIds.length ? (
             <div className="rv-toolbar rv-toolbar--bulk">
               <Badge tone="blue">{selectedIds.length} selected</Badge>
-              {bulkActions.map((action) =>
-                action === "Delete" ? (
-                  <ConfirmButton
-                    key={action}
-                    size="sm"
-                    title={`Delete ${selectedIds.length} product(s)?`}
-                    description="This permanently removes the selected products and cannot be undone."
-                    confirmLabel="Delete permanently"
-                    onConfirm={() => runBulk(action)}
-                  >
-                    Delete
-                  </ConfirmButton>
-                ) : (
-                  <Button key={action} size="sm" disabled={bulkBusy} onClick={() => runBulk(action)}>
-                    {action}
-                  </Button>
-                ),
-              )}
+              {bulkActions.map((action) => (
+                <Button key={action} size="sm" disabled={bulkBusy} onClick={() => runBulk(action)}>
+                  {action}
+                </Button>
+              ))}
               <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
                 Clear
               </Button>
@@ -351,6 +318,8 @@ export default function AdminProductsPage() {
             items={items}
             loading={list.loading && !list.data}
             rowKey={(product) => product.id}
+            getRowLabel={(product) => product.name}
+            ariaLabel="Products"
             selectable
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}

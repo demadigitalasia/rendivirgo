@@ -16,6 +16,7 @@ import { SettingsService } from "./settings.service";
 export type ShippingQuoteBreakdown = {
   base: number;
   handling: number;
+  insurance: number;
   fragile: number;
   oversized: number;
   total: number;
@@ -37,6 +38,13 @@ export type ShippingQuote = {
   overrideApplied: boolean;
 };
 
+export type ResolvedOrderShipping = {
+  name: string;
+  carrier: string | null;
+  shippingCost: Prisma.Decimal;
+  source: ShippingQuoteSource;
+};
+
 const round = (value: number): number => Math.round(value * 100) / 100;
 
 @Injectable()
@@ -49,8 +57,95 @@ export class ShippingService {
 
   // ------------------------------------------------------------ quote
 
+  private regionMatches(rateRegion: string, destination: string): boolean {
+    const region = rateRegion.trim().toLowerCase();
+    if (!destination) return region === "worldwide";
+    return region === "worldwide" || region === destination;
+  }
+
+  private sortByRegion<T extends { region: string }>(rates: T[], destination: string): T[] {
+    if (!destination) return rates;
+    return [...rates].sort((a, b) => {
+      const aSpecific = this.regionMatches(a.region, destination) && a.region.trim().toLowerCase() !== "worldwide" ? 0 : 1;
+      const bSpecific = this.regionMatches(b.region, destination) && b.region.trim().toLowerCase() !== "worldwide" ? 0 : 1;
+      return aSpecific - bSpecific;
+    });
+  }
+
+  private findRates(weightGram: number, destination: string) {
+    const regionFilter: Prisma.ShippingRateWhereInput = destination
+      ? {
+          OR: [
+            { region: { equals: "Worldwide", mode: "insensitive" } },
+            { region: { equals: destination, mode: "insensitive" } },
+          ],
+        }
+      : { region: { equals: "Worldwide", mode: "insensitive" } };
+
+    return this.prisma.shippingRate.findMany({
+      where: {
+        isActive: true,
+        minWeightGram: { lte: weightGram },
+        AND: [{ OR: [{ maxWeightGram: null }, { maxWeightGram: { gte: weightGram } }] }, regionFilter],
+      },
+      orderBy: [{ sortOrder: "asc" }, { price: "asc" }],
+    });
+  }
+
+  private feeBreakdown(
+    rate: {
+      price: Prisma.Decimal;
+      handlingFee: Prisma.Decimal;
+      insuranceFee: Prisma.Decimal;
+      fragileFee: Prisma.Decimal;
+      oversizedFee: Prisma.Decimal;
+    },
+    fragile: boolean,
+    oversized: boolean,
+  ): ShippingQuoteBreakdown {
+    const base = round(Number(rate.price));
+    const handling = round(Number(rate.handlingFee));
+    const insurance = round(Number(rate.insuranceFee));
+    const fragileFee = fragile ? round(Number(rate.fragileFee)) : 0;
+    const oversizedFee = oversized ? round(Number(rate.oversizedFee)) : 0;
+    return {
+      base,
+      handling,
+      insurance,
+      fragile: fragileFee,
+      oversized: oversizedFee,
+      total: round(base + handling + insurance + fragileFee + oversizedFee),
+    };
+  }
+
+  private toOption(
+    rate: {
+      id: string;
+      name: string;
+      carrier: string | null;
+      price: Prisma.Decimal;
+      handlingFee: Prisma.Decimal;
+      insuranceFee: Prisma.Decimal;
+      fragileFee: Prisma.Decimal;
+      oversizedFee: Prisma.Decimal;
+    },
+    fragile: boolean,
+    oversized: boolean,
+  ): ShippingQuoteOption {
+    const breakdown = this.feeBreakdown(rate, fragile, oversized);
+    return {
+      id: rate.id,
+      name: rate.name,
+      carrier: rate.carrier,
+      price: breakdown.total,
+      breakdown,
+    };
+  }
+
   async quote(dto: ShippingQuoteDto): Promise<ShippingQuote> {
     const settings = await this.settings.getShippingSettings();
+    const fragile = dto.fragile ?? dto.shippingClass === "Fragile";
+    const oversized = dto.oversized ?? dto.shippingClass === "Oversized";
 
     if (settings.overrideEnabled) {
       const price = round(settings.overrideAmount);
@@ -61,7 +156,7 @@ export class ShippingService {
             name: "Admin override",
             carrier: null,
             price,
-            breakdown: { base: price, handling: 0, fragile: 0, oversized: 0, total: price },
+            breakdown: { base: price, handling: 0, insurance: 0, fragile: 0, oversized: 0, total: price },
           },
         ],
         source: "AdminOverride",
@@ -78,7 +173,7 @@ export class ShippingService {
             name: "Free shipping",
             carrier: null,
             price: 0,
-            breakdown: { base: 0, handling: 0, fragile: 0, oversized: 0, total: 0 },
+            breakdown: { base: 0, handling: 0, insurance: 0, fragile: 0, oversized: 0, total: 0 },
           },
         ],
         source: "FreeShipping",
@@ -87,52 +182,78 @@ export class ShippingService {
     }
 
     const destination = dto.countryCode?.trim() ?? "";
-    const regionFilter: Prisma.ShippingRateWhereInput = destination
-      ? {
-          OR: [
-            { region: { equals: "Worldwide", mode: "insensitive" } },
-            { region: { equals: destination, mode: "insensitive" } },
-          ],
-        }
-      : { region: { equals: "Worldwide", mode: "insensitive" } };
-
-    const rates = await this.prisma.shippingRate.findMany({
-      where: {
-        isActive: true,
-        minWeightGram: { lte: dto.weightGram },
-        AND: [{ OR: [{ maxWeightGram: null }, { maxWeightGram: { gte: dto.weightGram } }] }, regionFilter],
-      },
-      orderBy: [{ sortOrder: "asc" }, { price: "asc" }],
-    });
-
-    const sorted = destination
-      ? [...rates].sort((a, b) => {
-          const aSpecific = a.region.toLowerCase() === destination.toLowerCase() ? 0 : 1;
-          const bSpecific = b.region.toLowerCase() === destination.toLowerCase() ? 0 : 1;
-          return aSpecific - bSpecific;
-        })
-      : rates;
+    const rates = await this.findRates(dto.weightGram, destination);
+    const sorted = this.sortByRegion(rates, destination);
 
     return {
-      options: sorted.map((rate) => this.toOption(rate, dto.shippingClass ?? "Standard")),
+      options: sorted.map((rate) => this.toOption(rate, fragile, oversized)),
       source: "CarrierAPI",
       overrideApplied: false,
     };
   }
 
-  private toOption(rate: { id: string; name: string; carrier: string | null; price: Prisma.Decimal; handlingFee: Prisma.Decimal; fragileFee: Prisma.Decimal; oversizedFee: Prisma.Decimal }, shippingClass: ShippingClass): ShippingQuoteOption {
-    const base = round(Number(rate.price));
-    const handling = round(Number(rate.handlingFee));
-    const fragile = shippingClass === "Fragile" ? round(Number(rate.fragileFee)) : 0;
-    const oversized = shippingClass === "Oversized" ? round(Number(rate.oversizedFee)) : 0;
-    const total = round(base + handling + fragile + oversized);
+  // ------------------------------------------------------------ order pricing
+  // Single source of truth used by checkout order creation: honours admin
+  // override, free-shipping threshold, region and weight constraints, and the
+  // same fragile/oversized/insurance fees the quote returned.
 
+  async resolveOrderShipping(params: {
+    shippingRateId?: string;
+    subtotal: Prisma.Decimal;
+    weightGram: number;
+    countryCode?: string;
+    fragile: boolean;
+    oversized: boolean;
+  }): Promise<ResolvedOrderShipping> {
+    const settings = await this.settings.getShippingSettings();
+    const selected = params.shippingRateId?.trim() || undefined;
+
+    if (settings.overrideEnabled) {
+      if (selected && selected !== "admin-override") {
+        throw new BadRequestException("The selected shipping rate is not available");
+      }
+      const price = new Prisma.Decimal(round(settings.overrideAmount));
+      return { name: "Admin override", carrier: null, shippingCost: price, source: "AdminOverride" };
+    }
+
+    const threshold = new Prisma.Decimal(settings.freeShippingThreshold);
+    if (settings.freeShippingThreshold > 0 && params.subtotal.greaterThanOrEqualTo(threshold)) {
+      if (selected && selected !== "free-shipping") {
+        throw new BadRequestException("Free shipping applies to this order");
+      }
+      return { name: "Free shipping", carrier: null, shippingCost: new Prisma.Decimal(0), source: "FreeShipping" };
+    }
+
+    const destination = params.countryCode?.trim().toLowerCase() ?? "";
+    let rate: Prisma.ShippingRateGetPayload<Record<never, never>> | null = null;
+
+    if (selected) {
+      if (selected === "admin-override" || selected === "free-shipping") {
+        throw new BadRequestException("The selected shipping rate is not available");
+      }
+      rate = await this.prisma.shippingRate.findUnique({ where: { id: selected } });
+      if (
+        !rate ||
+        !rate.isActive ||
+        rate.minWeightGram > params.weightGram ||
+        (rate.maxWeightGram !== null && rate.maxWeightGram < params.weightGram) ||
+        !this.regionMatches(rate.region, destination)
+      ) {
+        throw new BadRequestException("The selected shipping rate is not available");
+      }
+    } else {
+      const rates = await this.findRates(params.weightGram, destination);
+      const sorted = this.sortByRegion(rates, destination);
+      rate = sorted[0] ?? null;
+      if (!rate) throw new BadRequestException("No shipping rate is available for this order");
+    }
+
+    const breakdown = this.feeBreakdown(rate, params.fragile, params.oversized);
     return {
-      id: rate.id,
       name: rate.name,
       carrier: rate.carrier,
-      price: total,
-      breakdown: { base, handling, fragile, oversized, total },
+      shippingCost: new Prisma.Decimal(breakdown.total),
+      source: "CarrierAPI",
     };
   }
 
