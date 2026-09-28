@@ -2,10 +2,23 @@
 
 import Link from "next/link";
 import type { Product } from "@/lib/catalog";
+import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
 import { useCopy } from "@/components/providers";
 
-export function SearchResults({ query, products }: { query: string; products: Product[] }) {
+export function SearchResults({
+  query,
+  products,
+  total,
+  page,
+  pageCount,
+}: {
+  query: string;
+  products: Product[];
+  total: number;
+  page: number;
+  pageCount: number;
+}) {
   const t = useCopy();
 
   return (
@@ -26,14 +39,17 @@ export function SearchResults({ query, products }: { query: string; products: Pr
               <h2>{t.search.query(query)}</h2>
             </div>
             <p className="muted" aria-live="polite" style={{ marginBottom: 18 }}>
-              {t.search.count(products.length)}
+              {t.search.count(total)}
             </p>
             {products.length ? (
-              <div className="product-grid">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+              <>
+                <div className="product-grid">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+                <Pagination page={page} pageCount={pageCount} />
+              </>
             ) : (
               <div className="empty-state">
                 {t.search.empty} <Link href="/shop" className="text-button">{t.shop.browseFull}</Link>

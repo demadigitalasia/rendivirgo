@@ -1,76 +1,52 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
 import { useCopy } from "@/components/providers";
 import type { Product } from "@/lib/catalog";
 
 export function ShopCatalog({
   products,
+  total,
+  page,
+  pageCount,
   categories,
   stoneTypes,
+  origins,
 }: {
   products: Product[];
+  total: number;
+  page: number;
+  pageCount: number;
   categories: Array<{ slug: string; name: string }>;
   stoneTypes: string[];
+  origins: string[];
 }) {
   const t = useCopy();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const category = searchParams.get("category") ?? "all";
   const stone = searchParams.get("stone") ?? "all";
   const price = searchParams.get("price") ?? "all";
   const weight = searchParams.get("weight") ?? "all";
   const origin = searchParams.get("origin") ?? "all";
-  const status = searchParams.get("status") ?? "all";
   const sort = searchParams.get("sort") ?? "featured";
-
-  const origins = useMemo(() => [...new Set(products.map((product) => product.origin))].sort(), [products]);
 
   const setParam = (key: string, value: string, defaultValue = "all") => {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (value === defaultValue) {
       params.delete(key);
     } else {
       params.set(key, value);
     }
     const query = params.toString();
-    router.replace(query ? `/shop?${query}` : "/shop", { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
-  const visibleProducts = useMemo(() => {
-    const filtered = products.filter((product) => {
-      const matchesCategory = category === "all" || product.categorySlug === category;
-      const matchesStone = stone === "all" || product.stoneType === stone;
-      const matchesOrigin = origin === "all" || product.origin === origin;
-      const matchesStatus = status === "all" || product.status === status;
-      const matchesPrice =
-        price === "all" ||
-        (price === "under100" && product.price < 100) ||
-        (price === "100to250" && product.price >= 100 && product.price <= 250) ||
-        (price === "over250" && product.price > 250);
-      const matchesWeight =
-        weight === "all" ||
-        (weight === "under100" && product.weightGram < 100) ||
-        (weight === "100to500" && product.weightGram >= 100 && product.weightGram <= 500) ||
-        (weight === "over500" && product.weightGram > 500);
-      return matchesCategory && matchesStone && matchesOrigin && matchesStatus && matchesPrice && matchesWeight;
-    });
-    return [...filtered].sort((a, b) => {
-      if (sort === "price-low") return a.price - b.price;
-      if (sort === "price-high") return b.price - a.price;
-      if (sort === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      return Number(Boolean(b.featured)) - Number(Boolean(a.featured));
-    });
-  }, [products, category, stone, price, weight, origin, status, sort]);
-
-  const hasActiveFilters = [category, stone, price, weight, origin, status].some((value) => value !== "all");
-  const statusOptions = [
-    { value: "Available", label: t.common.available },
-    { value: "Reserved", label: t.common.reserved },
-    { value: "Sold", label: t.common.sold },
-  ];
+  const hasActiveFilters = [category, stone, price, weight, origin].some((value) => value !== "all");
 
   return (
     <>
@@ -84,7 +60,7 @@ export function ShopCatalog({
       <section className="page-container section">
         <div className="catalog-toolbar">
           <span className="muted" aria-live="polite">
-            {t.shop.count(visibleProducts.length)}
+            {t.shop.count(total)}
           </span>
           <div className="catalog-toolbar__controls">
             <select
@@ -108,8 +84,8 @@ export function ShopCatalog({
             >
               <option value="featured">{t.shop.sortFeatured}</option>
               <option value="newest">{t.shop.sortNewest}</option>
-              <option value="price-low">{t.shop.sortPriceLow}</option>
-              <option value="price-high">{t.shop.sortPriceHigh}</option>
+              <option value="price-asc">{t.shop.sortPriceLow}</option>
+              <option value="price-desc">{t.shop.sortPriceHigh}</option>
             </select>
           </div>
         </div>
@@ -182,35 +158,22 @@ export function ShopCatalog({
                 ))}
               </select>
             </div>
-            <div className="filter-field">
-              <label htmlFor="filter-status">{t.shop.filterStatus}</label>
-              <select
-                id="filter-status"
-                className="select-control"
-                value={status}
-                onChange={(event) => setParam("status", event.target.value)}
-              >
-                <option value="all">{t.shop.allStatuses}</option>
-                {statusOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
             {hasActiveFilters && (
-              <button type="button" className="text-button" onClick={() => router.replace("/shop", { scroll: false })}>
+              <button type="button" className="text-button" onClick={() => router.replace(pathname, { scroll: false })}>
                 {t.shop.clearFilters}
               </button>
             )}
           </aside>
           <div>
-            {visibleProducts.length ? (
-              <div className="product-grid">
-                {visibleProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+            {products.length ? (
+              <>
+                <div className="product-grid">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+                <Pagination page={page} pageCount={pageCount} />
+              </>
             ) : (
               <div className="empty-state">{t.shop.empty}</div>
             )}

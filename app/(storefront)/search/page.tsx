@@ -10,11 +10,22 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
+const PAGE_SIZE = 12;
+
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[]; page?: string | string[] }>;
+}) {
   const params = await searchParams;
   const rawQuery = Array.isArray(params.q) ? params.q[0] : params.q;
+  const rawPage = Array.isArray(params.page) ? params.page[0] : params.page;
   const query = (rawQuery ?? "").trim();
-  const { products } = query ? await getProducts({ search: query, pageSize: 48 }) : { products: [] };
+  const page = Math.max(1, Number(rawPage) || 1);
 
-  return <SearchResults query={query} products={products} />;
+  const result = query
+    ? await getProducts({ search: query, page, pageSize: PAGE_SIZE })
+    : { products: [], total: 0, pageCount: 1 };
+
+  return <SearchResults query={query} products={result.products} total={result.total} page={page} pageCount={result.pageCount} />;
 }

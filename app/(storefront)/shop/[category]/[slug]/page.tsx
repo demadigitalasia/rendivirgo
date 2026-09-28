@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetailClient } from "@/components/product-detail-client";
 import { formatDimensions } from "@/lib/catalog";
+import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
 import { getProductBySlug, getRelatedProducts } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
     sku: product.sku,
     description: product.description,
     category: product.category,
-    image: product.images,
+    image: product.images.slice(0, 4).map((image) => absoluteUrl(image)),
     brand: { "@type": "Brand", name: "RENDI VIRGO" },
     weight: { "@type": "QuantitativeValue", value: product.weightGram, unitCode: "GRM" },
     additionalProperty: [
@@ -50,13 +51,20 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
       priceCurrency: "USD",
       price: product.price,
       availability: product.status === "Available" ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      url: `https://rendivirgo.com/shop/${product.categorySlug}/${product.slug}`,
+      url: absoluteUrl(`/shop/${product.categorySlug}/${product.slug}`),
     },
   };
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    { name: product.category, path: `/shop/${product.categorySlug}` },
+    { name: product.name, path: `/shop/${product.categorySlug}/${product.slug}` },
+  ]);
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs).replace(/</g, "\\u003c") }} />
       <ProductDetailClient product={product} related={related} />
     </>
   );

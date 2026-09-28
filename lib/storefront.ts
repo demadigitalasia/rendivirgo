@@ -273,16 +273,21 @@ export type ProductQuery = {
   category?: string;
   stoneType?: string;
   origin?: string;
+  ids?: string[];
   featured?: boolean;
   inStock?: boolean;
-  sort?: "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
+  minPrice?: number;
+  maxPrice?: number;
+  minWeightGram?: number;
+  maxWeightGram?: number;
+  sort?: "featured" | "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
 };
 
 export async function getProducts(query: ProductQuery = {}) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined || value === null || value === "") continue;
-    params.set(key, String(value));
+    params.set(key, Array.isArray(value) ? value.join(",") : String(value));
   }
   const result = await apiGet<{ items: ApiProduct[]; total: number; pageCount: number }>(`/api/products?${params.toString()}`);
   return {
@@ -293,8 +298,22 @@ export async function getProducts(query: ProductQuery = {}) {
 }
 
 export async function getAllPublishedProducts() {
-  const { products } = await getProducts({ pageSize: 100, sort: "newest" });
+  const first = await getProducts({ pageSize: 100, sort: "newest" });
+  const products = [...first.products];
+  for (let page = 2; page <= first.pageCount; page += 1) {
+    const next = await getProducts({ pageSize: 100, sort: "newest", page });
+    if (!next.products.length) break;
+    products.push(...next.products);
+  }
   return products;
+}
+
+export async function getProductFilters() {
+  const result = await apiGet<{ origins: string[]; stoneTypes: string[] }>("/api/products/filters");
+  return {
+    origins: result?.origins ?? [],
+    stoneTypes: result?.stoneTypes ?? [],
+  };
 }
 
 export async function getProductBySlug(slug: string) {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
-import { ArrowIcon, BagIcon, CloseIcon, GlobeIcon, MenuIcon, SearchIcon } from "@/components/icons";
+import { ArrowIcon, BagIcon, CloseIcon, GlobeIcon, HeartIcon, MenuIcon, SearchIcon } from "@/components/icons";
 
 export function SiteHeader() {
   const { language, setLanguage } = useLanguage();
@@ -120,6 +120,9 @@ export function SiteHeader() {
           >
             <SearchIcon />
           </button>
+          <Link className="icon-button" href="/wishlist" aria-label={t.nav.wishlist}>
+            <HeartIcon />
+          </Link>
           <Link
             className="icon-button icon-button--bag"
             href="/cart"

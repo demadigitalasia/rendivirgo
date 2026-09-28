@@ -131,6 +131,7 @@ export function AdminShell({
       label: "Operations",
       items: [
         { href: "/admin/messages", label: "Inbox", badge: unread, warning: unreadSyncError ? "Inbox count unavailable" : undefined },
+        { href: "/admin/newsletter", label: "Newsletter" },
         { href: "/admin/reports", label: "Reports" },
         { href: "/admin/settings", label: "Settings" },
         { href: "/admin/settings/shipping", label: "Shipping" },

@@ -37,6 +37,7 @@ export function ProductCard({ product }: { product: Product }) {
       const ids = Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : [];
       const updated = nextValue ? [...new Set([...ids, product.id])] : ids.filter((id) => id !== product.id);
       window.localStorage.setItem(wishlistStorageKey, JSON.stringify(updated));
+      window.dispatchEvent(new Event("rv:wishlist-change"));
     } catch {
       // Wishlist feedback remains available for the current session if storage is unavailable.
     }

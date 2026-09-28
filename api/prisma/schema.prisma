@@ -563,6 +563,18 @@ model Message {
   @@index([createdAt])
 }
 
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  locale    String?
+  source    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, createdAt])
+}
+
 model Notification {
   id         String           @id @default(cuid())
   type       NotificationType @default(System)

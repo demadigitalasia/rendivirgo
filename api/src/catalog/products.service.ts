@@ -23,13 +23,14 @@ export const productInclude = {
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
 
-const sortMap: Record<string, Prisma.ProductOrderByWithRelationInput> = {
-  newest: { createdAt: "desc" },
-  oldest: { createdAt: "asc" },
-  "price-asc": { price: "asc" },
-  "price-desc": { price: "desc" },
-  name: { name: "asc" },
-  "weight-desc": { weightGram: "desc" },
+const sortMap: Record<string, Prisma.ProductOrderByWithRelationInput[]> = {
+  featured: [{ featured: "desc" }, { createdAt: "desc" }],
+  newest: [{ createdAt: "desc" }],
+  oldest: [{ createdAt: "asc" }],
+  "price-asc": [{ price: "asc" }],
+  "price-desc": [{ price: "desc" }],
+  name: [{ name: "asc" }],
+  "weight-desc": [{ weightGram: "desc" }],
 };
 
 @Injectable()
@@ -125,11 +126,22 @@ export class ProductsService {
     }
 
     if (query.category) where.category = { slug: query.category, ...(publicOnly ? { isActive: true } : {}) };
+    if (query.ids?.length) where.id = { in: query.ids };
     if (query.stoneType) where.stoneType = { equals: query.stoneType, mode: "insensitive" };
     if (query.origin) where.origin = { contains: query.origin, mode: "insensitive" };
     if (query.stockModel) where.stockModel = query.stockModel;
     if (query.condition) where.condition = query.condition;
     if (query.featured !== undefined) where.featured = query.featured;
+
+    if (
+      query.minWeightGram !== undefined ||
+      query.maxWeightGram !== undefined
+    ) {
+      where.weightGram = {
+        ...(query.minWeightGram !== undefined ? { gte: query.minWeightGram } : {}),
+        ...(query.maxWeightGram !== undefined ? { lte: query.maxWeightGram } : {}),
+      };
+    }
 
     if (query.minPrice !== undefined || query.maxPrice !== undefined) {
       where.price = {

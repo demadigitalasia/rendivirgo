@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageBody, formatContentDate } from "@/components/page-body";
+import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
 import { getBlogPost } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
@@ -34,14 +35,25 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
     description: post.excerpt,
     datePublished: publishedAt,
     dateModified: post.updatedAt,
-    ...(post.coverImage ? { image: [post.coverImage] } : {}),
+    ...(post.coverImage ? { image: [absoluteUrl(post.coverImage)] } : {}),
     author: { "@type": "Organization", name: post.author || "RENDI VIRGO" },
-    publisher: { "@type": "Organization", name: "RENDI VIRGO" },
+    publisher: {
+      "@type": "Organization",
+      name: "RENDI VIRGO",
+      logo: { "@type": "ImageObject", url: absoluteUrl("/brand/rendi-virgo-logo-black-silver.webp") },
+    },
+    mainEntityOfPage: absoluteUrl(`/blog/${post.slug}`),
   };
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Home", path: "/" },
+    { name: "Journal", path: "/blog" },
+    { name: post.title, path: `/blog/${post.slug}` },
+  ]);
 
   return (
     <div className="page-container content-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }} />
       <article className="article">
         <div className="eyebrow">
           {category} · {publishedLabel}

@@ -276,7 +276,6 @@ export function CheckoutView() {
           notice: paid ? undefined : "review",
         });
         clearCart();
-        if (paid) window.localStorage.removeItem(LAST_ORDER_KEY);
       } catch {
         const stored = readLastOrder();
         setPaymentError(t.checkout.paymentFailed);
@@ -434,6 +433,16 @@ export function CheckoutView() {
             >
               {result.notice === "failed" ? t.checkout.retryPayment : t.checkout.payNow(formatUSD(result.total))}
             </button>
+          ) : null}
+          {result.orderNumber ? (
+            <p style={{ marginTop: 14 }}>
+              <Link
+                href={`/track?order=${encodeURIComponent(result.orderNumber)}&email=${encodeURIComponent(readLastOrder()?.email ?? "")}`}
+                className="text-button"
+              >
+                {t.footer.track}
+              </Link>
+            </p>
           ) : null}
           <Link href="/shop" className="button" style={{ marginTop: 18 }}>
             {t.checkout.continue}

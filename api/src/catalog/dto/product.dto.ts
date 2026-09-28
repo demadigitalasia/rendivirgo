@@ -275,6 +275,19 @@ export class ProductQueryDto {
   origin?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value !== "string") return value;
+    return value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .slice(0, 100);
+  })
+  @IsArray()
+  @IsString({ each: true })
+  ids?: string[];
+
+  @IsOptional()
   @IsEnum(ProductStatus)
   status?: ProductStatus;
 
@@ -307,8 +320,20 @@ export class ProductQueryDto {
   maxPrice?: number;
 
   @IsOptional()
-  @IsEnum(["newest", "oldest", "price-asc", "price-desc", "name", "weight-desc"])
-  sort?: "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  minWeightGram?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  maxWeightGram?: number;
+
+  @IsOptional()
+  @IsEnum(["featured", "newest", "oldest", "price-asc", "price-desc", "name", "weight-desc"])
+  sort?: "featured" | "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
 }
 
 export class CatalogPdfQueryDto {
