@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { mkdir, unlink } from "node:fs/promises";
-import { join, extname, basename } from "node:path";
+import { join, basename, relative, resolve, sep } from "node:path";
 import { randomBytes } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
+import { ALLOWED_IMAGE_MIME, detectImageType, type DetectedImage } from "./image-validation";
 
-const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml"]);
 const ALLOWED_FOLDERS = new Set(["products", "blog", "banners", "pages", "brand", "misc"]);
 
 export type UploadedFileInfo = {
@@ -35,7 +35,7 @@ export class UploadsService {
     private readonly audit: AuditService,
     config: ConfigService,
   ) {
-    this.uploadDir = join(process.cwd(), config.get<string>("UPLOAD_DIR") ?? "uploads");
+    this.uploadDir = resolve(join(process.cwd(), config.get<string>("UPLOAD_DIR") ?? "uploads"));
     this.publicUrl = (config.get<string>("PUBLIC_API_URL") ?? "http://localhost:4000").replace(/\/$/, "");
   }
 
@@ -45,9 +45,29 @@ export class UploadsService {
     return value;
   }
 
-  validate(file: UploadedFileInfo | undefined) {
+  // Validates the declared MIME against the real file signature and derives the
+  // canonical extension from the detected type. SVG (and anything else that can
+  // execute on page load) never passes this check.
+  validateImage(file: UploadedImageFile | undefined): DetectedImage {
     if (!file) throw new BadRequestException("No file uploaded");
-    if (!ALLOWED_MIME.has(file.mimetype)) throw new BadRequestException("Only image files (jpeg, png, webp, gif, avif, svg) are allowed");
+    if (!ALLOWED_IMAGE_MIME.has(file.mimetype)) {
+      throw new BadRequestException("Only jpeg, png, webp, gif, or avif images are allowed");
+    }
+
+    const detected = detectImageType(file.buffer);
+    if (!detected) throw new BadRequestException("The uploaded file is not a valid image");
+
+    if (detected.mime !== file.mimetype) {
+      throw new BadRequestException("The file content does not match its declared type");
+    }
+
+    return detected;
+  }
+
+  validateRegisteredFile(file: UploadedFileInfo): void {
+    if (!ALLOWED_IMAGE_MIME.has(file.mimetype)) {
+      throw new BadRequestException("Only jpeg, png, webp, gif, or avif images are allowed");
+    }
   }
 
   storageFolder(folder: string): string {
@@ -55,9 +75,9 @@ export class UploadsService {
     return join(this.uploadDir, folder, `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  staticFilename(originalName: string): string {
-    const extension = extname(originalName).toLowerCase() || ".bin";
-    return `${Date.now().toString(36)}-${randomBytes(6).toString("hex")}${extension}`;
+  staticFilename(extension: string): string {
+    const safeExtension = /^\.[a-z0-9]{2,5}$/.test(extension) ? extension : ".bin";
+    return `${Date.now().toString(36)}-${randomBytes(6).toString("hex")}${safeExtension}`;
   }
 
   async ensureStorage(folder: string) {
@@ -65,8 +85,8 @@ export class UploadsService {
   }
 
   async register(file: UploadedFileInfo, folder: string, context: AuditContext) {
-    this.validate(file);
-    const relativePath = file.path.replace(this.uploadDir, "").split("\\").join("/").replace(/^\//, "");
+    this.validateRegisteredFile(file);
+    const relativePath = relative(this.uploadDir, file.path).split("\\").join("/");
     const url = `${this.publicUrl}/uploads/${relativePath}`;
 
     const asset = await this.prisma.mediaAsset.create({
@@ -106,10 +126,14 @@ export class UploadsService {
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException("Media not found");
 
-    const relative = asset.url.split("/uploads/")[1];
-    if (relative) {
+    const relativePath = asset.url.split("/uploads/")[1];
+    if (relativePath) {
+      const target = resolve(this.uploadDir, relativePath);
+      if (target === this.uploadDir || !target.startsWith(this.uploadDir + sep)) {
+        throw new BadRequestException("Invalid media path");
+      }
       try {
-        await unlink(join(this.uploadDir, relative));
+        await unlink(target);
       } catch {
         // file already removed from disk
       }

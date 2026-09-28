@@ -338,6 +338,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         });
         if (claimed.count === 0) return false;
         await this.orders.releaseOrderInventory(tx, order.id);
+        await this.orders.releaseDiscountUsage(tx, order.id);
         await tx.orderEvent.create({
           data: {
             orderId: order.id,

@@ -20,9 +20,9 @@ export class UploadsController {
     FileInterceptor("file", {
       limits: { fileSize: 8 * 1024 * 1024 },
       fileFilter: (_request, file, callback) => {
-        const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml"];
+        const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
         if (!allowed.includes(file.mimetype)) {
-          callback(new BadRequestException("Only image files are allowed"), false);
+          callback(new BadRequestException("Only jpeg, png, webp, gif, or avif images are allowed"), false);
           return;
         }
         callback(null, true);
@@ -34,18 +34,16 @@ export class UploadsController {
     @Query("folder") folder: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
-    this.uploadsService.validate(
-      file ? { originalname: file.originalname, filename: "", mimetype: file.mimetype, size: file.size, path: "" } : undefined,
-    );
+    const detected = this.uploadsService.validateImage(file);
     const targetFolder = this.uploadsService.resolveFolder(folder);
 
     await this.uploadsService.ensureStorage(targetFolder);
-    const filename = this.uploadsService.staticFilename(file!.originalname);
+    const filename = this.uploadsService.staticFilename(detected.extension);
     const destination = join(this.uploadsService.storageFolder(targetFolder), filename);
     await writeFile(destination, file!.buffer);
 
     return this.uploadsService.register(
-      { originalname: file!.originalname, filename, mimetype: file!.mimetype, size: file!.size, path: destination },
+      { originalname: file!.originalname, filename, mimetype: detected.mime, size: file!.size, path: destination },
       targetFolder,
       auditContextFrom(request),
     );

@@ -54,6 +54,13 @@ async function bootstrap() {
     express.static(join(process.cwd(), config.get<string>("UPLOAD_DIR") ?? "uploads"), {
       maxAge: "7d",
       fallthrough: true,
+      index: false,
+      dotfiles: "deny",
+      setHeaders: (response) => {
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("Content-Disposition", "inline");
+        response.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+      },
     }),
   );
   app.enableCors({ origin: origins, credentials: true });

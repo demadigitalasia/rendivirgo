@@ -99,7 +99,7 @@ export function MediaPicker({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
         multiple={multiple}
         hidden
         onChange={(event) => upload(event.target.files)}

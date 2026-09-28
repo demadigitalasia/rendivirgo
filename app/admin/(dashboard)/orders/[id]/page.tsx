@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { apiFetch, errorMessage, formatDateTime, formatUSD, useApi } from "@/components/admin/api";
+import { allowedOrderStatuses } from "@/components/admin/order-status";
 import { toast } from "@/components/admin/toast";
 import {
   Badge,
@@ -91,8 +92,6 @@ type OrderDetail = {
   events: OrderEvent[];
 };
 
-const orderStatuses = ["New", "Processing", "Packed", "Shipped", "Completed", "Cancelled", "Returned"];
-
 const paymentStatuses = ["Pending", "Paid", "Failed", "Refunded", "PartiallyRefunded"];
 
 const eventTypes = [
@@ -103,8 +102,6 @@ const eventTypes = [
 ];
 
 const labelize = (value: string) => value.replace(/([a-z])([A-Z])/g, "$1 $2");
-
-const statusOptions = orderStatuses.map((value) => ({ value, label: labelize(value) }));
 
 const paymentOptions = paymentStatuses.map((value) => ({ value, label: labelize(value) }));
 
@@ -125,6 +122,11 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const { id } = use(params);
   const state = useApi<OrderDetail>(`/api/admin/orders/${id}`);
   const order = state.data;
+
+  const statusOptions = useMemo(
+    () => allowedOrderStatuses(order?.status ?? "New").map((value) => ({ value, label: labelize(value) })),
+    [order?.status],
+  );
 
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");

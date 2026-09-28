@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit",
     "dev:api": "npm --prefix api run dev",
     "dev:all": "npm run dev:api & npm run dev",
+    "test": "npm --prefix api test",
     "build:api": "npm --prefix api run build",
     "db:migrate": "npm --prefix api run prisma:migrate",
     "db:seed": "npm --prefix api run db:seed",

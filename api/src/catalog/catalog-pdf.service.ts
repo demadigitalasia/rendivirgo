@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import PDFDocument from "pdfkit";
 import SVGtoPDF from "svg-to-pdfkit";
 import { readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import type { ProductWithRelations } from "./products.service";
 
 const PAGE_WIDTH = 595.28;
@@ -17,12 +18,33 @@ const LINE = "#ddd7cb";
 const SURFACE = "#fffefa";
 const BG = "#f2f0ea";
 
+const MAX_ASSET_BYTES = 12 * 1024 * 1024;
+const MAX_DATA_URL_LENGTH = 16 * 1024 * 1024;
+
 export type CatalogPdfOptions = {
   includePrice: boolean;
 };
 
 @Injectable()
 export class CatalogPdfService {
+  private readonly publicApiOrigin: string;
+  private readonly assetRoots: string[];
+
+  constructor(config: ConfigService) {
+    const publicApiUrl = config.get<string>("PUBLIC_API_URL") ?? "http://localhost:4000";
+    try {
+      this.publicApiOrigin = new URL(publicApiUrl).origin;
+    } catch {
+      this.publicApiOrigin = "http://localhost:4000";
+    }
+
+    const uploadDir = resolve(join(process.cwd(), config.get<string>("UPLOAD_DIR") ?? "uploads"));
+    this.assetRoots = [
+      resolve(process.cwd(), "public"),
+      resolve(process.cwd(), "..", "public"),
+      uploadDir,
+    ];
+  }
   async generate(products: ProductWithRelations[], options: CatalogPdfOptions): Promise<Buffer> {
     const document = new PDFDocument({ size: "A4", margin: 0, autoFirstPage: false, compress: true });
     const chunks: Buffer[] = [];
@@ -156,27 +178,44 @@ export class CatalogPdfService {
 
   private async readAsset(url: string): Promise<Buffer | null> {
     if (url.startsWith("data:")) {
+      if (!/^data:image\//i.test(url) || url.length > MAX_DATA_URL_LENGTH) return null;
       const [, encoded] = url.split(",", 2);
-      return encoded ? Buffer.from(encoded, "base64") : null;
+      if (!encoded) return null;
+      const buffer = Buffer.from(encoded, "base64");
+      return buffer.length > MAX_ASSET_BYTES ? null : buffer;
     }
 
     if (/^https?:\/\//i.test(url)) {
-      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!response.ok) return null;
-      return Buffer.from(await response.arrayBuffer());
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return null;
+      }
+      // Only fetch media from our own uploads origin — blocks SSRF to internal hosts.
+      if (parsed.origin !== this.publicApiOrigin || !parsed.pathname.startsWith("/uploads/")) return null;
+
+      try {
+        const response = await fetch(parsed, { signal: AbortSignal.timeout(5000), redirect: "error" });
+        if (!response.ok) return null;
+        const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+        if (!contentType.startsWith("image/")) return null;
+        const buffer = Buffer.from(await response.arrayBuffer());
+        return buffer.length > MAX_ASSET_BYTES ? null : buffer;
+      } catch {
+        return null;
+      }
     }
 
-    const relative = url.replace(/^\/+/, "");
-    const candidates = [
-      resolve(process.cwd(), "public", relative),
-      resolve(process.cwd(), relative),
-      resolve(process.cwd(), "..", "public", relative),
-      resolve(process.cwd(), "uploads", relative.replace(/^uploads\/+/, "")),
-    ];
+    const relative = url.replace(/^\/+/, "").replace(/\\/g, "/");
+    if (!relative || relative.includes("..") || relative.includes("\0")) return null;
 
-    for (const candidate of candidates) {
+    for (const root of this.assetRoots) {
+      const candidate = resolve(root, relative);
+      if (!candidate.startsWith(root + sep)) continue;
       try {
-        return await readFile(candidate);
+        const buffer = await readFile(candidate);
+        return buffer.length > MAX_ASSET_BYTES ? null : buffer;
       } catch {
         // Try the next known application root.
       }

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "../../generated/prisma";
+import { Prisma, type OrderStatus } from "../../generated/prisma";
 import type { Customer, OrderItem } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
@@ -65,12 +65,28 @@ type ResolvedDiscount = {
   shippingCost: Prisma.Decimal;
 };
 
-const SELLER = {
+const SELLER_FALLBACK = {
   name: "RENDI VIRGO",
-  address: "RENDI VIRGO Atelier, [Street Address], [City, State, Postal Code], [Country]",
+  address: "",
   email: "hello@rendivirgo.com",
-  phone: "+62 000 0000 0000",
+  phone: "",
 };
+
+// Orders may only move forward through the fulfilment pipeline.
+const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  New: ["Processing", "Cancelled"],
+  Processing: ["Packed", "Cancelled"],
+  Packed: ["Shipped", "Cancelled"],
+  Shipped: ["Completed", "Returned"],
+  Completed: ["Returned"],
+  Cancelled: [],
+  Returned: [],
+};
+
+export function canTransitionOrderStatus(from: OrderStatus, to: OrderStatus): boolean {
+  if (from === to) return true;
+  return ORDER_STATUS_TRANSITIONS[from]?.includes(to) ?? false;
+}
 
 @Injectable()
 export class OrdersService {
@@ -230,8 +246,10 @@ export class OrdersService {
 
   private async resolveDiscount(
     code: string | undefined,
+    lines: CheckoutLine[],
     subtotal: Prisma.Decimal,
     shippingCost: Prisma.Decimal,
+    email: string,
   ): Promise<ResolvedDiscount | null> {
     const normalized = code?.trim();
     if (!normalized) return null;
@@ -245,11 +263,40 @@ export class OrdersService {
     const now = new Date();
     if (discount.startsAt && discount.startsAt > now) throw new BadRequestException("Discount code is not active yet");
     if (discount.endsAt && discount.endsAt < now) throw new BadRequestException("Discount code has expired");
-    if (subtotal.lessThan(discount.minSubtotal)) {
-      throw new BadRequestException(`A minimum subtotal of ${discount.minSubtotal.toFixed(2)} is required for this discount`);
-    }
     if (discount.maxUses !== null && discount.usedCount >= discount.maxUses) {
       throw new BadRequestException("Discount code has reached its usage limit");
+    }
+
+    // Category-scoped discounts only apply to eligible line items, and the
+    // minimum subtotal is checked against that eligible base — matching the
+    // public validation endpoint so the cart total and the order agree.
+    let base = subtotal;
+    if (discount.categoryId) {
+      base = lines
+        .filter((line) => line.product.categoryId === discount.categoryId)
+        .reduce((sum, line) => sum.plus(line.unitPrice.mul(line.quantity)), new Prisma.Decimal(0))
+        .toDecimalPlaces(2);
+      if (base.lessThanOrEqualTo(0)) {
+        throw new BadRequestException("This discount does not apply to any item in your cart");
+      }
+    }
+
+    if (base.lessThan(discount.minSubtotal)) {
+      throw new BadRequestException(`A minimum subtotal of ${discount.minSubtotal.toFixed(2)} is required for this discount`);
+    }
+
+    if (discount.perCustomerLimit !== null) {
+      const previousUses = await this.prisma.order.count({
+        where: {
+          email,
+          discountId: discount.id,
+          paymentStatus: { not: "Failed" },
+          status: { not: "Cancelled" },
+        },
+      });
+      if (previousUses >= discount.perCustomerLimit) {
+        throw new BadRequestException("This discount code has already been used the maximum number of times for this customer");
+      }
     }
 
     let discountTotal = new Prisma.Decimal(0);
@@ -257,7 +304,7 @@ export class OrdersService {
 
     switch (discount.type) {
       case "Percentage":
-        discountTotal = subtotal.mul(discount.value).div(100).toDecimalPlaces(2);
+        discountTotal = base.mul(discount.value).div(100).toDecimalPlaces(2);
         break;
       case "Fixed":
         discountTotal = discount.value;
@@ -267,7 +314,7 @@ export class OrdersService {
         break;
     }
 
-    if (discountTotal.greaterThan(subtotal)) discountTotal = subtotal;
+    if (discountTotal.greaterThan(base)) discountTotal = base;
 
     return { discount, discountTotal, shippingCost: nextShippingCost };
   }
@@ -314,6 +361,18 @@ export class OrdersService {
       where: { id: { in: productIds }, stockModel: "Unique" },
       data: { status: "Sold" },
     });
+  }
+
+  // Returns a discount usage slot when an unpaid order is cancelled or expires,
+  // so abandoned checkouts do not burn limited-use codes.
+  async releaseDiscountUsage(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
+    const order = await tx.order.findUnique({ where: { id: orderId }, select: { discountId: true } });
+    if (!order?.discountId) return;
+    await tx.$executeRaw`
+      UPDATE "Discount"
+      SET "usedCount" = GREATEST("usedCount" - 1, 0)
+      WHERE "id" = ${order.discountId}
+    `;
   }
 
   // ------------------------------------------------------------ checkout
@@ -396,7 +455,7 @@ export class OrdersService {
       oversized,
     );
     const baseShippingCost = shippingResult.shippingCost;
-    const discountResult = await this.resolveDiscount(dto.discountCode, subtotal, baseShippingCost);
+    const discountResult = await this.resolveDiscount(dto.discountCode, lines, subtotal, baseShippingCost, email);
 
     const shippingCost = discountResult?.shippingCost ?? baseShippingCost;
     const discountTotal = discountResult?.discountTotal ?? new Prisma.Decimal(0);
@@ -515,10 +574,17 @@ export class OrdersService {
       });
 
       if (discountResult) {
-        await tx.discount.update({
-          where: { id: discountResult.discount.id },
-          data: { usedCount: { increment: 1 } },
-        });
+        // Atomic usage claim: the update only succeeds while the code still has
+        // capacity, so concurrent checkouts cannot exceed maxUses.
+        const claimed = await tx.$executeRaw`
+          UPDATE "Discount"
+          SET "usedCount" = "usedCount" + 1
+          WHERE "id" = ${discountResult.discount.id}
+            AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+        `;
+        if (claimed === 0) {
+          throw new BadRequestException("Discount code has reached its usage limit");
+        }
       }
 
       return created;
@@ -678,6 +744,10 @@ export class OrdersService {
     const statusChanged = dto.status !== undefined && dto.status !== existing.status;
     const paymentChanged = dto.paymentStatus !== undefined && dto.paymentStatus !== existing.paymentStatus;
 
+    if (statusChanged && dto.status && !canTransitionOrderStatus(existing.status, dto.status)) {
+      throw new BadRequestException(`Cannot change order status from ${existing.status} to ${dto.status}`);
+    }
+
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.paymentStatus !== undefined) data.paymentStatus = dto.paymentStatus;
     if (dto.carrier !== undefined) data.carrier = dto.carrier;
@@ -689,16 +759,16 @@ export class OrdersService {
     if (statusChanged && dto.status) {
       switch (dto.status) {
         case "Packed":
-          data.packedAt = now;
+          if (!existing.packedAt) data.packedAt = now;
           break;
         case "Shipped":
-          data.shippedAt = now;
+          if (!existing.shippedAt) data.shippedAt = now;
           break;
         case "Completed":
-          data.completedAt = now;
+          if (!existing.completedAt) data.completedAt = now;
           break;
         case "Cancelled":
-          data.cancelledAt = now;
+          if (!existing.cancelledAt) data.cancelledAt = now;
           break;
         default:
           break;
@@ -711,6 +781,8 @@ export class OrdersService {
       events.push({ type: "payment", message: `Payment status changed from ${existing.paymentStatus} to ${dto.paymentStatus}` });
     }
 
+    const effectiveStatus = dto.status ?? existing.status;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       if (events.length) {
         await tx.orderEvent.createMany({
@@ -718,11 +790,15 @@ export class OrdersService {
         });
       }
 
-      if (statusChanged && dto.status === "Cancelled") {
+      if (statusChanged && (dto.status === "Cancelled" || dto.status === "Returned")) {
         await this.releaseOrderInventory(tx, id);
       }
 
-      if (paymentChanged && dto.paymentStatus === "Paid") {
+      if (statusChanged && dto.status === "Cancelled") {
+        await this.releaseDiscountUsage(tx, id);
+      }
+
+      if (paymentChanged && dto.paymentStatus === "Paid" && effectiveStatus !== "Cancelled" && effectiveStatus !== "Returned") {
         await this.markUniqueProductsSold(tx, id);
       }
 
@@ -787,13 +863,24 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({ where: { id }, include: { items: true } });
     if (!order) throw new NotFoundException("Order not found");
 
+    const store = await this.settings.getPublicSettings();
+    const text = (key: string, fallback: string): string => {
+      const value = store[key];
+      return typeof value === "string" && value.trim() ? value.trim() : fallback;
+    };
+
     return {
       invoiceNumber: `INV-${order.orderNumber}`,
       orderNumber: order.orderNumber,
       issuedAt: new Date(),
       placedAt: order.placedAt,
       currency: order.currency,
-      seller: SELLER,
+      seller: {
+        name: text("store.name", SELLER_FALLBACK.name),
+        address: text("store.address", SELLER_FALLBACK.address),
+        email: text("store.email", SELLER_FALLBACK.email),
+        phone: text("store.whatsapp", SELLER_FALLBACK.phone),
+      },
       buyer: {
         name: order.customerName,
         email: order.email,
@@ -841,10 +928,20 @@ export class OrdersService {
       throw new BadRequestException(`Refund exceeds the remaining refundable amount of ${refundable.toFixed(2)}`);
     }
 
-    const refundedAmount = order.refundedAmount.plus(amount).toDecimalPlaces(2);
-    const paymentStatus = refundedAmount.greaterThanOrEqualTo(order.total) ? "Refunded" : "PartiallyRefunded";
-
+    // The conditional increment makes concurrent refunds safe: only the request
+    // that can still fit within the order total is allowed to add its amount.
     const updated = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.order.updateMany({
+        where: { id, refundedAmount: { lte: order.total.minus(amount) } },
+        data: { refundedAmount: { increment: amount } },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestException("Refund exceeds the remaining refundable amount");
+      }
+
+      const fresh = await tx.order.findUniqueOrThrow({ where: { id } });
+      const paymentStatus = fresh.refundedAmount.greaterThanOrEqualTo(fresh.total) ? "Refunded" : "PartiallyRefunded";
+
       await tx.orderEvent.create({
         data: {
           orderId: id,
@@ -856,7 +953,7 @@ export class OrdersService {
 
       return tx.order.update({
         where: { id },
-        data: { refundedAmount, paymentStatus },
+        data: { paymentStatus },
         include: orderInclude,
       });
     });
@@ -867,7 +964,7 @@ export class OrdersService {
       entityType: "Order",
       entityId: id,
       summary: `Refunded ${order.currency} ${amount.toFixed(2)} on order ${order.orderNumber}`,
-      metadata: { amount: amount.toNumber(), reason: dto.reason ?? null, paymentStatus },
+      metadata: { amount: amount.toNumber(), reason: dto.reason ?? null, paymentStatus: updated.paymentStatus },
       ip: context.ip,
       userAgent: context.userAgent,
     });

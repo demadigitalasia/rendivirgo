@@ -5,7 +5,14 @@ import type { AuditContext } from "../common/types/audit-context";
 import { paginated, skipTake, type Paginated } from "../common/dto/pagination.dto";
 import { slugify, uniqueSlug } from "../common/utils/slug";
 import { PrismaService } from "../prisma/prisma.service";
-import { BulkProductActionDto, CatalogPdfQueryDto, CreateProductDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
+import {
+  BulkProductActionDto,
+  CatalogPdfQueryDto,
+  CreateProductDto,
+  ProductQueryDto,
+  ProductVariantDto,
+  UpdateProductDto,
+} from "./dto/product.dto";
 import { CatalogPdfService } from "./catalog-pdf.service";
 
 export const productInclude = {
@@ -374,6 +381,45 @@ export class ProductsService {
     return this.toApiProduct(product);
   }
 
+  // Variant SKUs are globally unique, so every write is scoped to this product
+  // and checked explicitly — an upsert by SKU could otherwise mutate a variant
+  // that belongs to a different product.
+  private async syncVariants(tx: Prisma.TransactionClient, productId: string, variants: ProductVariantDto[]): Promise<void> {
+    const keepIds = variants.map((variant) => variant.id).filter((value): value is string => Boolean(value));
+    await tx.productVariant.deleteMany({
+      where: { productId, ...(keepIds.length ? { id: { notIn: keepIds } } : {}) },
+    });
+
+    for (const [index, variant] of variants.entries()) {
+      const payload = {
+        name: variant.name,
+        price: new Prisma.Decimal(variant.price),
+        stockQuantity: variant.stockQuantity,
+        weightGram: variant.weightGram,
+        lengthMm: variant.lengthMm ?? null,
+        widthMm: variant.widthMm ?? null,
+        heightMm: variant.heightMm ?? null,
+        shippingClass: variant.shippingClass ?? "Standard",
+        sortOrder: variant.sortOrder ?? index,
+      };
+
+      if (variant.id) {
+        const owned = await tx.productVariant.findFirst({ where: { id: variant.id, productId } });
+        if (!owned) throw new BadRequestException(`Variant "${variant.name}" was not found on this product`);
+
+        const skuTaken = await tx.productVariant.findFirst({ where: { sku: variant.sku, id: { not: variant.id } } });
+        if (skuTaken) throw new BadRequestException(`Variant SKU "${variant.sku}" is already used by another product`);
+
+        await tx.productVariant.update({ where: { id: variant.id }, data: { ...payload, sku: variant.sku } });
+      } else {
+        const skuTaken = await tx.productVariant.findFirst({ where: { sku: variant.sku } });
+        if (skuTaken) throw new BadRequestException(`Variant SKU "${variant.sku}" is already used by another product`);
+
+        await tx.productVariant.create({ data: { productId, sku: variant.sku, ...payload } });
+      }
+    }
+  }
+
   async update(id: string, dto: UpdateProductDto, context: AuditContext) {
     const existing = await this.prisma.product.findUnique({ where: { id }, include: productInclude });
     if (!existing) throw new NotFoundException("Product not found");
@@ -401,8 +447,7 @@ export class ProductsService {
         await tx.productImage.deleteMany({ where: { productId: id } });
       }
       if (dto.variants) {
-        const keepIds = dto.variants.map((variant) => variant.id).filter((value): value is string => Boolean(value));
-        await tx.productVariant.deleteMany({ where: { productId: id, id: { notIn: keepIds.length ? keepIds : ["__none__"] } } });
+        await this.syncVariants(tx, id, dto.variants);
       }
 
       return tx.product.update({
@@ -448,38 +493,6 @@ export class ProductsService {
                     focalX: image.focalX ?? null,
                     focalY: image.focalY ?? null,
                     sortOrder: image.sortOrder ?? index,
-                  })),
-                },
-              }
-            : {}),
-          ...(dto.variants
-            ? {
-                variants: {
-                  upsert: dto.variants.map((variant, index) => ({
-                    where: { sku: variant.sku },
-                    create: {
-                      sku: variant.sku,
-                      name: variant.name,
-                      price: new Prisma.Decimal(variant.price),
-                      stockQuantity: variant.stockQuantity,
-                      weightGram: variant.weightGram,
-                      lengthMm: variant.lengthMm ?? null,
-                      widthMm: variant.widthMm ?? null,
-                      heightMm: variant.heightMm ?? null,
-                      shippingClass: variant.shippingClass ?? "Standard",
-                      sortOrder: variant.sortOrder ?? index,
-                    },
-                    update: {
-                      name: variant.name,
-                      price: new Prisma.Decimal(variant.price),
-                      stockQuantity: variant.stockQuantity,
-                      weightGram: variant.weightGram,
-                      lengthMm: variant.lengthMm ?? null,
-                      widthMm: variant.widthMm ?? null,
-                      heightMm: variant.heightMm ?? null,
-                      shippingClass: variant.shippingClass ?? "Standard",
-                      sortOrder: variant.sortOrder ?? index,
-                    },
                   })),
                 },
               }
