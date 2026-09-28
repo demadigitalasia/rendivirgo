@@ -109,6 +109,12 @@ enum NotificationType {
   System
 }
 
+enum ReviewStatus {
+  Pending
+  Published
+  Rejected
+}
+
 enum BannerPlacement {
   HomeHero
   HomeOwner
@@ -232,6 +238,7 @@ model Product {
   orderItems     OrderItem[]
   priceHistory   ProductPriceHistory[]
   testimonials   Testimonial[]
+  reviews        ProductReview[]
 
   @@index([categoryId])
   @@index([status])
@@ -401,6 +408,7 @@ model Order {
   discount Discount?   @relation(fields: [discountId], references: [id], onDelete: SetNull)
   items    OrderItem[]
   events   OrderEvent[]
+  reviews  ProductReview[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -518,6 +526,28 @@ model Testimonial {
   updatedAt   DateTime @updatedAt
 
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+model ProductReview {
+  id               String       @id @default(cuid())
+  productId        String
+  orderId          String?
+  name             String
+  email            String
+  rating           Int
+  title            String?
+  body             String
+  status           ReviewStatus @default(Pending)
+  verifiedPurchase Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([productId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([email])
 }
 
 model Banner {

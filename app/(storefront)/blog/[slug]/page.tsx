@@ -3,9 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageBody, formatContentDate } from "@/components/page-body";
 import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
-import { getBlogPost } from "@/lib/storefront";
+import { getBlogPost, getBlogPosts } from "@/lib/storefront";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const { posts } = await getBlogPosts({ pageSize: 100 });
+  return posts.slice(0, 50).map((post) => ({ slug: post.slug }));
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

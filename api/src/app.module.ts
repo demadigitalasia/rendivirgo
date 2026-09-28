@@ -17,6 +17,7 @@ import { OrdersModule } from "./orders/orders.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReportsModule } from "./reports/reports.module";
+import { ReviewsModule } from "./reviews/reviews.module";
 import { SettingsModule } from "./settings/settings.module";
 import { UploadsModule } from "./uploads/uploads.module";
 
@@ -38,6 +39,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     OrdersModule,
     PaymentsModule,
     ReportsModule,
+    ReviewsModule,
     SettingsModule,
     UploadsModule,
   ],

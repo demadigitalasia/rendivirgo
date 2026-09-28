@@ -120,6 +120,33 @@ export const renderNewMessageAdminEmail = (message: {
     footer: "RENDI VIRGO admin notification",
   });
 
+export const renderNewReviewAdminEmail = (review: {
+  productName: string;
+  name: string;
+  rating: number;
+  title: string | null;
+  body: string;
+  verifiedPurchase: boolean;
+}): string =>
+  layout({
+    heading: `New review pending — ${review.productName}`,
+    intro: `${review.name} rated it ${review.rating}/5${review.verifiedPurchase ? " (verified purchase)" : ""}. Approve or reject it in the admin.`,
+    body: `<div style="font-size:14px;line-height:1.6;color:#3d3931;">
+      ${review.title ? `<p style="font-weight:bold;margin:0 0 6px;">${escapeHtml(review.title)}</p>` : ""}
+      <p style="white-space:pre-wrap;margin:0;">${escapeHtml(review.body)}</p>
+    </div>`,
+    footer: "RENDI VIRGO admin notification",
+  });
+
+export const renderOrdersLinkEmail = (data: { link: string; expiresMinutes: number }): string =>
+  layout({
+    heading: "Your RENDI VIRGO orders",
+    intro: `Use the button below to open your order history. This link expires in ${data.expiresMinutes} minutes and only works on this device.`,
+    body: `<p style="margin:0 0 8px;"><a href="${escapeHtml(data.link)}" style="display:inline-block;background:#22201c;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-size:14px;">View my orders</a></p>
+      <p style="font-size:12px;color:#8a8477;word-break:break-all;">${escapeHtml(data.link)}</p>`,
+    footer: "If you did not request this, you can safely ignore this email.",
+  });
+
 export const renderPasswordResetEmail = (data: { name: string; link: string; expiresMinutes: number }): string =>
   layout({
     heading: "Reset your admin password",

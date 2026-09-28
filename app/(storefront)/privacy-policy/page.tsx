@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ApiContentPage, contentPageMetadata } from "@/components/api-content-page";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 const fallback = {
   title: "Privacy Policy | RENDI VIRGO",

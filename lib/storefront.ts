@@ -235,9 +235,8 @@ export function mapProduct(item: ApiProduct): Product {
 async function apiGet<T>(path: string, options?: { revalidate?: number }): Promise<T | null> {
   try {
     const response = await fetch(`${apiOrigin}${path}`, {
-      cache: "no-store",
       headers: { accept: "application/json" },
-      ...(options?.revalidate ? { next: { revalidate: options.revalidate } } : {}),
+      next: { revalidate: options?.revalidate ?? 60 },
     });
     if (!response.ok) return null;
     return (await response.json()) as T;
@@ -314,6 +313,13 @@ export async function getProductFilters() {
     origins: result?.origins ?? [],
     stoneTypes: result?.stoneTypes ?? [],
   };
+}
+
+export async function getProductReviewSummary(slug: string) {
+  const result = await apiGet<{ summary: { rating: number; count: number } }>(
+    `/api/products/${encodeURIComponent(slug)}/reviews?pageSize=1`,
+  );
+  return result?.summary ?? { rating: 0, count: 0 };
 }
 
 export async function getProductBySlug(slug: string) {

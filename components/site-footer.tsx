@@ -89,6 +89,7 @@ export function SiteFooter() {
           <Link href="/faq">{t.footer.faq}</Link>
           <Link href="/shipping-returns">{t.footer.shipping}</Link>
           <Link href="/track">{t.footer.track}</Link>
+          <Link href="/orders">{t.footer.orders}</Link>
           <Link href="/contact">{t.footer.contact}</Link>
         </div>
         <div>

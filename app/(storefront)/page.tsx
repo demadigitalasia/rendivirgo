@@ -3,7 +3,7 @@ import { HomeContent } from "@/components/home-content";
 import { absoluteUrl, siteUrl } from "@/lib/seo";
 import { getCategories, getProducts, getPublicSettings, getSiteContent, getTestimonials } from "@/lib/storefront";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "RENDI VIRGO | Authentic Indonesian Stones",

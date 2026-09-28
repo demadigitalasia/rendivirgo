@@ -1,11 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Prisma, type OrderStatus } from "../../generated/prisma";
 import type { Customer, OrderItem } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
+import { signMagicToken, verifyMagicToken } from "../common/utils/magic-token";
 import { EmailService } from "../email/email.service";
-import { renderNewOrderAdminEmail, renderOrderReceivedEmail } from "../email/email.templates";
+import { renderNewOrderAdminEmail, renderOrderReceivedEmail, renderOrdersLinkEmail } from "../email/email.templates";
 import { buildOrderEmailData } from "../email/order-email-data";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
@@ -90,13 +92,22 @@ export function canTransitionOrderStatus(from: OrderStatus, to: OrderStatus): bo
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+  private readonly magicSecret: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly shipping: ShippingService,
     private readonly settings: SettingsService,
     private readonly email: EmailService,
     private readonly audit: AuditService,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.magicSecret =
+      this.config.get<string>("SESSION_SECRET") ??
+      this.config.get<string>("ADMIN_PASSWORD") ??
+      "rv-insecure-development-secret";
+  }
 
   // ------------------------------------------------------------ mapping
 
@@ -629,8 +640,72 @@ export class OrdersService {
     });
   }
 
-  async track(orderNumber: string, email?: string) {
-    const normalized = email?.trim().toLowerCase();
+  // ------------------------------------------------------------ order history (magic link)
+
+  async requestHistoryLink(email: string): Promise<{ ok: true }> {
+    const normalized = email.trim().toLowerCase();
+    const orderCount = await this.prisma.order.count({ where: { email: normalized } });
+
+    // Always answer the same way so the endpoint cannot be used to probe emails.
+    if (orderCount === 0) {
+      this.logger.log(`Order history link requested for unknown email ${normalized}`);
+      return { ok: true };
+    }
+
+    const ttlMinutes = 30;
+    const token = signMagicToken({ email: normalized, exp: Date.now() + ttlMinutes * 60_000 }, this.magicSecret);
+    const origin = (this.config.get<string>("APP_ORIGIN") ?? "http://localhost:3000")
+      .split(",")[0]
+      .trim()
+      .replace(/\/+$/, "");
+    const link = `${origin}/orders?token=${encodeURIComponent(token)}`;
+
+    await this.email.send({
+      to: normalized,
+      subject: "Your RENDI VIRGO order history link",
+      html: renderOrdersLinkEmail({ link, expiresMinutes: ttlMinutes }),
+    });
+
+    return { ok: true };
+  }
+
+  async history(token: string) {
+    const payload = verifyMagicToken(token.trim(), this.magicSecret);
+    if (!payload) throw new BadRequestException("This link is invalid or has expired");
+
+    const orders = await this.prisma.order.findMany({
+      where: { email: payload.email },
+      orderBy: { placedAt: "desc" },
+      take: 50,
+      include: { items: { select: { name: true, quantity: true, lineTotal: true, imageUrl: true } } },
+    });
+
+    return {
+      email: payload.email,
+      expiresAt: new Date(payload.exp).toISOString(),
+      orders: orders.map((order) => ({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        currency: order.currency,
+        total: order.total,
+        placedAt: order.placedAt,
+        shippingName: order.shippingName,
+        trackingNumber: order.trackingNumber,
+        trackingUrl: order.trackingUrl,
+        itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+        items: order.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          lineTotal: item.lineTotal,
+          imageUrl: item.imageUrl,
+        })),
+      })),
+    };
+  }
+
+  async track(orderNumber: string, email?: string) {    const normalized = email?.trim().toLowerCase();
     const order = await this.prisma.order.findUnique({ where: { orderNumber }, include: { items: true } });
     if (!order || !normalized || order.email.toLowerCase() !== normalized) {
       throw new NotFoundException("Order not found");

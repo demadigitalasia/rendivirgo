@@ -3,9 +3,14 @@ import { notFound } from "next/navigation";
 import { ProductDetailClient } from "@/components/product-detail-client";
 import { formatDimensions } from "@/lib/catalog";
 import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
-import { getProductBySlug, getRelatedProducts } from "@/lib/storefront";
+import { getProductBySlug, getProductReviewSummary, getRelatedProducts, getAllPublishedProducts } from "@/lib/storefront";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const products = await getAllPublishedProducts();
+  return products.slice(0, 100).map((product) => ({ category: product.categorySlug, slug: product.slug }));
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ category: string; slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -29,6 +34,7 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
   if (!product || product.categorySlug !== category) notFound();
 
   const related = await getRelatedProducts(slug, 4);
+  const reviewSummary = await getProductReviewSummary(slug);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -40,6 +46,15 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
     image: product.images.slice(0, 4).map((image) => absoluteUrl(image)),
     brand: { "@type": "Brand", name: "RENDI VIRGO" },
     weight: { "@type": "QuantitativeValue", value: product.weightGram, unitCode: "GRM" },
+    ...(reviewSummary.count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: reviewSummary.rating,
+            reviewCount: reviewSummary.count,
+          },
+        }
+      : {}),
     additionalProperty: [
       { "@type": "PropertyValue", name: "Stone type", value: product.stoneType },
       { "@type": "PropertyValue", name: "Origin", value: product.origin },

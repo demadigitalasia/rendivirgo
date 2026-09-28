@@ -1,10 +1,16 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import { IsEmail } from "class-validator";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { CreateOrderDto, CreateOrderEventDto, OrderQueryDto, RefundOrderDto, UpdateOrderDto } from "./dto/order.dto";
 import { OrdersService } from "./orders.service";
+
+class RequestHistoryLinkDto {
+  @IsEmail()
+  email: string;
+}
 
 @Controller("orders")
 export class OrdersController {
@@ -15,6 +21,20 @@ export class OrdersController {
   @Post()
   create(@Body() dto: CreateOrderDto) {
     return this.ordersService.create(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Post("history-link")
+  historyLink(@Body() dto: RequestHistoryLinkDto) {
+    return this.ordersService.requestHistoryLink(dto.email);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Get("history")
+  history(@Query("token") token?: string) {
+    return this.ordersService.history(token ?? "");
   }
 
   @Public()

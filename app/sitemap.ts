@@ -4,6 +4,8 @@ import { getAllPublishedProducts, getBlogPosts, getCategories } from "@/lib/stor
 
 const baseUrl = siteUrl();
 
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const toDate = (value: string | null | undefined) => {

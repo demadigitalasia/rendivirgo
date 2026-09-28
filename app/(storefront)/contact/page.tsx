@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ContactForm } from "@/components/contact-form";
 import { getPublicSettings } from "@/lib/storefront";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Contact | RENDI VIRGO",

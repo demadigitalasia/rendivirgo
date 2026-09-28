@@ -9,6 +9,7 @@ import { useCart, useCopy } from "@/components/providers";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { CloseIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
+import { ProductReviews } from "@/components/product-reviews";
 
 const fallbackImage = "/images/products/stone-moss.svg";
 
@@ -282,6 +283,8 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
           </div>
         </details>
       </section>
+
+      <ProductReviews slug={product.slug} />
 
       {related.length ? (
         <section className="page-container product-detail__related">

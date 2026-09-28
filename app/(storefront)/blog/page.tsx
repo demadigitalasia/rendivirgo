@@ -3,7 +3,7 @@ import Link from "next/link";
 import { formatContentDate } from "@/components/page-body";
 import { getBlogPosts } from "@/lib/storefront";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Journal — Stone Guides & Sourcing Stories | RENDI VIRGO",

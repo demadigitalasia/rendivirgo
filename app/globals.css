@@ -446,3 +446,24 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
   .track-result__head { flex-direction: column; }
   .footer-newsletter form { flex-direction: column; }
 }
+
+/* Sprint 4: product reviews + order history */
+.product-reviews { padding: 10px 0 55px; }
+.review-summary { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.review-summary strong { font: 1.5rem var(--font-display); }
+.review-stars { letter-spacing: 2px; color: var(--line); }
+.review-stars .is-filled { color: var(--bronze); }
+.review-list { list-style: none; margin: 0 0 26px; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.review-item { padding: 18px; background: var(--white); border: 1px solid var(--line); }
+.review-item__head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+.review-item p { margin: 0 0 8px; color: var(--ink); line-height: 1.6; }
+.review-item__meta { display: flex; gap: 10px; align-items: center; font-size: .85rem; }
+.review-verified { padding: 2px 8px; border: 1px solid var(--jade); color: var(--jade); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.review-form-wrap { margin-top: 26px; max-width: 620px; }
+.review-form { display: flex; flex-direction: column; gap: 14px; padding: 20px; background: var(--ivory); border: 1px solid var(--line); }
+.review-form input, .review-form select, .review-form textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); background: var(--white); }
+
+.history-result { margin-bottom: 10px; }
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.history-item { padding: 18px; background: var(--white); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.history-item__head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
