@@ -55,6 +55,16 @@ const en = {
     available: "Available",
     oneOfAKind: "One of a Kind",
     viewAll: "View all stones",
+    addedToast: (name: string) => `${name} added to your cart.`,
+  },
+  breadcrumb: {
+    label: "Breadcrumb",
+    home: "Home",
+    shop: "Shop",
+    journal: "Journal",
+    cart: "Cart",
+    checkout: "Checkout",
+    search: "Search",
   },
   home: {
     eyebrow: "Natural beauty · Timeless value",
@@ -111,6 +121,9 @@ const en = {
     categoryIntro: "Each piece lists its origin, condition, weight, and availability.",
     emptyCategory: "This category is being curated.",
     browseFull: "Browse the full collection",
+    filterToggle: "Filters",
+    filterClose: "Close filters",
+    filterActive: (n: number) => `${n} ${n === 1 ? "filter" : "filters"} active`,
   },
   orderHistory: {
     eyebrow: "My orders",
@@ -161,6 +174,8 @@ const en = {
     browse: "Browse the collection",
     count: (n: number) => `${n} saved ${n === 1 ? "piece" : "pieces"}`,
     clear: "Clear wishlist",
+    savedToast: (name: string) => `${name} saved to your wishlist.`,
+    removedToast: (name: string) => `${name} removed from your wishlist.`,
   },
   pagination: {
     label: "Pagination",
@@ -261,6 +276,7 @@ const en = {
     totalWeight: "Total weight",
     totalBefore: "Total before shipping",
     checkout: "Continue to checkout",
+    liveUpdate: (n: number) => (n === 0 ? "Cart is now empty." : `Cart updated — ${n} ${n === 1 ? "item" : "items"}.`),
   },
   checkout: {
     eyebrow: "Secure checkout preview",
@@ -403,6 +419,16 @@ const id: Copy = {
     available: "Tersedia",
     oneOfAKind: "Satu-satunya",
     viewAll: "Lihat semua batu",
+    addedToast: (name: string) => `${name} ditambahkan ke keranjang.`,
+  },
+  breadcrumb: {
+    label: "Navigasi remah",
+    home: "Beranda",
+    shop: "Koleksi",
+    journal: "Jurnal",
+    cart: "Keranjang",
+    checkout: "Checkout",
+    search: "Pencarian",
   },
   home: {
     eyebrow: "Keindahan alami · Nilai abadi",
@@ -459,6 +485,9 @@ const id: Copy = {
     categoryIntro: "Setiap batu mencantumkan asal, kondisi, berat, dan ketersediaannya.",
     emptyCategory: "Kategori ini sedang dikurasi.",
     browseFull: "Jelajahi seluruh koleksi",
+    filterToggle: "Filter",
+    filterClose: "Tutup filter",
+    filterActive: (n: number) => `${n} filter aktif`,
   },
   orderHistory: {
     eyebrow: "Pesanan saya",
@@ -509,6 +538,8 @@ const id: Copy = {
     browse: "Jelajahi koleksi",
     count: (n: number) => `${n} batu tersimpan`,
     clear: "Kosongkan wishlist",
+    savedToast: (name: string) => `${name} disimpan ke wishlist.`,
+    removedToast: (name: string) => `${name} dihapus dari wishlist.`,
   },
   pagination: {
     label: "Navigasi halaman",
@@ -609,6 +640,7 @@ const id: Copy = {
     totalWeight: "Berat total",
     totalBefore: "Total sebelum pengiriman",
     checkout: "Lanjut ke checkout",
+    liveUpdate: (n: number) => (n === 0 ? "Keranjang sekarang kosong." : `Keranjang diperbarui — ${n} item.`),
   },
   checkout: {
     eyebrow: "Pratinjau checkout aman",

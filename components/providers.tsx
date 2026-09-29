@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Product } from "@/lib/catalog";
 import type { Copy, Language } from "@/lib/i18n";
 import { defaultLanguage, dictionaries } from "@/lib/i18n";
@@ -47,6 +47,8 @@ const readJson = <T,>(key: string): T | null => {
 export function Providers({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [language, setLanguage] = useState<Language>(defaultLanguage);
+  const [cartAnnouncement, setCartAnnouncement] = useState("");
+  const previousItemCount = useRef<number | null>(null);
 
   useEffect(() => {
     const savedCart = readJson<CartLine[]>(cartStorageKey);
@@ -120,9 +122,27 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, [lines]);
 
+  useEffect(() => {
+    const count = cartValue.itemCount;
+    if (previousItemCount.current === null) {
+      previousItemCount.current = count;
+      return;
+    }
+    if (previousItemCount.current === count) return;
+    previousItemCount.current = count;
+    setCartAnnouncement(dictionaries[language].cart.liveUpdate(count));
+    const timer = window.setTimeout(() => setCartAnnouncement(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [cartValue, language]);
+
   return (
     <LanguageContext.Provider value={{ language, setLanguage }}>
-      <CartContext.Provider value={cartValue}>{children}</CartContext.Provider>
+      <CartContext.Provider value={cartValue}>
+        {children}
+        <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {cartAnnouncement}
+        </span>
+      </CartContext.Provider>
     </LanguageContext.Provider>
   );
 }

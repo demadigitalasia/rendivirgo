@@ -5,8 +5,11 @@ export default function NotFound() {
     <div className="page-container content-page">
       <div className="eyebrow">404</div>
       <h1>This piece is not here.</h1>
-      <p className="muted" style={{ margin: "18px 0 26px" }}>
+      <p className="muted" style={{ margin: "18px 0 6px" }}>
         The page or stone you are looking for may have moved into a private collection.
+      </p>
+      <p className="muted" lang="id" style={{ margin: "0 0 26px" }}>
+        Halaman atau batu yang Anda cari mungkin sudah pindah ke koleksi pribadi.
       </p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Link href="/" className="button">

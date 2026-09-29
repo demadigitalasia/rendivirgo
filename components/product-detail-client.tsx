@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DimensionsMm, Product } from "@/lib/catalog";
 import { formatDimensions, formatUSD, maxQuantityFor } from "@/lib/catalog";
 import { useCart, useCopy } from "@/components/providers";
+import { Breadcrumb } from "@/components/breadcrumb";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { CloseIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
@@ -120,17 +121,13 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
 
   return (
     <>
-      <div className="page-container product-breadcrumb">
-        <nav aria-label="Breadcrumb">
-          <Link href="/">{t.product.breadcrumbHome}</Link>
-          <span aria-hidden="true">/</span>
-          <Link href="/shop">{t.product.breadcrumbShop}</Link>
-          <span aria-hidden="true">/</span>
-          <Link href={`/shop/${product.categorySlug}`}>{product.category}</Link>
-          <span aria-hidden="true">/</span>
-          <span aria-current="page">{product.name}</span>
-        </nav>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: t.breadcrumb.shop, href: "/shop" },
+          { label: product.category, href: `/shop/${product.categorySlug}` },
+          { label: product.name },
+        ]}
+      />
 
       <div className="page-container product-detail">
         <section className="product-gallery" aria-label={t.product.galleryLabel}>

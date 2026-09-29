@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Product } from "@/lib/catalog";
 import { maxQuantityFor } from "@/lib/catalog";
 import { useCart, useCopy } from "@/components/providers";
+import { toast } from "@/components/toast";
 
 export function AddToCartButton({ product, variantId, variantName }: { product: Product; variantId?: string; variantName?: string }) {
   const t = useCopy();
@@ -37,6 +38,7 @@ export function AddToCartButton({ product, variantId, variantName }: { product: 
       onClick={() => {
         addToCart(product, 1, variantId, variantName);
         setAdded(true);
+        toast.success(t.common.addedToast(product.name));
         timer.current = window.setTimeout(() => setAdded(false), 1800);
       }}
     >

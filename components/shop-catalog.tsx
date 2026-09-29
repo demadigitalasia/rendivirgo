@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
 import { useCopy } from "@/components/providers";
@@ -27,6 +29,7 @@ export function ShopCatalog({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const category = searchParams.get("category") ?? "all";
   const stone = searchParams.get("stone") ?? "all";
   const price = searchParams.get("price") ?? "all";
@@ -48,16 +51,39 @@ export function ShopCatalog({
 
   const hasActiveFilters = [category, stone, price, weight, origin].some((value) => value !== "all");
 
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFiltersOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [filtersOpen]);
+
   return (
     <>
       <section className="page-hero">
         <div className="page-container">
+          <Breadcrumb contained={false} tone="light" items={[{ key: "shop" }]} />
           <div className="eyebrow eyebrow--light">{t.shop.eyebrow}</div>
           <h1>{t.shop.title}</h1>
           <p>{t.shop.intro}</p>
         </div>
       </section>
       <section className="page-container section">
+        <button
+          className="filter-toggle"
+          type="button"
+          aria-expanded={filtersOpen}
+          aria-controls="shop-filters"
+          onClick={() => setFiltersOpen(true)}
+        >
+          {t.shop.filterToggle}
+          {hasActiveFilters ? <span className="filter-toggle__count" aria-hidden="true">•</span> : null}
+        </button>
+        {filtersOpen ? (
+          <button className="filter-overlay" type="button" aria-label={t.shop.filterClose} onClick={() => setFiltersOpen(false)} />
+        ) : null}
         <div className="catalog-toolbar">
           <span className="muted" aria-live="polite">
             {t.shop.count(total)}
@@ -90,8 +116,13 @@ export function ShopCatalog({
           </div>
         </div>
         <div className="catalog-layout">
-          <aside className="filter-panel">
-            <h2>{t.shop.browse}</h2>
+          <aside id="shop-filters" className={`filter-panel${filtersOpen ? " is-open" : ""}`}>
+            <div className="filter-panel__head">
+              <h2>{t.shop.browse}</h2>
+              <button className="filter-panel__close" type="button" onClick={() => setFiltersOpen(false)}>
+                {t.shop.filterClose}
+              </button>
+            </div>
             <div className="filter-group">
               <label>
                 <input

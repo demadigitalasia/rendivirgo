@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Product } from "@/lib/catalog";
 import { formatUSD, maxQuantityFor } from "@/lib/catalog";
 import { useCart, useCopy } from "@/components/providers";
+import { toast } from "@/components/toast";
 import { HeartIcon } from "@/components/icons";
 import { ProductArt } from "@/components/product-art";
 
@@ -38,6 +40,7 @@ export function ProductCard({ product }: { product: Product }) {
       const updated = nextValue ? [...new Set([...ids, product.id])] : ids.filter((id) => id !== product.id);
       window.localStorage.setItem(wishlistStorageKey, JSON.stringify(updated));
       window.dispatchEvent(new Event("rv:wishlist-change"));
+      toast.success(nextValue ? t.wishlist.savedToast(product.name) : t.wishlist.removedToast(product.name));
     } catch {
       // Wishlist feedback remains available for the current session if storage is unavailable.
     }
@@ -57,7 +60,14 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="product-card__visual">
         <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="product-card__image-link">
           {product.images[0] ? (
-            <img className="product-card__photo" src={product.images[0]} alt={`${product.name} — ${product.stoneType}`} loading="lazy" />
+            <Image
+              className="product-card__photo"
+              src={product.images[0]}
+              alt={`${product.name} — ${product.stoneType}`}
+              width={600}
+              height={600}
+              sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 320px"
+            />
           ) : (
             <ProductArt tone={product.tone} label={product.stoneType} />
           )}
@@ -82,7 +92,15 @@ export function ProductCard({ product }: { product: Product }) {
         </Link>
         <div className="product-card__footer">
           <strong>{formatUSD(product.price)}</strong>
-          <button className="text-button" type="button" disabled={unavailable || reachedLimit} onClick={() => addToCart(product)}>
+          <button
+            className="text-button"
+            type="button"
+            disabled={unavailable || reachedLimit}
+            onClick={() => {
+              addToCart(product);
+              toast.success(t.common.addedToast(product.name));
+            }}
+          >
             {buttonLabel}
           </button>
         </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Product } from "@/lib/catalog";
+import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
 import { useCopy } from "@/components/providers";
@@ -25,6 +26,7 @@ export function SearchResults({
     <>
       <section className="page-hero">
         <div className="page-container">
+          <Breadcrumb contained={false} tone="light" items={[{ key: "search" }]} />
           <div className="eyebrow eyebrow--light">{t.search.eyebrow}</div>
           <h1>{t.search.title}</h1>
           <p>{t.search.intro}</p>

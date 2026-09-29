@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Product } from "@/lib/catalog";
+import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
 import { useCopy } from "@/components/providers";
@@ -27,6 +28,7 @@ export function CategoryView({
     <>
       <section className="page-hero">
         <div className="page-container">
+          <Breadcrumb contained={false} tone="light" items={[{ key: "shop", href: "/shop" }, { label: name }]} />
           <div className="eyebrow eyebrow--light">{t.shop.eyebrow}</div>
           <h1>{name}</h1>
           <p>

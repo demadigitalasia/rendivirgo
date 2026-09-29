@@ -5,28 +5,38 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCopy } from "@/components/providers";
 
-export function SiteFooter() {
+const socialLabels: Record<string, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+};
+
+export function SiteFooter({ socials, email }: { socials?: Record<string, string>; email?: string }) {
   const t = useCopy();
-  const [email, setEmail] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [subscribeState, setSubscribeState] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   const subscribe = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!email.trim() || subscribeState === "loading") return;
+    if (!emailInput.trim() || subscribeState === "loading") return;
     setSubscribeState("loading");
     try {
       const response = await fetch("/api/newsletter/subscribe", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), source: "footer" }),
+        body: JSON.stringify({ email: emailInput.trim(), source: "footer" }),
       });
       if (!response.ok) throw new Error("subscribe failed");
       setSubscribeState("success");
-      setEmail("");
+      setEmailInput("");
     } catch {
       setSubscribeState("error");
     }
   };
+
+  const socialEntries = Object.entries(socials ?? {}).filter(([, url]) => url.trim());
+  const contactEmail = email?.trim() || "cs@rendivirgo.com";
 
   return (
     <footer className="site-footer">
@@ -53,9 +63,9 @@ export function SiteFooter() {
                 id="footer-newsletter-email"
                 type="email"
                 required
-                value={email}
+                value={emailInput}
                 onChange={(event) => {
-                  setEmail(event.target.value);
+                  setEmailInput(event.target.value);
                   if (subscribeState !== "idle") setSubscribeState("idle");
                 }}
                 placeholder={t.footer.newsletterPlaceholder}
@@ -94,13 +104,12 @@ export function SiteFooter() {
         </div>
         <div>
           <span className="footer-label">{t.footer.follow}</span>
-          <a href="https://www.instagram.com" target="_blank" rel="noreferrer noopener">
-            Instagram
-          </a>
-          <a href="https://www.pinterest.com" target="_blank" rel="noreferrer noopener">
-            Pinterest
-          </a>
-          <a href="mailto:hello@rendivirgo.com">hello@rendivirgo.com</a>
+          {socialEntries.map(([network, url]) => (
+            <a key={network} href={url} target="_blank" rel="noreferrer noopener">
+              {socialLabels[network.toLowerCase()] ?? network}
+            </a>
+          ))}
+          <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
         </div>
       </div>
       <div className="page-container site-footer__bottom">

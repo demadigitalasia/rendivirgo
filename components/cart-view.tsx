@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ProductArt } from "@/components/product-art";
 import { cartLineKey, useCart, useCopy } from "@/components/providers";
@@ -39,7 +40,18 @@ export function CartView() {
             return (
               <article className="cart-line" key={key}>
                 <div className="cart-line__art">
-                  <ProductArt tone={line.tone} label={line.stoneType} />
+                  {line.images[0] ? (
+                    <Image
+                      className="cart-line__photo"
+                      src={line.images[0]}
+                      alt={`${line.name} — ${line.stoneType}`}
+                      width={160}
+                      height={160}
+                      sizes="110px"
+                    />
+                  ) : (
+                    <ProductArt tone={line.tone} label={line.stoneType} />
+                  )}
                 </div>
                 <div>
                   <h3>{line.name}</h3>
