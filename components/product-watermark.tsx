@@ -24,7 +24,9 @@ export function ProductWatermark() {
       } as CSSProperties}
       aria-hidden="true"
     >
-      <Image src={watermark.logo} alt="" width={600} height={200} unoptimized />
+      <span className="product-watermark__mark">
+        <Image className="product-watermark__logo" src={watermark.logo} alt="" width={600} height={200} unoptimized />
+      </span>
     </span>
   );
 }

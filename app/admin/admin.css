@@ -1055,12 +1055,10 @@
 }
 
 .rv-watermark-position-editor__mark {
-  position: absolute;
   z-index: 1;
   touch-action: none;
   user-select: none;
   cursor: grab;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .55));
 }
 
 .rv-watermark-position-editor__mark:active {

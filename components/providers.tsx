@@ -54,6 +54,7 @@ export function Providers({
   productWatermark: ProductWatermarkSettings;
 }) {
   const [lines, setLines] = useState<CartLine[]>([]);
+  const [activeProductWatermark, setActiveProductWatermark] = useState(productWatermark);
   const [language, setLanguage] = useState<Language>(defaultLanguage);
   const [cartAnnouncement, setCartAnnouncement] = useState("");
   const previousItemCount = useRef<number | null>(null);
@@ -72,6 +73,38 @@ export function Providers({
     const savedLanguage = window.localStorage.getItem(languageStorageKey);
     if (savedLanguage === "en" || savedLanguage === "id") setLanguage(savedLanguage);
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/settings/public", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? (response.json() as Promise<Record<string, unknown>>) : null))
+      .then((settings) => {
+        if (!settings) return;
+        const number = (key: string, fallback: number) => {
+          const value = settings[key];
+          return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+        };
+        setActiveProductWatermark({
+          enabled:
+            typeof settings["store.productWatermarkEnabled"] === "boolean"
+              ? settings["store.productWatermarkEnabled"]
+              : productWatermark.enabled,
+          logo:
+            typeof settings["store.productWatermarkLogo"] === "string" && settings["store.productWatermarkLogo"]
+              ? settings["store.productWatermarkLogo"]
+              : productWatermark.logo,
+          opacity: number("store.productWatermarkOpacity", productWatermark.opacity),
+          size: number("store.productWatermarkSize", productWatermark.size),
+          x: number("store.productWatermarkX", productWatermark.x),
+          y: number("store.productWatermarkY", productWatermark.y),
+        });
+      })
+      .catch(() => {
+        // Keep the server-rendered configuration if the settings request fails.
+      });
+
+    return () => controller.abort();
+  }, [productWatermark]);
 
   useEffect(() => {
     window.localStorage.setItem(cartStorageKey, JSON.stringify(lines));
@@ -144,7 +177,7 @@ export function Providers({
   }, [cartValue, language]);
 
   return (
-    <ProductWatermarkContext.Provider value={productWatermark}>
+    <ProductWatermarkContext.Provider value={activeProductWatermark}>
       <LanguageContext.Provider value={{ language, setLanguage }}>
         <CartContext.Provider value={cartValue}>
           {children}

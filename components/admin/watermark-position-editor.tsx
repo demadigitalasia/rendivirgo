@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, type KeyboardEvent, type PointerEvent } from "react";
+import { useRef, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 
 type Props = {
   logo: string;
@@ -66,7 +66,16 @@ export function WatermarkPositionEditor({ logo, x, y, size, opacity, onChange }:
 
   return (
     <div className="rv-watermark-position-editor">
-      <div className="rv-watermark-position-editor__stage" ref={stageRef}>
+      <div
+        className="rv-watermark-position-editor__stage"
+        ref={stageRef}
+        style={{
+          "--watermark-x": `${x}%`,
+          "--watermark-y": `${y}%`,
+          "--watermark-size": `${size}%`,
+          "--watermark-opacity": opacity,
+        } as CSSProperties}
+      >
         <Image
           src="/images/rendi-virgo-hero-stones.webp"
           alt=""
@@ -76,8 +85,7 @@ export function WatermarkPositionEditor({ logo, x, y, size, opacity, onChange }:
         />
         {logo ? (
           <div
-            className="rv-watermark-position-editor__mark"
-            style={{ left: `${x}%`, top: `${y}%`, width: `${size}%`, opacity }}
+            className="product-watermark__mark rv-watermark-position-editor__mark"
             role="button"
             tabIndex={0}
             aria-label={`Watermark position: X ${x} percent, Y ${y} percent. Drag to move; use arrow keys for fine adjustment.`}
@@ -85,7 +93,7 @@ export function WatermarkPositionEditor({ logo, x, y, size, opacity, onChange }:
             onPointerMove={moveDrag}
             onKeyDown={nudge}
           >
-            <Image src={logo} alt="" width={600} height={200} unoptimized draggable={false} />
+            <Image className="product-watermark__logo" src={logo} alt="" width={600} height={200} unoptimized draggable={false} />
           </div>
         ) : null}
       </div>
