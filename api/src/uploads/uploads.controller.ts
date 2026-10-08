@@ -49,6 +49,39 @@ export class UploadsController {
     );
   }
 
+  @Post("video")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 30 * 1024 * 1024 },
+      fileFilter: (_request, file, callback) => {
+        if (file.mimetype !== "video/mp4") {
+          callback(new BadRequestException("Only MP4 videos are allowed"), false);
+          return;
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async uploadVideo(
+    @UploadedFile() file: UploadedImageFile | undefined,
+    @Query("folder") folder: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    this.uploadsService.validateVideo(file);
+    const targetFolder = this.uploadsService.resolveFolder(folder);
+
+    await this.uploadsService.ensureStorage(targetFolder);
+    const filename = this.uploadsService.staticFilename(".mp4");
+    const destination = join(this.uploadsService.storageFolder(targetFolder), filename);
+    await writeFile(destination, file!.buffer);
+
+    return this.uploadsService.register(
+      { originalname: file!.originalname, filename, mimetype: "video/mp4", size: file!.size, path: destination },
+      targetFolder,
+      auditContextFrom(request),
+    );
+  }
+
   @Delete(":id")
   remove(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
     return this.uploadsService.remove(id, auditContextFrom(request));

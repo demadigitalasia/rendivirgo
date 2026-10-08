@@ -65,8 +65,16 @@ export class UploadsService {
   }
 
   validateRegisteredFile(file: UploadedFileInfo): void {
-    if (!ALLOWED_IMAGE_MIME.has(file.mimetype)) {
-      throw new BadRequestException("Only jpeg, png, webp, gif, or avif images are allowed");
+    if (!ALLOWED_IMAGE_MIME.has(file.mimetype) && file.mimetype !== "video/mp4") {
+      throw new BadRequestException("Only supported images and MP4 videos are allowed");
+    }
+  }
+
+  validateVideo(file: UploadedImageFile | undefined): void {
+    if (!file) throw new BadRequestException("No video uploaded");
+    if (file.mimetype !== "video/mp4") throw new BadRequestException("Only MP4 videos are allowed");
+    if (file.buffer.length < 12 || file.buffer.subarray(4, 8).toString("ascii") !== "ftyp") {
+      throw new BadRequestException("The file is not a valid MP4 video");
     }
   }
 
@@ -126,8 +134,9 @@ export class UploadsService {
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException("Media not found");
 
-    const [productImages, categories, blogPosts, banners, orderItems, admins, siteSettings] = await Promise.all([
+    const [productImages, productVideos, categories, blogPosts, banners, orderItems, admins, siteSettings] = await Promise.all([
       this.prisma.productImage.count({ where: { url: asset.url } }),
+      this.prisma.product.count({ where: { videoUrl: asset.url } }),
       this.prisma.category.count({ where: { imageUrl: asset.url } }),
       this.prisma.blogPost.count({ where: { coverImage: asset.url } }),
       this.prisma.banner.count({ where: { imageUrl: asset.url } }),
@@ -142,6 +151,7 @@ export class UploadsService {
     const siteContent = siteSettings.filter((setting) => setting.value === asset.url).map((setting) => setting.key);
     const references = [
       productImages ? `${productImages} product image(s)` : null,
+      productVideos ? `${productVideos} product video(s)` : null,
       categories ? `${categories} category image(s)` : null,
       blogPosts ? `${blogPosts} blog cover image(s)` : null,
       banners ? `${banners} banner image(s)` : null,

@@ -54,6 +54,7 @@ export type Product = {
   tone: ProductTone;
   description: string;
   images: string[];
+  videoUrl?: string | null;
   seo: ProductSeo;
   shipping: ShippingProfile;
   featured?: boolean;

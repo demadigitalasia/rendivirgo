@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi } from "./api";
 import { MediaPicker } from "./media";
+import { VideoPicker } from "./video-picker";
 import { Button, Card, Field, Select, Switch, TextArea, TextInput } from "./ui";
 
 export type ApiProductImage = {
@@ -55,6 +56,7 @@ export type ApiProduct = {
   fragile: boolean;
   images: ApiProductImage[];
   imageUrls: string[];
+  videoUrl?: string | null;
   variants: ApiProductVariant[];
   seo: { metaTitle: string | null; metaDescription: string | null };
   inStock: boolean;
@@ -201,6 +203,7 @@ export function ProductForm({
   const conditionsState = useApi<ApiConditionOption[]>("/api/admin/conditions");
   const [values, setValues] = useState<FormValues>(() => valuesFromProduct(product));
   const [imageUrls, setImageUrls] = useState<string[]>(() => product?.imageUrls ?? []);
+  const [videoUrl, setVideoUrl] = useState<string | null>(() => product?.videoUrl ?? null);
   const [variants, setVariants] = useState<VariantRow[]>(() => (product?.variants ?? []).map(toVariantRow));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -313,6 +316,7 @@ export function ProductForm({
       metaTitle: values.metaTitle.trim() || null,
       metaDescription: values.metaDescription.trim() || null,
       images: imageUrls.map((url, index) => ({ url, alt: values.name.trim(), sortOrder: index })),
+      videoUrl,
       variants: variants
         .filter((row) => row.sku.trim() && row.name.trim())
         .map((row, index) => ({
@@ -476,8 +480,11 @@ export function ProductForm({
         </div>
       </Card>
 
-      <Card title="Images">
-        <MediaPicker value={imageUrls} onChange={setImageUrls} folder="products" label="Product images" />
+      <Card title="Images & video">
+        <div className="rv-stack">
+          <MediaPicker value={imageUrls} onChange={setImageUrls} folder="products" label="Product images" />
+          <VideoPicker value={videoUrl} onChange={setVideoUrl} folder="products" />
+        </div>
       </Card>
 
       <Card

@@ -232,6 +232,7 @@ model Product {
   shippingClass  ShippingClass @default(Standard)
   shippingProfileId String?
   description    String        @default("")
+  videoUrl       String?
   featured       Boolean       @default(false)
   fragile        Boolean       @default(false)
   metaTitle      String?

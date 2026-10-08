@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFacebook, faInstagram } from "@fortawesome/free-brands-svg-icons";
 import { useCopy } from "@/components/providers";
 
 const socialLabels: Record<string, string> = {
@@ -36,6 +38,8 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
   };
 
   const socialEntries = Object.entries(socials ?? {}).filter(([, url]) => url.trim());
+  const iconSocials = socialEntries.filter(([network]) => ["instagram", "facebook"].includes(network.toLowerCase()));
+  const textSocials = socialEntries.filter(([network]) => !["instagram", "facebook"].includes(network.toLowerCase()));
   const contactEmail = email?.trim() || "cs@rendivirgo.com";
 
   return (
@@ -104,7 +108,28 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
         </div>
         <div>
           <span className="footer-label">{t.footer.follow}</span>
-          {socialEntries.map(([network, url]) => (
+          {iconSocials.length ? (
+            <div className="site-footer__social-icons">
+              {iconSocials.map(([network, url]) => {
+                const normalized = network.toLowerCase();
+                const label = socialLabels[normalized] ?? network;
+                return (
+                  <a
+                    key={network}
+                    className="site-footer__social-icon"
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label={label}
+                    title={label}
+                  >
+                    <FontAwesomeIcon icon={normalized === "instagram" ? faInstagram : faFacebook} aria-hidden="true" />
+                  </a>
+                );
+              })}
+            </div>
+          ) : null}
+          {textSocials.map(([network, url]) => (
             <a key={network} href={url} target="_blank" rel="noreferrer noopener">
               {socialLabels[network.toLowerCase()] ?? network}
             </a>

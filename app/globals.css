@@ -189,6 +189,9 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .site-footer__grid .footer-label { margin-bottom: 5px; color: var(--bronze-light); font: 1rem var(--font-display); }
 .site-footer__grid a { color: rgba(247,244,238,.78); font-size: .9rem; }
 .site-footer__grid a:hover { color: var(--bronze-light); }
+.site-footer__social-icons { display: flex; align-items: center; gap: 10px; }
+.site-footer__grid a.site-footer__social-icon { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(247,244,238,.35); border-radius: 50%; color: rgba(247,244,238,.9); font-size: 19px; transition: color .2s, border-color .2s, background-color .2s; }
+.site-footer__grid a.site-footer__social-icon:hover { border-color: var(--bronze-light); background: rgba(247,244,238,.08); color: var(--bronze-light); }
 .site-footer__bottom { margin-top: 28px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.15); display: flex; justify-content: space-between; color: rgba(247,244,238,.62); font-size: .78rem; }
 
 .page-hero { padding: 72px 0 52px; background: var(--forest); color: var(--ivory); }
@@ -244,6 +247,9 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .product-gallery__thumb img { width: 100%; aspect-ratio: 1; object-fit: cover; }
 .product-gallery__thumb.is-active { border-color: var(--forest); box-shadow: 0 0 0 2px var(--forest); }
 .product-gallery__hint { margin-top: 9px; color: var(--muted); font-size: .78rem; }
+.product-gallery__video-section { margin-top: 22px; }
+.product-gallery__video-label { margin: 0 0 9px; color: var(--forest); font: .78rem var(--font-ui); letter-spacing: .12em; text-transform: uppercase; }
+.product-gallery__video { display: block; width: 100%; aspect-ratio: 1; background: #111; object-fit: cover; }
 .product-detail__meta { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .product-detail__meta .status-badge { position: static; flex: 0 0 auto; }
 .detail-list { margin: 28px 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }

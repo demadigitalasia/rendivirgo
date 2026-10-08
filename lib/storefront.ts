@@ -47,6 +47,7 @@ export type ApiProduct = {
   tone: ProductTone;
   shippingClass: ShippingClass;
   description: string;
+  videoUrl: string | null;
   featured: boolean;
   fragile: boolean;
   images: ApiProductImage[];
@@ -201,6 +202,7 @@ export function mapProduct(item: ApiProduct): Product {
     status: statusMap[item.status] ?? "Available",
     tone: item.tone,
     description: item.description,
+    videoUrl: item.videoUrl ?? null,
     images: item.imageUrls.length ? item.imageUrls : ["/images/products/stone-moss.svg"],
     seo: {
       metaTitle: item.seo.metaTitle ?? `${item.name} — ${item.category.name} | RENDI VIRGO`,

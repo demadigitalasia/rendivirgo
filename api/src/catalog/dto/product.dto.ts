@@ -223,6 +223,11 @@ export class CreateProductDto {
   metaDescription?: string | null;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  videoUrl?: string | null;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductImageDto)

@@ -168,6 +168,22 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
             </div>
           ) : null}
           <p className="product-gallery__hint">{t.product.zoomHint}</p>
+          {product.videoUrl ? (
+            <div className="product-gallery__video-section">
+              <p className="product-gallery__video-label">{t.product.videoLabel}</p>
+              <video
+                className="product-gallery__video"
+                controls
+                playsInline
+                preload="none"
+                poster={images[0]}
+                aria-label={`${product.name} product video`}
+              >
+                <source src={product.videoUrl} type="video/mp4" />
+                Your browser does not support the video player.
+              </video>
+            </div>
+          ) : null}
         </section>
 
         <div className="product-detail__info">

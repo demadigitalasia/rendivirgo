@@ -736,6 +736,26 @@
   object-fit: cover;
 }
 
+.rv-video-picker__preview {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  width: min(100%, 320px);
+}
+
+.rv-video-picker__preview video,
+.rv-video-picker__library-item video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #111;
+  object-fit: cover;
+}
+
+.rv-video-picker__library-item video {
+  height: 100%;
+}
+
 .rv-media-item__remove {
   position: absolute;
   top: 6px;
