@@ -549,11 +549,13 @@ export function CheckoutView() {
                       checked={selectedRateId === option.id}
                       onChange={() => setSelectedRateId(option.id)}
                     />
-                    <span>
+                    <span className="shipping-option__details">
                       <strong>{option.name}</strong>
-                      <span className="muted"> {option.carrier ? `· ${option.carrier}` : ""}</span>
+                      {option.carrier ? <span className="muted">· {option.carrier}</span> : null}
                     </span>
-                    <strong>{option.price === 0 ? t.checkout.freeShipping : formatUSD(option.price)}</strong>
+                    <strong className="shipping-option__price">
+                      {option.price === 0 ? t.checkout.freeShipping : formatUSD(option.price)}
+                    </strong>
                   </label>
                 ))}
               </div>

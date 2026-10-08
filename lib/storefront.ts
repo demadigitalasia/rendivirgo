@@ -1,4 +1,5 @@
 import type { Product, ProductStatus, ProductTone, ShippingClass, StockModel, Unit } from "@/lib/catalog";
+import { defaultProductWatermark, type ProductWatermarkSettings } from "@/lib/product-watermark";
 
 const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:4000";
 
@@ -152,6 +153,7 @@ export type PublicSettings = {
     address: string;
     hours: string;
     socials: Record<string, string>;
+    productWatermark: ProductWatermarkSettings;
   };
   seo: { defaultTitle: string; defaultDescription: string };
 };
@@ -434,6 +436,14 @@ export async function getPublicSettings(): Promise<PublicSettings> {
       address: value("store.address", "Bandung, West Java, Indonesia"),
       hours: value("store.hours", "Monday – Saturday, 09:00 – 18:00 (GMT+7)"),
       socials: value<Record<string, string>>("store.socials", {}),
+      productWatermark: {
+        enabled: value("store.productWatermarkEnabled", defaultProductWatermark.enabled),
+        logo: value("store.productWatermarkLogo", defaultProductWatermark.logo),
+        opacity: value("store.productWatermarkOpacity", defaultProductWatermark.opacity),
+        size: value("store.productWatermarkSize", defaultProductWatermark.size),
+        x: value("store.productWatermarkX", defaultProductWatermark.x),
+        y: value("store.productWatermarkY", defaultProductWatermark.y),
+      },
     },
     seo: {
       defaultTitle: value("seo.defaultTitle", "RENDI VIRGO — Indonesian Natural Stones"),

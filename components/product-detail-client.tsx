@@ -11,6 +11,7 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { CloseIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { ProductReviews } from "@/components/product-reviews";
+import { ProductWatermark } from "@/components/product-watermark";
 
 const fallbackImage = "/images/products/stone-moss.svg";
 
@@ -149,6 +150,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               priority
               sizes="(max-width: 720px) 100vw, 58vw"
             />
+            <ProductWatermark />
             <span className="product-gallery__zoom" aria-hidden="true">+</span>
           </button>
           {images.length > 1 ? (
@@ -163,6 +165,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
                   onClick={() => setActiveImageIndex(index)}
                 >
                   <Image src={image} alt="" width={120} height={120} sizes="80px" />
+                  <ProductWatermark />
                 </button>
               ))}
             </div>
@@ -328,14 +331,17 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
             <button className="product-lightbox__nav product-lightbox__nav--previous" type="button" aria-label={t.product.previousImage} onClick={() => moveImage(-1)}>
               ‹
             </button>
-            <Image
-              className="product-lightbox__image"
-              src={images[activeImageIndex]}
-              alt={imageAlt(activeImageIndex)}
-              width={1400}
-              height={1400}
-              sizes="90vw"
-            />
+            <div className="product-lightbox__image-wrap">
+              <Image
+                className="product-lightbox__image"
+                src={images[activeImageIndex]}
+                alt={imageAlt(activeImageIndex)}
+                width={1400}
+                height={1400}
+                sizes="90vw"
+              />
+              <ProductWatermark />
+            </div>
             <button className="product-lightbox__nav product-lightbox__nav--next" type="button" aria-label={t.product.nextImage} onClick={() => moveImage(1)}>
               ›
             </button>

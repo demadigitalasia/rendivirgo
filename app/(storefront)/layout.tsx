@@ -9,7 +9,7 @@ export default async function StorefrontLayout({ children }: Readonly<{ children
   const { store } = await getPublicSettings();
 
   return (
-    <Providers>
+    <Providers productWatermark={store.productWatermark}>
       <SkipLink />
       <SiteHeader />
       <main id="main">{children}</main>

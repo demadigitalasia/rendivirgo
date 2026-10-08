@@ -1035,6 +1035,49 @@
   gap: 14px;
 }
 
+.rv-watermark-position-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rv-watermark-position-editor__stage {
+  position: relative;
+  width: min(100%, 420px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--forest-deep);
+}
+
+.rv-watermark-position-editor__stage > img {
+  object-fit: cover;
+}
+
+.rv-watermark-position-editor__mark {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .55));
+}
+
+.rv-watermark-position-editor__mark:active {
+  cursor: grabbing;
+}
+
+.rv-watermark-position-editor__mark:focus-visible {
+  outline: 2px solid var(--bronze);
+  outline-offset: 3px;
+}
+
+.rv-watermark-position-editor__mark > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .rv-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.84rem;

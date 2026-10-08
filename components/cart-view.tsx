@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ProductArt } from "@/components/product-art";
+import { ProductWatermark } from "@/components/product-watermark";
 import { cartLineKey, useCart, useCopy } from "@/components/providers";
 import { formatUSD } from "@/lib/catalog";
 
@@ -52,6 +53,7 @@ export function CartView() {
                   ) : (
                     <ProductArt tone={line.tone} label={line.stoneType} />
                   )}
+                  <ProductWatermark />
                 </div>
                 <div>
                   <h3>{line.name}</h3>

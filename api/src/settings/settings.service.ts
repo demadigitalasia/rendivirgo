@@ -14,6 +14,12 @@ export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "store.languages": ["en", "id"],
   "store.address": "",
   "store.socials": { instagram: "", facebook: "", youtube: "", tiktok: "" },
+  "store.productWatermarkEnabled": true,
+  "store.productWatermarkLogo": "/brand/rendi-virgo-logo-white.png",
+  "store.productWatermarkOpacity": 0.72,
+  "store.productWatermarkSize": 26,
+  "store.productWatermarkX": 69,
+  "store.productWatermarkY": 86,
   "seo.defaultTitle": "RENDI VIRGO",
   "seo.defaultDescription": "",
   "notifications.orderConfirmation": true,
@@ -41,6 +47,14 @@ export const SETTINGS_GROUPS = {
 
 export type SettingsGroup = keyof typeof SETTINGS_GROUPS;
 export type GroupedSettings = Record<SettingsGroup, Record<string, unknown>>;
+
+function legacyWatermarkCoordinates(position: unknown, size: number): { x: number; y: number } {
+  const safeSize = Number.isFinite(size) ? Math.min(50, Math.max(8, size)) : 26;
+  const markHeight = safeSize / 3;
+  if (position === "center") return { x: (100 - safeSize) / 2, y: (100 - markHeight) / 2 };
+  if (position === "bottom-left") return { x: 5, y: 100 - markHeight - 5 };
+  return { x: 100 - safeSize - 5, y: 100 - markHeight - 5 };
+}
 
 export type ShippingSettings = {
   overrideEnabled: boolean;
@@ -87,6 +101,13 @@ export class SettingsService {
     for (const [key, fallback] of Object.entries(SETTINGS_DEFAULTS)) {
       if (!key.startsWith("store.") && !key.startsWith("seo.")) continue;
       result[key] = stored.has(key) ? stored.get(key) : fallback;
+    }
+
+    if (!stored.has("store.productWatermarkX") || !stored.has("store.productWatermarkY")) {
+      const size = Number(stored.get("store.productWatermarkSize") ?? SETTINGS_DEFAULTS["store.productWatermarkSize"]);
+      const legacy = legacyWatermarkCoordinates(stored.get("store.productWatermarkPosition"), size);
+      if (!stored.has("store.productWatermarkX")) result["store.productWatermarkX"] = legacy.x;
+      if (!stored.has("store.productWatermarkY")) result["store.productWatermarkY"] = legacy.y;
     }
 
     const payments = await this.getPaymentSettings();
@@ -154,6 +175,13 @@ export class SettingsService {
         SETTINGS_GROUPS[candidate].some((prefix) => key.startsWith(prefix)),
       );
       if (group) groups[group][key] = value;
+    }
+
+    if (!stored.has("store.productWatermarkX") || !stored.has("store.productWatermarkY")) {
+      const size = Number(stored.get("store.productWatermarkSize") ?? SETTINGS_DEFAULTS["store.productWatermarkSize"]);
+      const legacy = legacyWatermarkCoordinates(stored.get("store.productWatermarkPosition"), size);
+      if (!stored.has("store.productWatermarkX")) groups.general["store.productWatermarkX"] = legacy.x;
+      if (!stored.has("store.productWatermarkY")) groups.general["store.productWatermarkY"] = legacy.y;
     }
 
     return groups;

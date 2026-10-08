@@ -143,7 +143,7 @@ export class UploadsService {
       this.prisma.orderItem.count({ where: { imageUrl: asset.url } }),
       this.prisma.admin.count({ where: { avatarUrl: asset.url } }),
       this.prisma.siteSetting.findMany({
-        where: { key: { in: ["home.heroImage", "home.ownerImage"] } },
+        where: { key: { in: ["home.heroImage", "home.ownerImage", "store.productWatermarkLogo"] } },
         select: { key: true, value: true },
       }),
     ]);

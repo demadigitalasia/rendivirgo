@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi, type ApiState } from "@/components/admin/api";
 import { toast } from "@/components/admin/toast";
+import { MediaPicker } from "@/components/admin/media";
+import { WatermarkPositionEditor } from "@/components/admin/watermark-position-editor";
 import { Badge, Button, Card, Field, Loading, PageHeader, Switch, Tabs, TextArea, TextInput } from "@/components/admin/ui";
+import { defaultProductWatermark } from "@/lib/product-watermark";
 
 type GroupedSettings = Record<"general" | "seo" | "notifications" | "payments", Record<string, unknown>>;
 
@@ -22,6 +25,12 @@ type SettingsForm = {
   facebook: string;
   youtube: string;
   tiktok: string;
+  watermarkEnabled: boolean;
+  watermarkLogo: string;
+  watermarkOpacity: string;
+  watermarkSize: string;
+  watermarkX: string;
+  watermarkY: string;
   seoTitle: string;
   seoDescription: string;
   orderConfirmation: boolean;
@@ -48,6 +57,12 @@ const emptyForm: SettingsForm = {
   facebook: "",
   youtube: "",
   tiktok: "",
+  watermarkEnabled: defaultProductWatermark.enabled,
+  watermarkLogo: defaultProductWatermark.logo,
+  watermarkOpacity: String(Math.round(defaultProductWatermark.opacity * 100)),
+  watermarkSize: String(defaultProductWatermark.size),
+  watermarkX: String(defaultProductWatermark.x),
+  watermarkY: String(defaultProductWatermark.y),
   seoTitle: "",
   seoDescription: "",
   orderConfirmation: true,
@@ -95,6 +110,12 @@ function formFrom(data: GroupedSettings): SettingsForm {
     facebook: asText(socials.facebook),
     youtube: asText(socials.youtube),
     tiktok: asText(socials.tiktok),
+    watermarkEnabled: asBool(general["store.productWatermarkEnabled"], defaultProductWatermark.enabled),
+    watermarkLogo: asText(general["store.productWatermarkLogo"]) || defaultProductWatermark.logo,
+    watermarkOpacity: String(Math.round(Number(general["store.productWatermarkOpacity"] ?? defaultProductWatermark.opacity) * 100)),
+    watermarkSize: String(Number(general["store.productWatermarkSize"] ?? defaultProductWatermark.size)),
+    watermarkX: String(Number(general["store.productWatermarkX"] ?? defaultProductWatermark.x)),
+    watermarkY: String(Number(general["store.productWatermarkY"] ?? defaultProductWatermark.y)),
     seoTitle: asText(seo["seo.defaultTitle"]),
     seoDescription: asText(seo["seo.defaultDescription"]),
     orderConfirmation: asBool(notifications["notifications.orderConfirmation"], true),
@@ -170,6 +191,22 @@ export default function AdminSettingsPage() {
       };
     }
 
+    if (form.watermarkEnabled !== saved.watermarkEnabled) {
+      payload["store.productWatermarkEnabled"] = form.watermarkEnabled;
+    }
+    if (form.watermarkLogo !== saved.watermarkLogo) {
+      payload["store.productWatermarkLogo"] = form.watermarkLogo.trim() || defaultProductWatermark.logo;
+    }
+    if (form.watermarkOpacity !== saved.watermarkOpacity) {
+      const opacityPercent = Math.min(100, Math.max(10, Number(form.watermarkOpacity) || 72));
+      payload["store.productWatermarkOpacity"] = opacityPercent / 100;
+    }
+    if (form.watermarkSize !== saved.watermarkSize) {
+      payload["store.productWatermarkSize"] = Math.min(50, Math.max(8, Number(form.watermarkSize) || 26));
+    }
+    if (form.watermarkX !== saved.watermarkX) payload["store.productWatermarkX"] = Math.min(watermarkMaxX, Math.max(0, Number(form.watermarkX) || 0));
+    if (form.watermarkY !== saved.watermarkY) payload["store.productWatermarkY"] = Math.min(watermarkMaxY, Math.max(0, Number(form.watermarkY) || 0));
+
     if (form.seoTitle !== saved.seoTitle) payload["seo.defaultTitle"] = form.seoTitle.trim();
     if (form.seoDescription !== saved.seoDescription) payload["seo.defaultDescription"] = form.seoDescription.trim();
 
@@ -207,6 +244,13 @@ export default function AdminSettingsPage() {
   };
 
   const data = state.data;
+  const watermarkSize = Math.min(50, Math.max(8, Number(form.watermarkSize) || 26));
+  const watermarkMaxX = Math.floor(100 - watermarkSize);
+  const watermarkMaxY = Math.floor(100 - watermarkSize / 3);
+  const updateWatermarkCoordinate = (axis: "watermarkX" | "watermarkY", value: string) => {
+    const maximum = axis === "watermarkX" ? watermarkMaxX : watermarkMaxY;
+    update(axis, String(Math.min(maximum, Math.max(0, Number(value) || 0))));
+  };
 
   return (
     <>
@@ -313,6 +357,64 @@ export default function AdminSettingsPage() {
                     <Field label="TikTok">
                       <TextInput value={form.tiktok} onChange={(value) => update("tiktok", value)} placeholder="https://" />
                     </Field>
+                  </div>
+                </Card>
+
+                <Card title="Product image watermark" description="Add your logo automatically to product photos shown across the storefront">
+                  <div className="rv-stack">
+                    <Switch
+                      checked={form.watermarkEnabled}
+                      onChange={(checked) => update("watermarkEnabled", checked)}
+                      label="Enable product image watermark"
+                    />
+                    <MediaPicker
+                      value={form.watermarkLogo ? [form.watermarkLogo] : []}
+                      onChange={(urls) => update("watermarkLogo", urls[0] ?? "")}
+                      folder="brand"
+                      multiple={false}
+                      label="Watermark logo"
+                    />
+                    <WatermarkPositionEditor
+                      logo={form.watermarkLogo}
+                      x={Math.min(watermarkMaxX, Math.max(0, Number(form.watermarkX) || 0))}
+                      y={Math.min(watermarkMaxY, Math.max(0, Number(form.watermarkY) || 0))}
+                      size={watermarkSize}
+                      opacity={Math.min(1, Math.max(0.1, (Number(form.watermarkOpacity) || 72) / 100))}
+                      onChange={(x, y) => {
+                        update("watermarkX", String(x));
+                        update("watermarkY", String(y));
+                      }}
+                    />
+                    <div className="rv-inline" style={{ justifyContent: "flex-end" }}>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          update("watermarkX", String(Math.floor(100 - watermarkSize - 5)));
+                          update("watermarkY", String(Math.floor(100 - watermarkSize / 3 - 5)));
+                        }}
+                      >
+                        Reset position
+                      </Button>
+                    </div>
+                    <div className="rv-form-grid">
+                      <Field label="X position (%)" hint="Distance from the left edge">
+                        <TextInput type="number" min={0} max={watermarkMaxX} value={form.watermarkX} onChange={(value) => updateWatermarkCoordinate("watermarkX", value)} />
+                      </Field>
+                      <Field label="Y position (%)" hint="Distance from the top edge">
+                        <TextInput type="number" min={0} max={watermarkMaxY} value={form.watermarkY} onChange={(value) => updateWatermarkCoordinate("watermarkY", value)} />
+                      </Field>
+                      <Field label="Logo size (% of image)" hint="Choose a value from 8 to 50">
+                        <TextInput type="number" min={8} max={50} value={form.watermarkSize} onChange={(value) => {
+                          update("watermarkSize", value);
+                          const nextSize = Math.min(50, Math.max(8, Number(value) || 26));
+                          update("watermarkX", String(Math.min(100 - nextSize, Number(form.watermarkX) || 0)));
+                          update("watermarkY", String(Math.min(Math.floor(100 - nextSize / 3), Number(form.watermarkY) || 0)));
+                        }} />
+                      </Field>
+                      <Field label="Opacity (%)" hint="Choose a value from 10 to 100">
+                        <TextInput type="number" min={10} max={100} value={form.watermarkOpacity} onChange={(value) => update("watermarkOpacity", value)} />
+                      </Field>
+                    </div>
                   </div>
                 </Card>
               </>

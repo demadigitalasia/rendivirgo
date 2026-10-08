@@ -5,6 +5,7 @@ import type { Product } from "@/lib/catalog";
 import type { Copy, Language } from "@/lib/i18n";
 import { defaultLanguage, dictionaries } from "@/lib/i18n";
 import { maxQuantityFor } from "@/lib/catalog";
+import type { ProductWatermarkSettings } from "@/lib/product-watermark";
 
 export type CartLine = Product & {
   quantity: number;
@@ -31,6 +32,7 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 type LanguageContextValue = { language: Language; setLanguage: (language: Language) => void };
 const LanguageContext = createContext<LanguageContextValue | null>(null);
+const ProductWatermarkContext = createContext<ProductWatermarkSettings | null>(null);
 
 const cartStorageKey = "rendi-virgo-cart";
 const languageStorageKey = "rendi-virgo-language";
@@ -44,7 +46,13 @@ const readJson = <T,>(key: string): T | null => {
   }
 };
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  productWatermark,
+}: {
+  children: React.ReactNode;
+  productWatermark: ProductWatermarkSettings;
+}) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [language, setLanguage] = useState<Language>(defaultLanguage);
   const [cartAnnouncement, setCartAnnouncement] = useState("");
@@ -136,14 +144,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [cartValue, language]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage }}>
-      <CartContext.Provider value={cartValue}>
-        {children}
-        <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-          {cartAnnouncement}
-        </span>
-      </CartContext.Provider>
-    </LanguageContext.Provider>
+    <ProductWatermarkContext.Provider value={productWatermark}>
+      <LanguageContext.Provider value={{ language, setLanguage }}>
+        <CartContext.Provider value={cartValue}>
+          {children}
+          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {cartAnnouncement}
+          </span>
+        </CartContext.Provider>
+      </LanguageContext.Provider>
+    </ProductWatermarkContext.Provider>
   );
 }
 
@@ -156,6 +166,12 @@ export function useCart() {
 export function useLanguage() {
   const context = useContext(LanguageContext);
   if (!context) throw new Error("useLanguage must be used inside Providers");
+  return context;
+}
+
+export function useProductWatermark() {
+  const context = useContext(ProductWatermarkContext);
+  if (!context) throw new Error("useProductWatermark must be used inside Providers");
   return context;
 }
 

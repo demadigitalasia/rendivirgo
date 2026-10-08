@@ -9,6 +9,7 @@ import { useCart, useCopy } from "@/components/providers";
 import { toast } from "@/components/toast";
 import { HeartIcon } from "@/components/icons";
 import { ProductArt } from "@/components/product-art";
+import { ProductWatermark } from "@/components/product-watermark";
 
 const wishlistStorageKey = "rendi-virgo-wishlist";
 
@@ -71,6 +72,7 @@ export function ProductCard({ product }: { product: Product }) {
           ) : (
             <ProductArt tone={product.tone} label={product.stoneType} />
           )}
+          <ProductWatermark />
           <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>{statusLabel}</span>
         </Link>
         <button
