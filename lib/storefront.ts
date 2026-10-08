@@ -196,6 +196,7 @@ export function mapProduct(item: ApiProduct): Product {
     weightCarat: item.weightCarat ?? Math.round(item.weightGram * 5 * 10) / 10,
     dimensionsMm: item.dimensionsMm,
     condition: item.condition,
+    conditionNote: item.conditionNote,
     status: statusMap[item.status] ?? "Available",
     tone: item.tone,
     description: item.description,

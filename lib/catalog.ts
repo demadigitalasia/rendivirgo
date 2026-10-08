@@ -49,6 +49,7 @@ export type Product = {
   weightCarat: number;
   dimensionsMm: DimensionsMm;
   condition: string;
+  conditionNote?: string | null;
   status: ProductStatus;
   tone: ProductTone;
   description: string;
