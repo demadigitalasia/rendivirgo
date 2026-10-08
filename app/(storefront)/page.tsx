@@ -57,9 +57,13 @@ export default async function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }} />
       <HomeContent
         featured={featured}
-        categories={categories.slice(0, 5).map((category) => ({ slug: category.slug, name: category.name }))}
+        categories={categories
+          .slice(0, 5)
+          .map((category) => ({ slug: category.slug, name: category.name, imageUrl: category.imageUrl }))}
         siteContent={siteContent}
         testimonials={testimonials}
+        whatsapp={store.store.whatsapp}
+        whatsappSecondary={store.store.whatsappSecondary}
       />
     </>
   );

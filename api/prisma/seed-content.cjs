@@ -113,6 +113,7 @@ const settings = {
   "store.email": "cs@rendivirgo.com",
   "store.adminEmail": "admin@rendivirgo.com",
   "store.whatsapp": "+62 812 0000 0000",
+  "store.whatsappSecondary": "",
   "store.currency": "USD",
   "store.languages": ["en", "id"],
   "store.address": "Bandung, West Java, Indonesia",

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowIcon, GlobeIcon, LeafIcon, SparkleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { useCopy } from "@/components/providers";
+import { WhatsAppPopup } from "@/components/whatsapp-popup";
 import type { Product } from "@/lib/catalog";
 import type { ApiTestimonial, SiteContent } from "@/lib/storefront";
 
@@ -13,11 +14,15 @@ export function HomeContent({
   categories,
   siteContent,
   testimonials,
+  whatsapp,
+  whatsappSecondary,
 }: {
   featured: Product[];
-  categories: Array<{ slug: string; name: string }>;
+  categories: Array<{ slug: string; name: string; imageUrl?: string | null }>;
   siteContent: SiteContent;
   testimonials: ApiTestimonial[];
+  whatsapp: string;
+  whatsappSecondary: string;
 }) {
   const t = useCopy();
   const heroImage = siteContent.heroImage || "/images/rendi-virgo-hero-stones.webp";
@@ -88,7 +93,21 @@ export function HomeContent({
         </div>
         <div className="category-grid">
           {categories.map((category) => (
-            <Link className="category-tile" key={category.slug} href={`/shop/${category.slug}`}>
+            <Link
+              className={`category-tile ${category.imageUrl ? "category-tile--has-image" : ""}`}
+              key={category.slug}
+              href={`/shop/${category.slug}`}
+            >
+              {category.imageUrl ? (
+                <Image
+                  className="category-tile__image"
+                  src={category.imageUrl}
+                  alt=""
+                  fill
+                  sizes="(max-width: 700px) 50vw, 20vw"
+                  unoptimized
+                />
+              ) : null}
               <span>{category.name}</span>
             </Link>
           ))}
@@ -149,6 +168,7 @@ export function HomeContent({
           <span>{t.home.trustSelected}</span>
         </div>
       </section>
+      <WhatsAppPopup phone={whatsapp} secondaryPhone={whatsappSecondary} />
     </>
   );
 }

@@ -53,6 +53,7 @@ export default async function CategoryPage({
       <CategoryView
         name={category.name}
         note={category.description ?? "Indonesian natural stones"}
+        imageUrl={category.imageUrl}
         products={result.products}
         total={result.total}
         page={page}

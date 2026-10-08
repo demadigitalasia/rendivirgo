@@ -13,6 +13,7 @@ type SettingsForm = {
   email: string;
   adminEmail: string;
   whatsapp: string;
+  whatsappSecondary: string;
   currency: string;
   languages: string;
   address: string;
@@ -38,6 +39,7 @@ const emptyForm: SettingsForm = {
   email: "",
   adminEmail: "",
   whatsapp: "",
+  whatsappSecondary: "",
   currency: "USD",
   languages: "",
   address: "",
@@ -84,6 +86,7 @@ function formFrom(data: GroupedSettings): SettingsForm {
     email: asText(general["store.email"]),
     adminEmail: asText(general["store.adminEmail"]),
     whatsapp: asText(general["store.whatsapp"]),
+    whatsappSecondary: asText(general["store.whatsappSecondary"]),
     currency: asText(general["store.currency"]) || "USD",
     languages: asStringList(general["store.languages"]).join(", "),
     address: asText(general["store.address"]),
@@ -140,6 +143,9 @@ export default function AdminSettingsPage() {
     if (form.email !== saved.email) payload["store.email"] = form.email.trim();
     if (form.adminEmail !== saved.adminEmail) payload["store.adminEmail"] = form.adminEmail.trim();
     if (form.whatsapp !== saved.whatsapp) payload["store.whatsapp"] = form.whatsapp.trim();
+    if (form.whatsappSecondary !== saved.whatsappSecondary) {
+      payload["store.whatsappSecondary"] = form.whatsappSecondary.trim();
+    }
     if (form.currency !== saved.currency) payload["store.currency"] = form.currency.trim();
     if (form.languages !== saved.languages) {
       payload["store.languages"] = form.languages
@@ -264,8 +270,15 @@ export default function AdminSettingsPage() {
                     <Field label="Admin email" hint="Receives internal notifications">
                       <TextInput type="email" value={form.adminEmail} onChange={(value) => update("adminEmail", value)} />
                     </Field>
-                    <Field label="WhatsApp">
+                    <Field label="WhatsApp number 1 (main)">
                       <TextInput value={form.whatsapp} onChange={(value) => update("whatsapp", value)} placeholder="+62…" />
+                    </Field>
+                    <Field label="WhatsApp number 2">
+                      <TextInput
+                        value={form.whatsappSecondary}
+                        onChange={(value) => update("whatsappSecondary", value)}
+                        placeholder="+62…"
+                      />
                     </Field>
                     <Field label="Currency" hint="ISO code, e.g. USD">
                       <TextInput value={form.currency} onChange={(value) => update("currency", value)} />

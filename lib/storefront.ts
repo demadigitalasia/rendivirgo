@@ -145,6 +145,7 @@ export type PublicSettings = {
     tagline: string;
     email: string;
     whatsapp: string;
+    whatsappSecondary: string;
     currency: string;
     languages: string[];
     address: string;
@@ -425,6 +426,7 @@ export async function getPublicSettings(): Promise<PublicSettings> {
       tagline: value("store.tagline", "Indonesian natural stones, from our hands to yours."),
       email: value("store.email", "cs@rendivirgo.com"),
       whatsapp: value("store.whatsapp", ""),
+      whatsappSecondary: value("store.whatsappSecondary", ""),
       currency: value("store.currency", "USD"),
       languages: value("store.languages", ["en", "id"]),
       address: value("store.address", "Bandung, West Java, Indonesia"),

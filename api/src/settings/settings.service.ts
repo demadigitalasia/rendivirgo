@@ -9,6 +9,7 @@ export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "store.tagline": "",
   "store.email": "cs@rendivirgo.com",
   "store.whatsapp": "",
+  "store.whatsappSecondary": "",
   "store.currency": "USD",
   "store.languages": ["en", "id"],
   "store.address": "",

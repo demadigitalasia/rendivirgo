@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { Product } from "@/lib/catalog";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
@@ -10,6 +11,7 @@ import { useCopy } from "@/components/providers";
 export function CategoryView({
   name,
   note,
+  imageUrl,
   products,
   total,
   page,
@@ -17,6 +19,7 @@ export function CategoryView({
 }: {
   name: string;
   note: string;
+  imageUrl?: string | null;
   products: Product[];
   total: number;
   page: number;
@@ -26,8 +29,11 @@ export function CategoryView({
 
   return (
     <>
-      <section className="page-hero">
-        <div className="page-container">
+      <section className={`page-hero ${imageUrl ? "page-hero--image" : ""}`}>
+        {imageUrl ? (
+          <Image className="page-hero__image" src={imageUrl} alt="" fill sizes="100vw" unoptimized />
+        ) : null}
+        <div className="page-container page-hero__content">
           <Breadcrumb contained={false} tone="light" items={[{ key: "shop", href: "/shop" }, { label: name }]} />
           <div className="eyebrow eyebrow--light">{t.shop.eyebrow}</div>
           <h1>{name}</h1>

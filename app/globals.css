@@ -109,12 +109,15 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 
 .category-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .category-tile { min-height: 132px; padding: 18px; display: flex; align-items: flex-end; border-radius: 5px; overflow: hidden; position: relative; background: #234b39; color: var(--white); }
-.category-tile::before { content: ''; position: absolute; inset: 0; opacity: .9; background: radial-gradient(circle at 40% 28%, rgba(255,255,255,.34), transparent 4%), linear-gradient(135deg, #559479, #123b2b 60%, #071b13); }
+.category-tile::before { content: ''; position: absolute; inset: 0; z-index: 1; opacity: .9; background: radial-gradient(circle at 40% 28%, rgba(255,255,255,.34), transparent 4%), linear-gradient(135deg, #559479, #123b2b 60%, #071b13); }
 .category-tile:nth-child(2)::before { background: radial-gradient(circle at 70% 30%, rgba(221,236,218,.4), transparent 5%), linear-gradient(135deg, #728e69, #143f2d 65%); }
 .category-tile:nth-child(3)::before { background: linear-gradient(135deg, #607d5e, #1d4935 52%, #091b14); }
 .category-tile:nth-child(4)::before { background: linear-gradient(135deg, #8f744c, #3f633f 48%, #182d23); }
 .category-tile:nth-child(5)::before { background: linear-gradient(135deg, #798873, #435447 50%, #14251c); }
-.category-tile span { position: relative; z-index: 1; font: 1.1rem var(--font-display); }
+.category-tile--has-image::before { opacity: .62; background: linear-gradient(0deg, rgba(7, 27, 19, .8), rgba(7, 27, 19, .08) 78%); }
+.category-tile__image { z-index: 0; object-fit: cover; transition: transform .35s ease; }
+.category-tile:hover .category-tile__image { transform: scale(1.05); }
+.category-tile span { position: relative; z-index: 2; font: 1.1rem var(--font-display); }
 
 .product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .product-card { min-width: 0; }
@@ -156,6 +159,23 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .rv-toast { padding: 13px 15px; border-radius: 8px; background: var(--forest-deep); color: #f6f3ea; box-shadow: 0 16px 40px rgba(10, 22, 16, .28); font-size: .87rem; }
 .rv-toast--error { background: #6d2f28; }
 .rv-toast--success { background: #1f4b36; }
+.whatsapp-widget { position: fixed; right: 24px; bottom: 24px; z-index: 70; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.whatsapp-widget__trigger, .whatsapp-widget__cta { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 999px; background: #16734b; color: #fff; box-shadow: 0 8px 24px rgba(8, 37, 25, .24); font-weight: 600; }
+.whatsapp-widget__trigger { min-height: 54px; padding: 0 19px; }
+.whatsapp-widget__trigger:hover, .whatsapp-widget__cta:hover { background: #105c3b; }
+.whatsapp-widget svg { width: 22px; height: 25px; fill: currentColor; flex: 0 0 auto; }
+.whatsapp-widget__panel { position: relative; width: min(340px, calc(100vw - 32px)); padding: 25px 22px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--ivory); color: var(--ink); box-shadow: 0 18px 50px rgba(8, 24, 17, .24); animation: whatsapp-panel-in .18s ease-out; }
+.whatsapp-widget__brand { margin-bottom: 9px; color: var(--jade); font-size: .68rem; font-weight: 600; letter-spacing: .14em; }
+.whatsapp-widget__panel h2 { max-width: 260px; margin: 0 24px 8px 0; color: var(--forest); font: 1.45rem/1.15 var(--font-display); }
+.whatsapp-widget__panel p { margin-bottom: 18px; color: var(--muted); font-size: .9rem; }
+.whatsapp-widget__close { position: absolute; top: 10px; right: 12px; width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 1.5rem; line-height: 1; }
+.whatsapp-widget__close:hover { background: var(--paper); color: var(--forest); }
+.whatsapp-widget__contacts { display: grid; gap: 9px; }
+.whatsapp-widget__cta { width: 100%; min-height: 58px; padding: 10px 14px; justify-content: flex-start; border-radius: 9px; font-size: .9rem; text-align: left; }
+.whatsapp-widget__cta > span { display: grid; gap: 1px; }
+.whatsapp-widget__cta small { font-size: .68rem; font-weight: 500; opacity: .82; }
+.whatsapp-widget__cta strong { font-size: .88rem; }
+@keyframes whatsapp-panel-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .skip-link { position: absolute; left: 12px; top: -70px; z-index: 100; padding: 11px 18px; background: var(--forest); color: var(--ivory); transition: top .15s ease; }
 .skip-link:focus { top: 12px; }
 
@@ -172,6 +192,10 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .site-footer__bottom { margin-top: 28px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.15); display: flex; justify-content: space-between; color: rgba(247,244,238,.62); font-size: .78rem; }
 
 .page-hero { padding: 72px 0 52px; background: var(--forest); color: var(--ivory); }
+.page-hero--image { position: relative; isolation: isolate; overflow: hidden; background: #0d3929; }
+.page-hero__image { z-index: -2; object-fit: cover; }
+.page-hero--image::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(6, 28, 19, .94), rgba(6, 28, 19, .56) 58%, rgba(6, 28, 19, .2)); }
+.page-hero__content { position: relative; z-index: 1; }
 .page-hero h1 { max-width: 760px; margin-top: 10px; font-size: clamp(2.7rem, 6vw, 5.3rem); line-height: 1; font-weight: 400; }
 .page-hero p { max-width: 650px; margin-top: 18px; color: rgba(247,244,238,.75); font-family: var(--font-display); font-size: 1.15rem; }
 .catalog-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin: 32px 0 20px; }
