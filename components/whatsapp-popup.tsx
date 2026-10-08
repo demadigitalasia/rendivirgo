@@ -5,16 +5,42 @@ import { useCopy } from "@/components/providers";
 
 export function WhatsAppPopup({ phone, secondaryPhone }: { phone: string; secondaryPhone: string }) {
   const [open, setOpen] = useState(false);
+  const [currentPhones, setCurrentPhones] = useState({ phone, secondaryPhone });
   const t = useCopy();
   const contacts = [
-    { label: t.home.whatsappPrimary, phone },
-    { label: t.home.whatsappSecondary, phone: secondaryPhone },
+    { label: t.home.whatsappPrimary, phone: currentPhones.phone },
+    { label: t.home.whatsappSecondary, phone: currentPhones.secondaryPhone },
   ].flatMap((contact) => {
     const digits = contact.phone.replace(/\D/g, "");
     return digits ? [{ ...contact, digits }] : [];
   });
 
   if (!contacts.length) return null;
+
+  const togglePopup = async () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/settings/public", { cache: "no-store" });
+      if (response.ok) {
+        const settings = (await response.json()) as Record<string, unknown>;
+        setCurrentPhones({
+          phone: typeof settings["store.whatsapp"] === "string" ? settings["store.whatsapp"] : phone,
+          secondaryPhone:
+            typeof settings["store.whatsappSecondary"] === "string"
+              ? settings["store.whatsappSecondary"]
+              : secondaryPhone,
+        });
+      }
+    } catch {
+      // Keep the server-rendered contacts available if the settings request fails.
+    }
+
+    setOpen(true);
+  };
 
   return (
     <div className="whatsapp-widget">
@@ -55,7 +81,7 @@ export function WhatsAppPopup({ phone, secondaryPhone }: { phone: string; second
         type="button"
         aria-expanded={open}
         aria-controls="whatsapp-widget-panel"
-        onClick={() => setOpen((value) => !value)}
+        onClick={togglePopup}
       >
         <WhatsAppIcon />
         <span>{t.home.whatsappTrigger}</span>
