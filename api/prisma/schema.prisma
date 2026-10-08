@@ -31,12 +31,6 @@ enum ProductUnit {
   bag
 }
 
-enum StoneCondition {
-  Natural
-  Treated
-  Dyed
-}
-
 enum ProductTone {
   moss
   jade
@@ -199,6 +193,19 @@ model Category {
   @@index([sortOrder])
 }
 
+model ConditionOption {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String   @unique
+  note      String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
 model Product {
   id             String        @id @default(cuid())
   slug           String        @unique
@@ -208,7 +215,7 @@ model Product {
   stoneType      String
   origin         String
   mohsHardness   Float?
-  condition      StoneCondition @default(Natural)
+  condition      String         @default("Natural")
   price          Decimal       @db.Decimal(12, 2)
   compareAtPrice Decimal?      @db.Decimal(12, 2)
   currency       String        @default("USD")

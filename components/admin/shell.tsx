@@ -106,6 +106,7 @@ export function AdminShell({
       items: [
         { href: "/admin/products", label: "Products" },
         { href: "/admin/categories", label: "Categories" },
+        { href: "/admin/conditions", label: "Conditions" },
         { href: "/admin/catalog", label: "PDF catalog" },
       ],
     },

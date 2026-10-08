@@ -15,7 +15,7 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { ProductStatus, ProductTone, ProductUnit, ShippingClass, StockModel, StoneCondition } from "../../../generated/prisma";
+import { ProductStatus, ProductTone, ProductUnit, ShippingClass, StockModel } from "../../../generated/prisma";
 
 export class ProductImageDto {
   @IsString()
@@ -127,8 +127,10 @@ export class CreateProductDto {
   mohsHardness?: number;
 
   @IsOptional()
-  @IsEnum(StoneCondition)
-  condition?: StoneCondition;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  condition?: string;
 
   @IsNumber()
   @Min(0)
@@ -296,8 +298,10 @@ export class ProductQueryDto {
   stockModel?: StockModel;
 
   @IsOptional()
-  @IsEnum(StoneCondition)
-  condition?: StoneCondition;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  condition?: string;
 
   @IsOptional()
   @Transform(({ value }) => (value === "true" ? true : value === "false" ? false : value))
@@ -368,8 +372,10 @@ export class CatalogPdfQueryDto {
   origin?: string;
 
   @IsOptional()
-  @IsEnum(StoneCondition)
-  condition?: StoneCondition;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  condition?: string;
 
   @IsOptional()
   @IsEnum(["newest", "oldest", "price-asc", "price-desc", "name", "weight-desc"])

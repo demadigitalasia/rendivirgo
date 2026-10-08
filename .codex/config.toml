@@ -1,0 +1,28 @@
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 6
+interrupt_message = true
+
+[agents.lead_engineer]
+description = "Lead full-stack engineer that coordinates the Rendi Virgo project and delegates focused work."
+config_file = "agents/lead_engineer.toml"
+
+[agents.onboarding_explorer]
+description = "Read-only onboarding and architecture mapper for Rendi Virgo before implementation starts."
+config_file = "agents/onboarding_explorer.toml"
+
+[agents.frontend_engineer]
+description = "Frontend specialist for Rendi Virgo storefront, UI, UX, SEO, and accessibility."
+config_file = "agents/frontend_engineer.toml"
+
+[agents.backend_engineer]
+description = "Backend/API specialist for Rendi Virgo API, proxy, catalog, orders, reviews, and integrations."
+config_file = "agents/backend_engineer.toml"
+
+[agents.reviewer_qa]
+description = "Read-only QA and code reviewer for correctness, regressions, tests, and Next.js behavior."
+config_file = "agents/reviewer_qa.toml"
+
+[agents.security_reviewer]
+description = "Read-only security reviewer for Rendi Virgo storefront, admin flows, API, and deployment."
+config_file = "agents/security_reviewer.toml"

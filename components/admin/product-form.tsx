@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi } from "./api";
 import { MediaPicker } from "./media";
 import { Button, Card, Field, Select, Switch, TextArea, TextInput } from "./ui";
@@ -64,9 +64,9 @@ export type ApiProduct = {
 };
 
 type ApiCategory = { id: string; slug: string; name: string; isActive: boolean };
+type ApiConditionOption = { id: string; name: string; isActive: boolean };
 
 const statusValues = ["Draft", "Published", "Reserved", "Sold", "Archived"] as const;
-const conditionValues = ["Natural", "Treated", "Dyed"] as const;
 const unitValues = ["piece", "pair", "gram", "carat", "strand", "bag"] as const;
 const stockModelValues = ["Unique", "Quantity"] as const;
 const toneValues = ["moss", "jade", "amber", "ocean", "earth"] as const;
@@ -198,11 +198,21 @@ export function ProductForm({
   onCancel?: () => void;
 }) {
   const categoriesState = useApi<ApiCategory[]>("/api/admin/categories");
+  const conditionsState = useApi<ApiConditionOption[]>("/api/admin/conditions");
   const [values, setValues] = useState<FormValues>(() => valuesFromProduct(product));
   const [imageUrls, setImageUrls] = useState<string[]>(() => product?.imageUrls ?? []);
   const [variants, setVariants] = useState<VariantRow[]>(() => (product?.variants ?? []).map(toVariantRow));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mode !== "create" || conditionsState.loading) return;
+    const options = conditionsState.data ?? [];
+    if (!options.some((condition) => condition.name === values.condition && condition.isActive)) {
+      const firstActive = options.find((condition) => condition.isActive);
+      if (firstActive) update("condition", firstActive.name);
+    }
+  }, [conditionsState.data, conditionsState.loading, mode, values.condition]);
 
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -212,6 +222,15 @@ export function ProductForm({
     value: category.id,
     label: category.isActive ? category.name : `${category.name} (inactive)`,
   }));
+  const conditionOptions = (conditionsState.data ?? [])
+    .filter((condition) => mode === "edit" || condition.isActive)
+    .map((condition) => ({
+    value: condition.name,
+    label: condition.isActive ? condition.name : `${condition.name} (inactive)`,
+    }));
+  if (values.condition && !conditionOptions.some((condition) => condition.value === values.condition)) {
+    conditionOptions.push({ value: values.condition, label: `${values.condition} (unavailable)` });
+  }
 
   const addVariant = () => {
     setVariants((current) => [
@@ -367,7 +386,7 @@ export function ProductForm({
             />
           </Field>
           <Field label="Condition">
-            <Select value={values.condition} onChange={(value) => update("condition", value)} options={toOptions(conditionValues)} />
+            <Select value={values.condition} onChange={(value) => update("condition", value)} options={conditionOptions} placeholder={conditionsState.loading ? "Loading conditions…" : "Select condition"} />
           </Field>
           <Field label="Unit">
             <Select value={values.unit} onChange={(value) => update("unit", value)} options={toOptions(unitValues)} />

@@ -126,6 +126,36 @@ export class UploadsService {
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException("Media not found");
 
+    const [productImages, categories, blogPosts, banners, orderItems, admins, siteSettings] = await Promise.all([
+      this.prisma.productImage.count({ where: { url: asset.url } }),
+      this.prisma.category.count({ where: { imageUrl: asset.url } }),
+      this.prisma.blogPost.count({ where: { coverImage: asset.url } }),
+      this.prisma.banner.count({ where: { imageUrl: asset.url } }),
+      this.prisma.orderItem.count({ where: { imageUrl: asset.url } }),
+      this.prisma.admin.count({ where: { avatarUrl: asset.url } }),
+      this.prisma.siteSetting.findMany({
+        where: { key: { in: ["home.heroImage", "home.ownerImage"] } },
+        select: { key: true, value: true },
+      }),
+    ]);
+
+    const siteContent = siteSettings.filter((setting) => setting.value === asset.url).map((setting) => setting.key);
+    const references = [
+      productImages ? `${productImages} product image(s)` : null,
+      categories ? `${categories} category image(s)` : null,
+      blogPosts ? `${blogPosts} blog cover image(s)` : null,
+      banners ? `${banners} banner image(s)` : null,
+      orderItems ? `${orderItems} order image snapshot(s)` : null,
+      admins ? `${admins} admin avatar(s)` : null,
+      ...siteContent,
+    ].filter((reference): reference is string => reference !== null);
+
+    if (references.length) {
+      throw new BadRequestException(
+        `Cannot delete this media because it is still used by ${references.join(", ")}. Remove those references first.`,
+      );
+    }
+
     const relativePath = asset.url.split("/uploads/")[1];
     if (relativePath) {
       const target = resolve(this.uploadDir, relativePath);

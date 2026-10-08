@@ -48,7 +48,7 @@ export type Product = {
   weightGram: number;
   weightCarat: number;
   dimensionsMm: DimensionsMm;
-  condition: "Natural" | "Treated" | "Dyed";
+  condition: string;
   status: ProductStatus;
   tone: ProductTone;
   description: string;

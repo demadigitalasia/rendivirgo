@@ -119,7 +119,11 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .product-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .product-card { min-width: 0; }
 .product-card__visual { display: block; position: relative; }
-.product-card__image-link { display: block; }
+.product-card__image-link { display: block; position: relative; aspect-ratio: 1; overflow: hidden; }
+.product-card__image-link > .product-card__photo,
+.product-card__image-link > .product-art { width: 100%; height: 100%; }
+.product-card__image-link > .product-card__photo { position: absolute; inset: 0; display: block; object-fit: cover; }
+.product-card__image-link > .product-art { aspect-ratio: auto; }
 .product-card__body { padding: 13px 2px 0; }
 .product-card__name { display: block; margin: 6px 0 11px; font: 1.18rem var(--font-display); }
 .product-card__name:hover { color: var(--bronze); }
@@ -408,7 +412,7 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .testimonial-card blockquote { margin: 0; font: 1.08rem var(--font-display); line-height: 1.5; color: var(--forest); }
 .testimonial-card figcaption { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: .85rem; }
 .testimonial-card figcaption strong { color: var(--ink); font-weight: 500; }
-.product-card__photo { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--ivory); }
+.product-card__photo { width: 100%; height: 100%; aspect-ratio: 1; object-fit: cover; background: var(--ivory); }
 .product-detail__related { padding-bottom: 70px; }
 
 .shipping-options { display: flex; flex-direction: column; gap: 10px; }

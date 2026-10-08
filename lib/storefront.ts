@@ -32,7 +32,8 @@ export type ApiProduct = {
   stoneType: string;
   origin: string;
   mohsHardness: number | null;
-  condition: "Natural" | "Treated" | "Dyed";
+  condition: string;
+  conditionNote?: string | null;
   price: number;
   compareAtPrice: number | null;
   currency: string;

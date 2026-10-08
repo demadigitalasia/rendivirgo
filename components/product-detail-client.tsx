@@ -48,7 +48,9 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
       ? t.product.conditionNatural
       : product.condition === "Treated"
         ? t.product.conditionTreated
-        : t.product.conditionDyed;
+        : product.condition === "Dyed"
+          ? t.product.conditionDyed
+          : product.condition;
   const stockMessage =
     product.status === "Sold"
       ? t.product.stockSold
@@ -113,11 +115,13 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
   };
 
   const conditionNote =
-    product.condition === "Natural"
+    product.conditionNote || (product.condition === "Natural"
       ? t.product.conditionNaturalNote
       : product.condition === "Treated"
         ? t.product.conditionTreatedNote
-        : t.product.conditionDyedNote;
+        : product.condition === "Dyed"
+          ? t.product.conditionDyedNote
+          : t.product.noConditionNote);
 
   return (
     <>

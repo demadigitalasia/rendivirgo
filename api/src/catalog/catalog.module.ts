@@ -4,10 +4,12 @@ import { AdminCategoriesController, CategoriesController } from "./categories.co
 import { ProductsService } from "./products.service";
 import { AdminProductsController, ProductsController } from "./products.controller";
 import { CatalogPdfService } from "./catalog-pdf.service";
+import { ConditionsService } from "./conditions.service";
+import { AdminConditionsController, ConditionsController } from "./conditions.controller";
 
 @Module({
-  controllers: [CategoriesController, AdminCategoriesController, ProductsController, AdminProductsController],
-  providers: [CategoriesService, ProductsService, CatalogPdfService],
+  controllers: [CategoriesController, AdminCategoriesController, ConditionsController, AdminConditionsController, ProductsController, AdminProductsController],
+  providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService],
   exports: [CategoriesService, ProductsService],
 })
 export class CatalogModule {}

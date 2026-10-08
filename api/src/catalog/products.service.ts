@@ -41,6 +41,11 @@ export class ProductsService {
     private readonly catalogPdf: CatalogPdfService,
   ) {}
 
+  private async assertConditionExists(condition: string) {
+    const option = await this.prisma.conditionOption.findUnique({ where: { name: condition }, select: { id: true } });
+    if (!option) throw new BadRequestException(`Condition "${condition}" is not configured. Add it in admin conditions first.`);
+  }
+
   // ------------------------------------------------------------ mapping
 
   toApiProduct(product: ProductWithRelations) {
@@ -240,7 +245,8 @@ export class ProductsService {
       include: productInclude,
     });
     if (!product) throw new NotFoundException("Product not found");
-    return this.toApiProduct(product);
+    const conditionOption = await this.prisma.conditionOption.findUnique({ where: { name: product.condition }, select: { note: true } });
+    return { ...this.toApiProduct(product), conditionNote: conditionOption?.note ?? null };
   }
 
   async getAdminById(id: string) {
@@ -310,6 +316,14 @@ export class ProductsService {
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new BadRequestException("Category not found");
 
+    const condition = dto.condition ?? (await this.prisma.conditionOption.findFirst({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { name: true },
+    }))?.name;
+    if (!condition) throw new BadRequestException("Add an active condition in admin before creating products.");
+    await this.assertConditionExists(condition);
+
     const slug = dto.slug
       ? await uniqueSlug(slugify(dto.slug), (candidate) => this.prisma.product.findUnique({ where: { slug: candidate } }))
       : await uniqueSlug(slugify(dto.name), (candidate) => this.prisma.product.findUnique({ where: { slug: candidate } }));
@@ -330,7 +344,7 @@ export class ProductsService {
         stoneType: dto.stoneType,
         origin: dto.origin,
         mohsHardness: dto.mohsHardness ?? null,
-        condition: dto.condition ?? "Natural",
+        condition,
         price: new Prisma.Decimal(dto.price),
         compareAtPrice: dto.compareAtPrice === undefined || dto.compareAtPrice === null ? null : new Prisma.Decimal(dto.compareAtPrice),
         currency: dto.currency ?? "USD",
@@ -435,6 +449,8 @@ export class ProductsService {
   async update(id: string, dto: UpdateProductDto, context: AuditContext) {
     const existing = await this.prisma.product.findUnique({ where: { id }, include: productInclude });
     if (!existing) throw new NotFoundException("Product not found");
+
+    if (dto.condition !== undefined) await this.assertConditionExists(dto.condition);
 
     if (dto.categoryId && dto.categoryId !== existing.categoryId) {
       const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
@@ -776,6 +792,8 @@ export class ProductsService {
     const header = parseLine(lines[0]).map((column) => column.trim());
     const categories = await this.prisma.category.findMany();
     const categoryBySlug = new Map(categories.map((category) => [category.slug, category]));
+    const conditions = await this.prisma.conditionOption.findMany({ select: { name: true } });
+    const conditionNames = new Set(conditions.map((condition) => condition.name));
 
     const results = { created: 0, categoriesCreated: 0, skipped: 0, errors: [] as string[] };
 
@@ -839,7 +857,7 @@ export class ProductsService {
             lengthMm: record.lengthMm ? Number(record.lengthMm) : null,
             widthMm: record.widthMm ? Number(record.widthMm) : null,
             heightMm: record.heightMm ? Number(record.heightMm) : null,
-            condition: (["Natural", "Treated", "Dyed"].includes(record.condition) ? record.condition : "Natural") as "Natural",
+            condition: conditionNames.has(record.condition) ? record.condition : (conditionNames.has("Natural") ? "Natural" : (conditions[0]?.name ?? "Natural")),
             status,
             tone: category.tone,
             description: record.description ?? "",

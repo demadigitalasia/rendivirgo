@@ -193,6 +193,20 @@ async function main() {
   }
   console.log(`  categories: ${categoryBySlug.size}`);
 
+  const conditionOptions = [
+    { slug: "natural", name: "Natural", note: "Natural inclusions, colour variation, and small variations in texture are part of this stone's character." },
+    { slug: "treated", name: "Treated", note: "Any treatment is disclosed so you can make an informed choice." },
+    { slug: "dyed", name: "Dyed", note: "This stone has been dyed; colour may vary slightly from screen to screen." },
+  ];
+  for (const [index, condition] of conditionOptions.entries()) {
+    await prisma.conditionOption.upsert({
+      where: { slug: condition.slug },
+      update: {},
+      create: { ...condition, sortOrder: index },
+    });
+  }
+  console.log(`  conditions: ${conditionOptions.length}`);
+
   // ---------------------------------------------------------------- shipping
   const defaultProfile = await prisma.shippingProfile.findFirst({ where: { isDefault: true } });
   if (!defaultProfile) {
