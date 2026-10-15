@@ -391,7 +391,7 @@ const defaultSiteContent: SiteContent = {
   ownerRole: "Founder & Curator",
   ownerBio:
     "A lifelong passion for Indonesia's natural treasures. RENDI VIRGO is dedicated to sharing the beauty and authenticity of our local stones with the world.",
-  ownerImage: "/images/rendi-virgo-owner.webp",
+  ownerImage: "/images/rendi-virgo-owner-cutout.png",
   ownerCtaLabel: "About Us",
   ownerCtaHref: "/about-us",
   shippingOverrideEnabled: false,

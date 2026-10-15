@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFacebook, faInstagram } from "@fortawesome/free-brands-svg-icons";
+import { faFacebook, faInstagram, faTiktok, faXTwitter, faYoutube } from "@fortawesome/free-brands-svg-icons";
 import { useCopy } from "@/components/providers";
 
 const socialLabels: Record<string, string> = {
@@ -12,6 +12,17 @@ const socialLabels: Record<string, string> = {
   facebook: "Facebook",
   youtube: "YouTube",
   tiktok: "TikTok",
+  x: "X",
+  twitter: "X",
+};
+
+const socialIcons: Record<string, typeof faInstagram> = {
+  instagram: faInstagram,
+  facebook: faFacebook,
+  youtube: faYoutube,
+  tiktok: faTiktok,
+  x: faXTwitter,
+  twitter: faXTwitter,
 };
 
 export function SiteFooter({ socials, email }: { socials?: Record<string, string>; email?: string }) {
@@ -38,111 +49,78 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
   };
 
   const socialEntries = Object.entries(socials ?? {}).filter(([, url]) => url.trim());
-  const iconSocials = socialEntries.filter(([network]) => ["instagram", "facebook"].includes(network.toLowerCase()));
-  const textSocials = socialEntries.filter(([network]) => !["instagram", "facebook"].includes(network.toLowerCase()));
   const contactEmail = email?.trim() || "cs@rendivirgo.com";
 
   return (
     <footer className="site-footer">
+      <section className="page-container footer-newsletter" aria-labelledby="footer-newsletter-heading">
+        <div className="footer-newsletter__copy">
+          <h2 id="footer-newsletter-heading">{t.footer.newsletterTitle}</h2>
+          <p>{t.footer.newsletterBody}</p>
+        </div>
+        <form onSubmit={subscribe} aria-busy={subscribeState === "loading"}>
+          <div className="footer-newsletter__field">
+            <label className="sr-only" htmlFor="footer-newsletter-email">{t.footer.newsletterPlaceholder}</label>
+            <input id="footer-newsletter-email" type="email" required disabled={subscribeState === "loading"}
+              value={emailInput} autoComplete="email" placeholder={t.footer.newsletterPlaceholder}
+              aria-describedby="footer-newsletter-status"
+              onChange={(event) => { setEmailInput(event.target.value); if (subscribeState !== "idle") setSubscribeState("idle"); }} />
+            <button type="submit" className="button button--light" disabled={subscribeState === "loading"}>
+              {subscribeState === "loading" ? t.footer.newsletterLoading : t.footer.newsletterCta}
+            </button>
+          </div>
+          <div id="footer-newsletter-status" className={`footer-newsletter__status form-status${subscribeState === "error" ? " form-status--error" : ""}`}
+            role={subscribeState === "error" ? "alert" : "status"}>
+            {subscribeState === "loading" ? t.footer.newsletterLoading : subscribeState === "success" ? t.footer.newsletterSuccess : subscribeState === "error" ? t.footer.newsletterError : ""}
+          </div>
+        </form>
+      </section>
       <div className="page-container site-footer__grid">
         <div className="site-footer__brand">
-          <div className="footer-logo-plate">
-            <Image
-              src="/brand/rendi-virgo-logo-black-silver.webp"
-              alt="RENDI VIRGO"
-              width={780}
-              height={260}
-              sizes="220px"
-            />
-          </div>
+          <Link href="/" className="footer-logo-plate" aria-label="RENDI VIRGO">
+            <Image src="/brand/rendi-virgo-logo-white.webp" alt="RENDI VIRGO" width={780} height={260} sizes="200px" />
+          </Link>
           <p>{t.footer.tagline}</p>
-          <div className="footer-newsletter">
-            <span className="footer-label">{t.footer.newsletterTitle}</span>
-            <p className="muted">{t.footer.newsletterBody}</p>
-            <form onSubmit={subscribe}>
-              <label className="sr-only" htmlFor="footer-newsletter-email">
-                {t.footer.newsletterPlaceholder}
-              </label>
-              <input
-                id="footer-newsletter-email"
-                type="email"
-                required
-                value={emailInput}
-                onChange={(event) => {
-                  setEmailInput(event.target.value);
-                  if (subscribeState !== "idle") setSubscribeState("idle");
-                }}
-                placeholder={t.footer.newsletterPlaceholder}
-                autoComplete="email"
-              />
-              <button type="submit" className="button" disabled={subscribeState === "loading"}>
-                {t.footer.newsletterCta}
-              </button>
-            </form>
-            {subscribeState === "success" ? (
-              <span className="form-status form-status--success" role="status">
-                {t.footer.newsletterSuccess}
-              </span>
-            ) : null}
-            {subscribeState === "error" ? (
-              <span className="form-status form-status--error" role="alert">
-                {t.footer.newsletterError}
-              </span>
-            ) : null}
-          </div>
         </div>
-        <div>
-          <span className="footer-label">{t.footer.explore}</span>
+        <nav className="footer-nav" aria-labelledby="footer-explore-heading">
+          <h2 id="footer-explore-heading" className="footer-label">{t.footer.explore}</h2>
           <Link href="/">{t.footer.home}</Link>
           <Link href="/shop">{t.footer.shop}</Link>
           <Link href="/about-us">{t.footer.about}</Link>
           <Link href="/blog">{t.footer.journal}</Link>
-        </div>
-        <div>
-          <span className="footer-label">{t.footer.help}</span>
-          <Link href="/faq">{t.footer.faq}</Link>
+        </nav>
+        <nav className="footer-nav" aria-labelledby="footer-care-heading">
+          <h2 id="footer-care-heading" className="footer-label">{t.footer.help}</h2>
           <Link href="/shipping-returns">{t.footer.shipping}</Link>
           <Link href="/track">{t.footer.track}</Link>
           <Link href="/orders">{t.footer.orders}</Link>
+          <Link href="/faq">{t.footer.faq}</Link>
+        </nav>
+        <div className="footer-connect">
+          <h2 className="footer-label">{t.footer.follow}</h2>
           <Link href="/contact">{t.footer.contact}</Link>
-        </div>
-        <div>
-          <span className="footer-label">{t.footer.follow}</span>
-          {iconSocials.length ? (
+          <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+          {socialEntries.length ? (
             <div className="site-footer__social-icons">
-              {iconSocials.map(([network, url]) => {
+              {socialEntries.map(([network, url]) => {
                 const normalized = network.toLowerCase();
                 const label = socialLabels[normalized] ?? network;
-                return (
-                  <a
-                    key={network}
-                    className="site-footer__social-icon"
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    aria-label={label}
-                    title={label}
-                  >
-                    <FontAwesomeIcon icon={normalized === "instagram" ? faInstagram : faFacebook} aria-hidden="true" />
-                  </a>
-                );
+                const icon = socialIcons[normalized];
+                return <a key={network} className="site-footer__social-icon" href={url} target="_blank"
+                  rel="noreferrer noopener" aria-label={label} title={label}>
+                  {icon ? <FontAwesomeIcon icon={icon} aria-hidden="true" /> : <span aria-hidden="true">{label.slice(0, 1).toUpperCase()}</span>}
+                </a>;
               })}
             </div>
           ) : null}
-          {textSocials.map(([network, url]) => (
-            <a key={network} href={url} target="_blank" rel="noreferrer noopener">
-              {socialLabels[network.toLowerCase()] ?? network}
-            </a>
-          ))}
-          <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
         </div>
       </div>
       <div className="page-container site-footer__bottom">
-        <span>© 2026 RENDI VIRGO</span>
-        <span>{t.footer.fromTo}</span>
-        <span>
-          <Link href="/privacy-policy">{t.footer.privacy}</Link> · <Link href="/terms-conditions">{t.footer.terms}</Link>
-        </span>
+        <div className="site-footer__copyright"><span>© {new Date().getFullYear()} RENDI VIRGO</span><span>{t.footer.fromTo}</span></div>
+        <nav className="footer-legal" aria-label={t.footer.legal}>
+          <Link href="/privacy-policy">{t.footer.privacy}</Link>
+          <Link href="/terms-conditions">{t.footer.terms}</Link>
+        </nav>
       </div>
     </footer>
   );

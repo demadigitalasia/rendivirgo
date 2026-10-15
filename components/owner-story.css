@@ -1,0 +1,70 @@
+/* The same cream, sage, typography and spacing used by the rest of the storefront. */
+.storefront .owner-story { position: relative; overflow: hidden; scroll-margin-top: 100px; background: var(--paper); color: var(--ink); }
+.storefront .owner-story__inner { display: grid; grid-template-columns: 1fr 1.1fr; align-items: center; gap: clamp(45px, 7vw, 100px); padding-block: 90px 85px; }
+.storefront .owner-story__visual { min-width: 0; width: 100%; max-width: 480px; justify-self: center; }
+.storefront .owner-story__stage { position: relative; display: block; isolation: isolate; width: 100%; height: clamp(390px, 34vw, 510px); }
+.storefront .owner-story__atmosphere { position: absolute; pointer-events: none; z-index: -1; inset: 2% -14% -9%; }
+.storefront .owner-story__wash { position: absolute; display: block; border-radius: 50%; filter: blur(18px); animation: owner-wash-drift 14s ease-in-out infinite alternate; animation-play-state: paused; }
+.storefront .owner-story__wash--sage { inset: 3% 4% 6% 0; background: radial-gradient(ellipse at 40% 46%, #a5b89275 0%, #c6d0b854 36%, #dce3d421 56%, transparent 73%); }
+.storefront .owner-story__wash--sand { inset: 27% -3% -3% 23%; background: radial-gradient(ellipse at 50% 55%, #d8c49a60 0%, #e5dac433 42%, transparent 70%); animation-delay: -7s; animation-duration: 17s; }
+.storefront .owner-story__wash--light { inset: 16% 14% 26% -5%; background: radial-gradient(ellipse at 35% 30%, #f9f6e9b3 0%, #edf0e23b 42%, transparent 70%); animation-delay: -3s; animation-duration: 12s; }
+.storefront .owner-story__cutout { position: absolute; inset: 0 -3% 0; animation: owner-portrait-float 8s ease-in-out infinite; animation-play-state: paused; mask-image: linear-gradient(to bottom, #000 0%, #000 67%, #000e 77%, #0006 89%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 67%, #000e 77%, #0006 89%, transparent 100%); }
+.storefront .owner-story__sprite { display: block; position: absolute; left: 50%; top: 0; height: 100%; aspect-ratio: 1151 / 1367; max-width: 100%; transform: translateX(-50%); }
+.storefront .owner-story__sprite img { object-fit: contain; object-position: center bottom; }
+.storefront .owner-story__identity { position: relative; display: grid; justify-items: center; gap: 8px; padding-top: 18px; }
+.storefront .owner-story__name { font: 400 1.7rem/1.1 var(--font-display); letter-spacing: -.025em; color: var(--forest); }
+.storefront .owner-story__role { color: var(--muted); font: .62rem/1.5 var(--font-ui); letter-spacing: .13em; text-transform: uppercase; }
+.storefront .owner-story__copy { min-width: 0; }
+.storefront .owner-story__copy h2 { margin: 17px 0 26px; font: 400 clamp(2.2rem, 3.7vw, 3.5rem)/1.13 var(--font-display); letter-spacing: -.035em; text-wrap: initial; }
+.storefront .owner-story__copy h2 em { display: block; color: var(--jade); font-weight: 400; }
+.storefront .owner-story__chapter-viewport { min-height: 165px; max-width: 460px; overflow: hidden; touch-action: pan-y; }
+.storefront .owner-story__chapter { --chapter-direction: 1; animation: owner-chapter-in .55s var(--ease-organic) both; }
+.storefront .owner-story__chapter--previous { --chapter-direction: -1; }
+.storefront .owner-story__chapter h3 { font: 400 1.25rem/1.4 var(--font-display); letter-spacing: -.015em; margin: 0 0 10px; text-wrap: initial; }
+.storefront .owner-story__chapter p { color: var(--muted); font: .88rem/1.95 var(--font-body); }
+.storefront .owner-story__navigation { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: 460px; margin-top: 6px; }
+.storefront .owner-story__chapter-nav { display: flex; gap: 10px; }
+.storefront .owner-story__chapter-nav button { position: relative; min-width: 44px; min-height: 44px; padding: 10px 7px; border: 0; background: transparent; color: #7a8473; font: .65rem var(--font-ui); }
+.storefront .owner-story__chapter-nav button::after { content: ""; position: absolute; bottom: 2px; left: 7px; right: 7px; height: 2px; background: #ccd4c2; transition: background .25s, transform .3s; }
+.storefront .owner-story__chapter-nav button[aria-pressed="true"] { color: var(--forest); }
+.storefront .owner-story__chapter-nav button[aria-pressed="true"]::after { background: var(--jade); transform: translateY(-2px); }
+.storefront .owner-story__arrows { display: flex; gap: 8px; }
+.storefront .owner-story__arrows button { display: grid; place-items: center; width: 44px; height: 44px; padding: 12px; border: 1px solid var(--line); background: transparent; border-radius: 50%; color: var(--forest); transition: background .2s; }
+.storefront .owner-story__arrows button:hover { background: var(--jade-light); }
+.storefront .owner-story__arrows svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.storefront .owner-story__arrows button:first-child svg { transform: rotate(180deg); }
+.storefront .owner-story__values { display: flex; flex-wrap: wrap; gap: 12px 22px; list-style: none; padding: 23px 0 0; margin: 25px 0 27px; border-top: 1px solid var(--line); }
+.storefront .owner-story__values li { display: flex; align-items: center; gap: 8px; }
+.storefront .owner-story__values svg { width: 17px; height: 17px; stroke: var(--jade); stroke-width: 1.5; fill: none; }
+.storefront .owner-story__values span { font: .65rem/1.6 var(--font-ui); color: var(--muted); }
+.storefront .owner-story[data-visible="true"] .owner-story__cutout,
+.storefront .owner-story[data-visible="true"] .owner-story__wash { animation-play-state: running; }
+@keyframes owner-portrait-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes owner-wash-drift { from { transform: translate(-9px, 7px) scale(.97); } to { transform: translate(13px, -12px) scale(1.06); } }
+@keyframes owner-chapter-in { from { opacity: 0; transform: translateX(calc(var(--chapter-direction) * 20px)); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 980px) {
+  .storefront .owner-story__inner { gap: 38px; padding-block: 72px; }
+  .storefront .owner-story__stage { height: 410px; }
+  .storefront .owner-story__chapter-viewport { min-height: 195px; }
+}
+@media (max-width: 720px) {
+  .storefront .owner-story__inner { grid-template-columns: 1fr; gap: 40px; padding-block: 58px; }
+  .storefront .owner-story__visual { width: min(100%, 390px); }
+  .storefront .owner-story__stage { height: clamp(350px, 95vw, 430px); }
+  .storefront .owner-story__identity { padding-top: 15px; }
+  .storefront .owner-story__atmosphere { inset-inline: -8%; }
+  .storefront .owner-story__name { font-size: 1.6rem; }
+  .storefront .owner-story__copy h2 { font-size: clamp(2.15rem, 8vw, 3rem); margin-bottom: 23px; }
+  .storefront .owner-story__chapter-viewport { min-height: 180px; max-width: none; }
+  .storefront .owner-story__chapter p { font-size: .85rem; }
+  .storefront .owner-story__navigation { max-width: none; }
+  .storefront .owner-story__values { margin-top: 23px; gap: 13px 20px; }
+}
+@media (max-width: 370px) {
+  .storefront .owner-story__stage { height: 335px; }
+  .storefront .owner-story__chapter-viewport { min-height: 205px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .storefront .owner-story *, .storefront .owner-story *::after { animation: none !important; transition: none !important; }
+  .storefront .owner-story__cutout, .storefront .owner-story__atmosphere { transform: none; }
+}
