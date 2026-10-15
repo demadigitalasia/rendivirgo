@@ -9,7 +9,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  output: "standalone",
+  // Vercel packages its own server output; standalone is for the Docker image.
+  output: process.env.VERCEL ? undefined : "standalone",
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
