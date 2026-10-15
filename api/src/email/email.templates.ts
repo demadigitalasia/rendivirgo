@@ -77,19 +77,40 @@ const itemsTable = (data: OrderEmailData): string => `
     </tbody>
   </table>`;
 
-export const renderOrderReceivedEmail = (data: OrderEmailData & { paypalEnabled: boolean }): string =>
-  layout({
+export const renderOrderReceivedEmail = (data: OrderEmailData & {
+  paypalEnabled: boolean;
+  paymentMethod: string;
+  bankTransfer: { bankName: string; accountName: string; accountNumber: string; swiftCode: string };
+}): string => {
+  const bankDetails = data.paymentMethod === "BankTransfer"
+    ? `<div style="border:1px solid #e7e2d8;border-radius:10px;padding:16px;margin:18px 0;background:#fbfaf7;">
+        <strong>Bank transfer details</strong>
+        <p style="font-size:13px;line-height:1.8;margin:10px 0 0;">
+          ${escapeHtml(data.bankTransfer.bankName)}<br>
+          ${data.bankTransfer.accountName ? `Account holder: ${escapeHtml(data.bankTransfer.accountName)}<br>` : ""}
+          Account number: ${escapeHtml(data.bankTransfer.accountNumber)}<br>
+          SWIFT: ${escapeHtml(data.bankTransfer.swiftCode)}<br>
+          Amount: <strong>${money(data.currency, data.total)}</strong>
+        </p>
+        <p style="font-size:12px;line-height:1.6;color:#6f695e;margin:10px 0 0;">Please transfer within 72 hours and ensure the full amount arrives (choose OUR fee sharing if available). Upload your transfer receipt from the checkout confirmation page. Your order will be confirmed after we check the transfer.</p>
+      </div>`
+    : "";
+
+  return layout({
     heading: `Thank you, ${data.customerName.split(" ")[0] || data.customerName}`,
-    intro: data.paypalEnabled
-      ? `We received order ${data.orderNumber}. Complete the PayPal payment to confirm it — this email is your summary.`
-      : `We received order ${data.orderNumber}. We will follow up by email with payment instructions.`,
-    body: `${itemsTable(data)}${
+    intro: data.paymentMethod === "BankTransfer"
+      ? `We received order ${data.orderNumber}. Transfer the exact amount below; payment is confirmed after we verify the receipt.`
+      : data.paypalEnabled
+        ? `We received order ${data.orderNumber}. Complete the PayPal payment to confirm it — this email is your summary.`
+        : `We received order ${data.orderNumber}. We will follow up by email with payment instructions.`,
+    body: `${itemsTable(data)}${bankDetails}${
       data.customerNote
         ? `<p style="font-size:13px;color:#6f695e;">Your note: ${escapeHtml(data.customerNote)}</p>`
         : ""
     }`,
     footer: `Order ${escapeHtml(data.orderNumber)} · Payment pending · rendivirgo.com`,
   });
+};
 
 export const renderOrderPaidEmail = (data: OrderEmailData): string =>
   layout({

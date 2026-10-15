@@ -9,7 +9,6 @@ import { useCart, useCopy } from "@/components/providers";
 import { toast } from "@/components/toast";
 import { HeartIcon } from "@/components/icons";
 import { ProductArt } from "@/components/product-art";
-import { ProductWatermark } from "@/components/product-watermark";
 
 const wishlistStorageKey = "rendi-virgo-wishlist";
 
@@ -79,8 +78,9 @@ export function ProductCard({ product }: { product: Product }) {
           ) : (
             <ProductArt tone={product.tone} label={product.stoneType} />
           )}
-          <ProductWatermark />
-          <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>{statusLabel}</span>
+          {product.status === "Sold" || product.status === "Reserved" ? (
+            <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>{statusLabel}</span>
+          ) : null}
         </Link>
         <button
           className={`wishlist-button ${wishlisted ? "is-active" : ""}`}
@@ -102,12 +102,15 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="product-card__footer">
           <strong>{formatUSD(product.price)}</strong>
           {hasVariants && !unavailable && variantsInStock ? (
-            <Link className="text-button" href={`/shop/${product.categorySlug}/${product.slug}`}>
+            <Link
+              className="button button--outline button--compact"
+              href={`/shop/${product.categorySlug}/${product.slug}`}
+            >
               {buttonLabel}
             </Link>
           ) : (
             <button
-              className="text-button"
+              className="button button--compact"
               type="button"
               disabled={unavailable || reachedLimit}
               onClick={() => {

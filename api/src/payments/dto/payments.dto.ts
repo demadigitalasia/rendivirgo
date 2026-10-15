@@ -31,6 +31,12 @@ export class ResumeCheckoutDto {
   email: string;
 }
 
+export class SubmitBankTransferProofDto {
+  @IsEmail()
+  @MaxLength(200)
+  email: string;
+}
+
 export class ReleaseExpiredDto {
   @Type(() => Number)
   @IsInt()

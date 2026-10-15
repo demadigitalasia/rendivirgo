@@ -57,19 +57,14 @@ export class ShippingService {
 
   // ------------------------------------------------------------ quote
 
-  private regionMatches(rateRegion: string, destination: string): boolean {
-    const region = rateRegion.trim().toLowerCase();
-    if (!destination) return region === "worldwide";
-    return region === "worldwide" || region === destination;
-  }
+  private ratesForDestination<T extends { region: string }>(rates: T[], destination: string): T[] {
+    const countryCode = destination.trim().toLowerCase();
+    if (!countryCode) return rates.filter((rate) => rate.region.trim().toLowerCase() === "worldwide");
 
-  private sortByRegion<T extends { region: string }>(rates: T[], destination: string): T[] {
-    if (!destination) return rates;
-    return [...rates].sort((a, b) => {
-      const aSpecific = this.regionMatches(a.region, destination) && a.region.trim().toLowerCase() !== "worldwide" ? 0 : 1;
-      const bSpecific = this.regionMatches(b.region, destination) && b.region.trim().toLowerCase() !== "worldwide" ? 0 : 1;
-      return aSpecific - bSpecific;
-    });
+    const countryRates = rates.filter((rate) => rate.region.trim().toLowerCase() === countryCode);
+    return countryRates.length
+      ? countryRates
+      : rates.filter((rate) => rate.region.trim().toLowerCase() === "worldwide");
   }
 
   private findRates(weightGram: number, destination: string) {
@@ -183,7 +178,7 @@ export class ShippingService {
 
     const destination = dto.countryCode?.trim() ?? "";
     const rates = await this.findRates(dto.weightGram, destination);
-    const sorted = this.sortByRegion(rates, destination);
+    const sorted = this.ratesForDestination(rates, destination);
 
     return {
       options: sorted.map((rate) => this.toOption(rate, fragile, oversized)),
@@ -224,27 +219,24 @@ export class ShippingService {
       return { name: "Free shipping", carrier: null, shippingCost: new Prisma.Decimal(0), source: "FreeShipping" };
     }
 
-    const destination = params.countryCode?.trim().toLowerCase() ?? "";
+    const destination = params.countryCode?.trim() ?? "";
+    const rates = (await this.findRates(params.weightGram, destination)).filter(
+      (candidate) =>
+        candidate.isActive &&
+        candidate.minWeightGram <= params.weightGram &&
+        (candidate.maxWeightGram === null || candidate.maxWeightGram >= params.weightGram),
+    );
+    const availableRates = this.ratesForDestination(rates, destination);
     let rate: Prisma.ShippingRateGetPayload<Record<never, never>> | null = null;
 
     if (selected) {
       if (selected === "admin-override" || selected === "free-shipping") {
         throw new BadRequestException("The selected shipping rate is not available");
       }
-      rate = await this.prisma.shippingRate.findUnique({ where: { id: selected } });
-      if (
-        !rate ||
-        !rate.isActive ||
-        rate.minWeightGram > params.weightGram ||
-        (rate.maxWeightGram !== null && rate.maxWeightGram < params.weightGram) ||
-        !this.regionMatches(rate.region, destination)
-      ) {
-        throw new BadRequestException("The selected shipping rate is not available");
-      }
+      rate = availableRates.find((candidate) => candidate.id === selected) ?? null;
+      if (!rate) throw new BadRequestException("The selected shipping rate is not available");
     } else {
-      const rates = await this.findRates(params.weightGram, destination);
-      const sorted = this.sortByRegion(rates, destination);
-      rate = sorted[0] ?? null;
+      rate = availableRates[0] ?? null;
       if (!rate) throw new BadRequestException("No shipping rate is available for this order");
     }
 

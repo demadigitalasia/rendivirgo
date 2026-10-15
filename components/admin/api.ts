@@ -138,32 +138,37 @@ export type PaginatedResponse<T> = {
 };
 
 export function useList<T>(path: string, initialParams: ListParams = {}) {
-  const [params, setParams] = useState<ListParams>(() => {
-    const defaults = { page: 1, pageSize: 20, ...initialParams };
-    if (typeof window === "undefined") return defaults;
+  const initialParamsRef = useRef(initialParams);
+  const [params, setParams] = useState<ListParams>(() => ({ page: 1, pageSize: 20, ...initialParams }));
+  const [searchInput, setSearchInput] = useState(String(params.search ?? ""));
+  const [urlRestored, setUrlRestored] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Keep the server and first client render identical; restore URL filters after hydration.
+  useEffect(() => {
     const search = new URLSearchParams(window.location.search);
-    const restored = { ...defaults } as ListParams;
+    const restored: ListParams = { page: 1, pageSize: 20, ...initialParamsRef.current };
     for (const [key, value] of search.entries()) {
       restored[key] = key === "page" || key === "pageSize" ? Number(value) : value;
     }
-    return restored;
-  });
-  const [searchInput, setSearchInput] = useState(String(params.search ?? ""));
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    setParams(restored);
+    setSearchInput(String(restored.search ?? ""));
+    setUrlRestored(true);
+  }, []);
 
   useEffect(() => {
+    if (!urlRestored) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setParams((current) => (current.search === searchInput ? current : { ...current, search: searchInput || undefined, page: 1 }));
+      setParams((current) => (String(current.search ?? "") === searchInput ? current : { ...current, search: searchInput || undefined, page: 1 }));
     }, 350);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [searchInput]);
+  }, [searchInput, urlRestored]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!urlRestored) return;
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value === undefined || value === null || value === "") continue;
@@ -171,10 +176,10 @@ export function useList<T>(path: string, initialParams: ListParams = {}) {
     }
     const query = search.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
-  }, [params]);
+  }, [params, urlRestored]);
 
   const url = useMemo(() => apiUrl(path, params), [path, params]);
-  const state = useApi<PaginatedResponse<T>>(url);
+  const state = useApi<PaginatedResponse<T>>(url, { enabled: urlRestored });
 
   const update = useCallback((patch: ListParams) => {
     setParams((current) => ({ ...current, ...patch }));

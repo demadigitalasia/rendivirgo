@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart, useCopy } from "@/components/providers";
 import { formatUSD } from "@/lib/catalog";
 
@@ -85,6 +85,8 @@ type PaymentResult = {
   orderNumber: string;
   total: number;
   paymentStatus: "Paid" | "Pending";
+  paymentMethod?: "PayPal" | "BankTransfer";
+  paymentProofUploadedAt?: string | null;
   notice?: PaymentNotice;
 };
 
@@ -95,6 +97,22 @@ type StoredOrder = {
   email: string;
   createdAt?: string;
   paymentStatus?: "Pending" | "Paid";
+  paymentMethod?: "PayPal" | "BankTransfer";
+  paymentProofUploadedAt?: string | null;
+};
+
+type BankTransferDetails = {
+  enabled: boolean;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  swiftCode: string;
+  currency: string;
+};
+
+type PaymentMethods = {
+  paypal: { enabled: boolean };
+  bankTransfer: BankTransferDetails;
 };
 
 const LAST_ORDER_KEY = "rv.lastOrder";
@@ -153,6 +171,8 @@ export function CheckoutView() {
   const [quoteStatus, setQuoteStatus] = useState<ShippingQuoteStatus>("loading");
   const [selectedRateId, setSelectedRateId] = useState<string>("");
   const [paymentAvailability, setPaymentAvailability] = useState<PaymentAvailability>("loading");
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethods | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"PayPal" | "BankTransfer">("PayPal");
   const [draftHydrated, setDraftHydrated] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
   const [discount, setDiscount] = useState<Discount | null>(null);
@@ -162,11 +182,15 @@ export function CheckoutView() {
   const [redirecting, setRedirecting] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [proofUploadError, setProofUploadError] = useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [result, setResult] = useState<PaymentResult | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<"waiting" | "checking" | "done" | "error">("waiting");
   const handledReturn = useRef(false);
   const quoteRequestId = useRef(0);
+  const proofInputRef = useRef<HTMLInputElement>(null);
 
   const countryCode = useMemo(() => countries.find((item) => item.name === country)?.code ?? "", [country]);
   const hasFragile = lines.some((line) => line.fragile);
@@ -222,9 +246,18 @@ export function CheckoutView() {
     setPaymentAvailability("loading");
     try {
       const response = await fetch("/api/payments/methods", { cache: "no-store" });
-      const payload = (await response.json()) as { paypal?: { enabled?: unknown } };
-      if (!response.ok || typeof payload?.paypal?.enabled !== "boolean") throw new Error("Payment availability unavailable");
-      setPaymentAvailability(payload.paypal.enabled ? "available" : "unavailable");
+      const payload = (await response.json()) as Partial<PaymentMethods>;
+      if (!response.ok || typeof payload?.paypal?.enabled !== "boolean" || typeof payload?.bankTransfer?.enabled !== "boolean") {
+        throw new Error("Payment availability unavailable");
+      }
+      const methods = payload as PaymentMethods;
+      setPaymentMethods(methods);
+      setPaymentAvailability(methods.paypal.enabled || methods.bankTransfer.enabled ? "available" : "unavailable");
+      setSelectedPaymentMethod((current) => {
+        if (current === "PayPal" && !methods.paypal.enabled && methods.bankTransfer.enabled) return "BankTransfer";
+        if (current === "BankTransfer" && !methods.bankTransfer.enabled && methods.paypal.enabled) return "PayPal";
+        return current;
+      });
     } catch {
       setPaymentAvailability("error");
     }
@@ -278,6 +311,9 @@ export function CheckoutView() {
   const discountTotal = discount?.valid ? discount.discountAmount : 0;
   const total = Math.max(0, subtotal - discountTotal) + shippingCost;
   const totalIsKnown = quoteStatus === "ready" && selectedOption !== null;
+  const selectedMethodAvailable = selectedPaymentMethod === "PayPal"
+    ? Boolean(paymentMethods?.paypal.enabled)
+    : Boolean(paymentMethods?.bankTransfer.enabled);
 
   const renderOrderSummary = (className: string) => (
     <section className={`summary-card ${className}`}>
@@ -339,13 +375,14 @@ export function CheckoutView() {
             orderNumber,
             total: orderTotal,
             paymentStatus: "Pending",
+            paymentMethod: "PayPal",
             notice: response.status === 503 ? "unavailable" : "failed",
           });
           return;
         }
         window.location.assign(payload.approveUrl);
       } catch {
-        setResult({ orderId, orderNumber, total: orderTotal, paymentStatus: "Pending", notice: "failed" });
+        setResult({ orderId, orderNumber, total: orderTotal, paymentStatus: "Pending", paymentMethod: "PayPal", notice: "failed" });
       } finally {
         setRedirecting(false);
       }
@@ -370,10 +407,11 @@ export function CheckoutView() {
           orderNumber: stored.orderNumber,
           total: stored.total,
           paymentStatus: "Pending",
+          paymentMethod: "PayPal",
           notice: "cancelled",
         });
       } else if (orderId) {
-        setResult({ orderId, orderNumber: "", total: 0, paymentStatus: "Pending", notice: "cancelled" });
+        setResult({ orderId, orderNumber: "", total: 0, paymentStatus: "Pending", paymentMethod: "PayPal", notice: "cancelled" });
       }
       return;
     }
@@ -393,6 +431,8 @@ export function CheckoutView() {
           orderId?: string;
           orderNumber?: string;
           total?: number;
+          paymentMethod?: "PayPal" | "BankTransfer";
+          paymentProofUploadedAt?: string | null;
           message?: string;
         };
         if (!response.ok) throw new Error(payload?.message ?? "capture failed");
@@ -410,6 +450,7 @@ export function CheckoutView() {
           orderNumber: payload.orderNumber ?? stored?.orderNumber ?? "",
           total: Number(payload.total ?? stored?.total ?? 0),
           paymentStatus: paid ? "Paid" : "Pending",
+          paymentMethod: "PayPal",
           notice: paid ? undefined : "review",
         });
         clearCart();
@@ -421,6 +462,7 @@ export function CheckoutView() {
           orderNumber: stored?.orderNumber ?? "",
           total: stored?.total ?? 0,
           paymentStatus: "Pending",
+          paymentMethod: "PayPal",
           notice: "failed",
         });
       } finally {
@@ -464,6 +506,8 @@ export function CheckoutView() {
         orderNumber?: string;
         total?: number;
         paymentStatus?: string;
+        paymentMethod?: "PayPal" | "BankTransfer";
+        paymentProofUploadedAt?: string | null;
       };
       if (!response.ok || !payload.orderId || !payload.orderNumber || typeof payload.total !== "number") {
         throw new Error("The saved order could not be recovered");
@@ -478,6 +522,8 @@ export function CheckoutView() {
         email: emailForLookup,
         createdAt: new Date().toISOString(),
         paymentStatus: paid ? "Paid" : "Pending",
+        paymentMethod: payload.paymentMethod ?? stored?.paymentMethod ?? "PayPal",
+        paymentProofUploadedAt: payload.paymentProofUploadedAt ?? stored?.paymentProofUploadedAt ?? null,
       };
       window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(recovered));
       window.sessionStorage.removeItem(CHECKOUT_REQUEST_KEY);
@@ -489,6 +535,8 @@ export function CheckoutView() {
         orderNumber: recovered.orderNumber,
         total: recovered.total,
         paymentStatus: paid ? "Paid" : "Pending",
+        paymentMethod: recovered.paymentMethod,
+        paymentProofUploadedAt: recovered.paymentProofUploadedAt,
         notice: paid ? undefined : failed ? "expired" : "recovered",
       });
       setRecoveryStatus("done");
@@ -553,7 +601,7 @@ export function CheckoutView() {
   };
 
   const placeOrder = async () => {
-    if (paymentAvailability !== "available" || !totalIsKnown || !selectedOption) return;
+    if (paymentAvailability !== "available" || !selectedMethodAvailable || !totalIsKnown || !selectedOption) return;
     setPlacing(true);
     setOrderError(null);
     try {
@@ -563,6 +611,7 @@ export function CheckoutView() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           checkoutKey,
+          paymentMethod: selectedPaymentMethod,
           email,
           customerName: fullName.trim(),
           phone: phone || undefined,
@@ -605,17 +654,71 @@ export function CheckoutView() {
         email,
         createdAt: new Date().toISOString(),
         paymentStatus: "Pending",
+        paymentMethod: selectedPaymentMethod,
       };
       window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(stored));
       window.sessionStorage.removeItem(CHECKOUT_REQUEST_KEY);
       window.sessionStorage.removeItem(CHECKOUT_REQUEST_EMAIL_KEY);
       window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
       clearCart();
-      await startPayment(stored.orderId, stored.orderNumber, stored.total);
+      if (selectedPaymentMethod === "PayPal") {
+        await startPayment(stored.orderId, stored.orderNumber, stored.total);
+      } else {
+        setResult({
+          orderId: stored.orderId,
+          orderNumber: stored.orderNumber,
+          total: stored.total,
+          paymentStatus: "Pending",
+          paymentMethod: "BankTransfer",
+          paymentProofUploadedAt: null,
+        });
+      }
     } catch {
       setOrderError(t.checkout.orderError);
     } finally {
       setPlacing(false);
+    }
+  };
+
+  const uploadBankTransferProof = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!result || result.paymentMethod !== "BankTransfer" || !paymentProof) return;
+    if (paymentProof.size > 8 * 1024 * 1024) {
+      setProofUploadError(t.checkout.proofTooLarge);
+      return;
+    }
+    const orderEmail = readLastOrder()?.email;
+    if (!orderEmail) {
+      setProofUploadError(t.checkout.proofUploadFailed);
+      return;
+    }
+    setUploadingProof(true);
+    setProofUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append("email", orderEmail);
+      formData.append("file", paymentProof);
+      const response = await fetch(`/api/payments/bank-transfer/${encodeURIComponent(result.orderId)}/proof`, {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json().catch(() => ({}))) as { uploadedAt?: string; message?: string | string[] };
+      if (!response.ok || !payload.uploadedAt) {
+        const message = Array.isArray(payload.message) ? payload.message.join(", ") : payload.message;
+        throw new Error(message || t.checkout.proofUploadFailed);
+      }
+      const updated: PaymentResult = { ...result, paymentProofUploadedAt: payload.uploadedAt, notice: undefined };
+      setResult(updated);
+      const stored = readLastOrder();
+      if (stored?.orderId === result.orderId) {
+        window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ ...stored, paymentProofUploadedAt: payload.uploadedAt }));
+      }
+      setPaymentProof(null);
+      if (proofInputRef.current) proofInputRef.current.value = "";
+    } catch (caught) {
+      setProofUploadError(caught instanceof Error ? caught.message : t.checkout.proofUploadFailed);
+    } finally {
+      setUploadingProof(false);
     }
   };
 
@@ -633,9 +736,16 @@ export function CheckoutView() {
 
   if (result) {
     const paid = result.paymentStatus === "Paid";
-    const canRetry = result.notice === "cancelled" || result.notice === "failed" || result.notice === "unavailable" || result.notice === "recovered";
+    const isBankTransfer = result.paymentMethod === "BankTransfer";
+    const canRetry = !isBankTransfer && (result.notice === "cancelled" || result.notice === "failed" || result.notice === "unavailable" || result.notice === "recovered");
     const pendingMessage =
-      result.notice === "unavailable"
+      isBankTransfer && result.notice === "expired"
+        ? t.checkout.paymentExpired
+        : isBankTransfer
+          ? result.paymentProofUploadedAt
+            ? t.checkout.bankTransferProofPending
+            : t.checkout.bankTransferPending
+        : result.notice === "unavailable"
         ? t.checkout.paypalUnavailable
         : result.notice === "cancelled"
           ? t.checkout.paymentCancelled
@@ -663,6 +773,45 @@ export function CheckoutView() {
             <p style={{ marginTop: 12 }}>
               <strong>{formatUSD(result.total)}</strong>
             </p>
+          ) : null}
+          {!paid && isBankTransfer && result.notice !== "expired" ? (
+            <section className="bank-transfer-panel" aria-labelledby="bank-transfer-title">
+              <h3 id="bank-transfer-title">{t.checkout.bankTransferTitle}</h3>
+              <p>{t.checkout.transferExactAmount}</p>
+              <dl className="bank-transfer-details">
+                <div><dt>{t.checkout.bankName}</dt><dd>{paymentMethods?.bankTransfer.bankName || "—"}</dd></div>
+                {paymentMethods?.bankTransfer.accountName ? (
+                  <div><dt>{t.checkout.accountName}</dt><dd>{paymentMethods.bankTransfer.accountName}</dd></div>
+                ) : null}
+                <div><dt>{t.checkout.accountNumber}</dt><dd>{paymentMethods?.bankTransfer.accountNumber || "—"}</dd></div>
+                <div><dt>{t.checkout.swiftCode}</dt><dd>{paymentMethods?.bankTransfer.swiftCode || "—"}</dd></div>
+                <div><dt>{t.checkout.transferAmount}</dt><dd><strong>{formatUSD(result.total)}</strong></dd></div>
+              </dl>
+              {result.paymentProofUploadedAt ? (
+                <p className="form-status form-status--success" role="status">
+                  {t.checkout.proofReceived(new Date(result.paymentProofUploadedAt).toLocaleString())}
+                </p>
+              ) : null}
+              <form className="bank-transfer-upload" onSubmit={(event) => void uploadBankTransferProof(event)}>
+                <label htmlFor="bank-transfer-proof">{t.checkout.uploadProof}</label>
+                <input
+                  ref={proofInputRef}
+                  id="bank-transfer-proof"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                  required
+                  onChange={(event) => {
+                    setPaymentProof(event.target.files?.[0] ?? null);
+                    setProofUploadError(null);
+                  }}
+                />
+                <span className="muted">{t.checkout.proofImageHint}</span>
+                {proofUploadError ? <span className="form-status form-status--error" role="alert">{proofUploadError}</span> : null}
+                <button className="button" type="submit" disabled={uploadingProof || !paymentProof}>
+                  {uploadingProof ? t.checkout.uploadingProof : result.paymentProofUploadedAt ? t.checkout.replaceProof : t.checkout.submitProof}
+                </button>
+              </form>
+            </section>
           ) : null}
           {!paid && canRetry && result.orderId ? (
             <button
@@ -721,7 +870,7 @@ export function CheckoutView() {
           className="checkout-form"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!placing && lines.length && paymentAvailability === "available" && totalIsKnown) void placeOrder();
+            if (!placing && lines.length && paymentAvailability === "available" && selectedMethodAvailable && totalIsKnown) void placeOrder();
           }}
         >
           <details className="checkout-summary-mobile">
@@ -854,13 +1003,24 @@ export function CheckoutView() {
             {discountError ? <span className="form-status form-status--error">{discountError}</span> : null}
           </div>
 
-          <div className="payment-box">
-            <strong>{t.checkout.paypalTitle}</strong>
-            {paymentAvailability === "available" ? <span>{t.checkout.paypalRedirectHint}</span> : null}
+          <fieldset className="payment-box" disabled={paymentAvailability === "loading" || paymentAvailability === "error"}>
+            <legend>{t.checkout.paymentMethodTitle}</legend>
+            {paymentMethods?.paypal.enabled ? (
+              <label className={`payment-method-option ${selectedPaymentMethod === "PayPal" ? "is-selected" : ""}`}>
+                <input type="radio" name="payment-method" value="PayPal" checked={selectedPaymentMethod === "PayPal"} onChange={() => setSelectedPaymentMethod("PayPal")} />
+                <span><strong>{t.checkout.paypalTitle}</strong><small>{t.checkout.paypalRedirectHint}</small></span>
+              </label>
+            ) : null}
+            {paymentMethods?.bankTransfer.enabled ? (
+              <label className={`payment-method-option ${selectedPaymentMethod === "BankTransfer" ? "is-selected" : ""}`}>
+                <input type="radio" name="payment-method" value="BankTransfer" checked={selectedPaymentMethod === "BankTransfer"} onChange={() => setSelectedPaymentMethod("BankTransfer")} />
+                <span><strong>{t.checkout.bankTransferOption}</strong><small>{t.checkout.bankTransferOptionHint}</small></span>
+              </label>
+            ) : null}
             {paymentAvailability === "loading" ? <span>{t.checkout.checkingPayment}</span> : null}
             {paymentAvailability === "unavailable" ? (
               <>
-                <span>{t.checkout.paypalUnavailable}</span>
+                <span>{t.checkout.allPaymentsUnavailable}</span>
                 <Link href="/contact" className="text-button">{t.checkout.shippingSupport}</Link>
               </>
             ) : null}
@@ -870,7 +1030,7 @@ export function CheckoutView() {
                 <button type="button" className="text-button" onClick={() => void loadPaymentAvailability()}>{t.checkout.retryPaymentCheck}</button>
               </>
             ) : null}
-          </div>
+          </fieldset>
 
           {orderError ? (
             <p className="form-status form-status--error" role="alert">
@@ -878,7 +1038,7 @@ export function CheckoutView() {
             </p>
           ) : null}
 
-          <button className="button button--full" type="submit" disabled={placing || !selectedOption || !totalIsKnown || paymentAvailability !== "available"}>
+          <button className="button button--full" type="submit" disabled={placing || !selectedOption || !totalIsKnown || paymentAvailability !== "available" || !selectedMethodAvailable}>
             {placing
               ? t.checkout.placing
               : paymentAvailability === "loading"

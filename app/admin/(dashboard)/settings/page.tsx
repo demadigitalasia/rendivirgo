@@ -39,6 +39,10 @@ type SettingsForm = {
   paypalEnabled: boolean;
   paypalEmail: string;
   bankTransferEnabled: boolean;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankSwiftCode: string;
   paymentCurrency: string;
 };
 
@@ -70,7 +74,11 @@ const emptyForm: SettingsForm = {
   newMessage: true,
   paypalEnabled: true,
   paypalEmail: "",
-  bankTransferEnabled: false,
+  bankTransferEnabled: true,
+  bankName: "PT BANK CENTRAL ASIA",
+  bankAccountName: "RENDI VIRGO",
+  bankAccountNumber: "3770362741",
+  bankSwiftCode: "CENAIDJA",
   paymentCurrency: "USD",
 };
 
@@ -123,7 +131,11 @@ function formFrom(data: GroupedSettings): SettingsForm {
     newMessage: asBool(notifications["notifications.newMessage"], true),
     paypalEnabled: asBool(payments["payments.paypalEnabled"], true),
     paypalEmail: asText(payments["payments.paypalEmail"]),
-    bankTransferEnabled: asBool(payments["payments.bankTransferEnabled"], false),
+    bankTransferEnabled: asBool(payments["payments.bankTransferEnabled"], true),
+    bankName: asText(payments["payments.bankName"]) || "PT BANK CENTRAL ASIA",
+    bankAccountName: asText(payments["payments.bankAccountName"]) || "RENDI VIRGO",
+    bankAccountNumber: asText(payments["payments.bankAccountNumber"]) || "3770362741",
+    bankSwiftCode: asText(payments["payments.bankSwiftCode"]) || "CENAIDJA",
     paymentCurrency: asText(payments["payments.currency"]) || "USD",
   };
 }
@@ -221,6 +233,10 @@ export default function AdminSettingsPage() {
     if (form.bankTransferEnabled !== saved.bankTransferEnabled) {
       payload["payments.bankTransferEnabled"] = form.bankTransferEnabled;
     }
+    if (form.bankName !== saved.bankName) payload["payments.bankName"] = form.bankName.trim();
+    if (form.bankAccountName !== saved.bankAccountName) payload["payments.bankAccountName"] = form.bankAccountName.trim();
+    if (form.bankAccountNumber !== saved.bankAccountNumber) payload["payments.bankAccountNumber"] = form.bankAccountNumber.trim();
+    if (form.bankSwiftCode !== saved.bankSwiftCode) payload["payments.bankSwiftCode"] = form.bankSwiftCode.trim().toUpperCase();
     if (form.paymentCurrency !== saved.paymentCurrency) payload["payments.currency"] = form.paymentCurrency.trim();
 
     if (!Object.keys(payload).length) {
@@ -481,6 +497,36 @@ export default function AdminSettingsPage() {
                     onChange={(checked) => update("bankTransferEnabled", checked)}
                     label="Bank transfer enabled"
                   />
+                  <div className="rv-form-grid">
+                    <Field label="Bank name">
+                      <TextInput
+                        value={form.bankName}
+                        onChange={(value) => update("bankName", value)}
+                        disabled={!form.bankTransferEnabled}
+                      />
+                    </Field>
+                    <Field label="Account holder name" hint="Use the exact name registered at the bank">
+                      <TextInput
+                        value={form.bankAccountName}
+                        onChange={(value) => update("bankAccountName", value)}
+                        disabled={!form.bankTransferEnabled}
+                      />
+                    </Field>
+                    <Field label="Account number">
+                      <TextInput
+                        value={form.bankAccountNumber}
+                        onChange={(value) => update("bankAccountNumber", value)}
+                        disabled={!form.bankTransferEnabled}
+                      />
+                    </Field>
+                    <Field label="SWIFT code">
+                      <TextInput
+                        value={form.bankSwiftCode}
+                        onChange={(value) => update("bankSwiftCode", value)}
+                        disabled={!form.bankTransferEnabled}
+                      />
+                    </Field>
+                  </div>
                 </div>
               </Card>
             ) : null}

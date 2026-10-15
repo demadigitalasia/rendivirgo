@@ -207,6 +207,10 @@ export function ProductForm({
   const [variants, setVariants] = useState<VariantRow[]>(() => (product?.variants ?? []).map(toVariantRow));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiBrief, setAiBrief] = useState("");
+  const [generatingCopy, setGeneratingCopy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode !== "create" || conditionsState.loading) return;
@@ -234,6 +238,41 @@ export function ProductForm({
   if (values.condition && !conditionOptions.some((condition) => condition.value === values.condition)) {
     conditionOptions.push({ value: values.condition, label: `${values.condition} (unavailable)` });
   }
+
+  const generateProductCopy = async () => {
+    setAiError(null);
+    setAiNotice(null);
+    setGeneratingCopy(true);
+    try {
+      const copy = await apiFetch<{ description: string; metaTitle: string; metaDescription: string }>(
+        "/api/admin/products/generate-copy",
+        {
+          json: {
+            name: values.name.trim(),
+            shortDescription: aiBrief.trim(),
+            category: categoriesState.data?.find((category) => category.id === values.categoryId)?.name,
+            stoneType: values.stoneType.trim(),
+            origin: values.origin.trim(),
+            condition: values.condition,
+            unit: values.unit,
+            weightCarat: toNumberOrNull(values.weightCarat) ?? undefined,
+            weightGram: toNumberOrNull(values.weightGram) ?? undefined,
+          },
+        },
+      );
+      setValues((current) => ({
+        ...current,
+        description: copy.description,
+        metaTitle: copy.metaTitle,
+        metaDescription: copy.metaDescription,
+      }));
+      setAiNotice("Draft generated. Review the details and edit them before saving.");
+    } catch (caught) {
+      setAiError(errorMessage(caught));
+    } finally {
+      setGeneratingCopy(false);
+    }
+  };
 
   const addVariant = () => {
     setVariants((current) => [
@@ -466,8 +505,37 @@ export function ProductForm({
         </div>
       </Card>
 
-      <Card title="Description & SEO">
+      <Card
+        title="Description & SEO"
+        description="Create product copy and search metadata from your title and notes."
+        actions={
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={generateProductCopy}
+            disabled={(!values.name.trim() && !aiBrief.trim()) || generatingCopy}
+            loading={generatingCopy}
+          >
+            Generate with AI
+          </Button>
+        }
+      >
         <div className="rv-stack">
+          <Field label="Short brief or key details" hint="Add a few accurate facts, or leave this blank to generate from the product title and details above.">
+            <TextArea
+              value={aiBrief}
+              onChange={(value) => {
+                setAiBrief(value);
+                setAiError(null);
+                setAiNotice(null);
+              }}
+              rows={3}
+              maxLength={1200}
+              placeholder="What makes this piece special? Include only details you can verify."
+            />
+          </Field>
+          {aiError ? <div className="rv-ai-copy-message rv-ai-copy-message--error" role="alert">{aiError}</div> : null}
+          {aiNotice ? <div className="rv-ai-copy-message rv-ai-copy-message--success" role="status">{aiNotice}</div> : null}
           <Field label="Description">
             <TextArea value={values.description} onChange={(value) => update("description", value)} rows={6} />
           </Field>

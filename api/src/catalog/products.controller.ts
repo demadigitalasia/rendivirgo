@@ -3,7 +3,8 @@ import type { Response } from "express";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
-import { BulkProductActionDto, CatalogPdfQueryDto, CreateProductDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
+import { BulkProductActionDto, CatalogPdfQueryDto, CreateProductDto, GenerateProductCopyDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
+import { ProductCopyService } from "./product-copy.service";
 import { ProductsService } from "./products.service";
 
 @Controller("products")
@@ -37,7 +38,10 @@ export class ProductsController {
 
 @Controller("admin/products")
 export class AdminProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly productCopyService: ProductCopyService,
+  ) {}
 
   @Get()
   list(@Query() query: ProductQueryDto) {
@@ -63,6 +67,11 @@ export class AdminProductsController {
   @Post("import")
   importCsv(@Body("csv") csv: string, @Req() request: AuthenticatedRequest) {
     return this.productsService.importCsv(csv ?? "", auditContextFrom(request));
+  }
+
+  @Post("generate-copy")
+  generateCopy(@Body() dto: GenerateProductCopyDto) {
+    return this.productCopyService.generate(dto);
   }
 
   @Post()

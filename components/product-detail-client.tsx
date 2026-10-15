@@ -8,10 +8,11 @@ import { formatDimensions, formatUSD, maxQuantityFor } from "@/lib/catalog";
 import { useCart, useCopy } from "@/components/providers";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { AddToCartButton } from "@/components/add-to-cart-button";
-import { CloseIcon } from "@/components/icons";
+import { ArrowIcon, CloseIcon, GlobeIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { ProductReviews } from "@/components/product-reviews";
 import { ProductWatermark } from "@/components/product-watermark";
+import "./product-detail.css";
 
 const fallbackImage = "/images/products/stone-moss.svg";
 
@@ -63,6 +64,9 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
           ? t.product.stockOne
           : t.product.stockMany(maxQuantity);
   const imageAlt = (index: number) => `${product.name} — ${product.stoneType} from ${product.origin}, view ${index + 1}`;
+  const descriptionParagraphs = product.description.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
+  const introduction = descriptionParagraphs[0] ?? product.description;
+  const titleBreak = product.name.lastIndexOf(" ");
 
   const moveImage = (direction: number) => {
     setActiveImageIndex((current) => (current + direction + images.length) % images.length);
@@ -127,7 +131,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
           : t.product.noConditionNote);
 
   return (
-    <>
+    <div className="product-page">
       <Breadcrumb
         items={[
           { label: t.breadcrumb.shop, href: "/shop" },
@@ -138,6 +142,10 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
 
       <div className="page-container product-detail">
         <section className="product-gallery" aria-label={t.product.galleryLabel}>
+          <div className="product-gallery__folio">
+            <span>{t.product.collectionLabel}</span>
+            <span>{String(activeImageIndex + 1).padStart(2, "0")} / {String(images.length).padStart(2, "0")}</span>
+          </div>
           <button
             className="product-gallery__hero"
             type="button"
@@ -149,8 +157,8 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               alt={imageAlt(activeImageIndex)}
               width={900}
               height={900}
-              priority
-              sizes="(max-width: 720px) 100vw, 58vw"
+              preload
+              sizes="(max-width: 900px) 100vw, (max-width: 1400px) 52vw, 660px"
             />
             <ProductWatermark />
             <span className="product-gallery__zoom" aria-hidden="true">+</span>
@@ -167,12 +175,14 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
                   onClick={() => setActiveImageIndex(index)}
                 >
                   <Image src={image} alt="" width={120} height={120} sizes="80px" />
-                  <ProductWatermark />
                 </button>
               ))}
             </div>
           ) : null}
-          <p className="product-gallery__hint">{t.product.zoomHint}</p>
+          <div className="product-gallery__caption">
+            <span>{t.product.imageLabel} {String(activeImageIndex + 1).padStart(2, "0")}</span>
+            <span className="product-gallery__hint">{t.product.zoomHint}</span>
+          </div>
           {product.videoUrl ? (
             <div className="product-gallery__video-section">
               <p className="product-gallery__video-label">{t.product.videoLabel}</p>
@@ -194,16 +204,26 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
         <div className="product-detail__info">
           <div className="product-detail__meta">
             <div className="eyebrow">
-              {product.category} · {product.sku}
+              <span className="product-detail__category-mark" aria-hidden="true" />
+              {product.category}
             </div>
-            <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>
-              {product.status === "Sold" ? t.common.sold : product.status === "Reserved" ? t.common.reserved : t.common.available}
-            </span>
+            {product.status === "Sold" || product.status === "Reserved" ? (
+              <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>
+                {product.status === "Sold" ? t.common.sold : t.common.reserved}
+              </span>
+            ) : null}
           </div>
-          <h1>{product.name}</h1>
-          <div className="product-detail__price">{formatUSD(selectedProduct.price)}</div>
-          <p className="product-detail__stock">{stockMessage}</p>
-          <p className="product-detail__description">{product.description}</p>
+          <h1>{titleBreak > 0 ? <>{product.name.slice(0, titleBreak)} <em>{product.name.slice(titleBreak + 1)}</em></> : product.name}</h1>
+          <p className="product-detail__description">{introduction}</p>
+          <a className="product-detail__read" href="#stone-details">{t.product.readDetails}<ArrowIcon /></a>
+
+          <div className="product-detail__purchase">
+            <div>
+              <div className="product-detail__price">{formatUSD(selectedProduct.price)}</div>
+              <span className="product-detail__unit">USD · {t.product.priceUnits[product.unit]}</span>
+            </div>
+            <p className={`product-detail__stock ${product.status === "Available" && maxQuantity > 0 ? "is-available" : ""}`}>{stockMessage}</p>
+          </div>
 
           {product.variants?.length ? (
             <div className="variant-picker">
@@ -227,12 +247,25 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
 
           <div className="product-detail__actions">
             <AddToCartButton product={selectedProduct} variantId={variant?.id} variantName={variant?.name} />
-            <button className="button button--outline button--full" type="button" onClick={shareProduct}>
+            <button className="product-detail__share" type="button" onClick={shareProduct}>
               {shareMessage || t.product.share}
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M5 12v8h14v-8" /></svg>
             </button>
           </div>
           <p className="product-detail__note">{t.product.stockNote}</p>
 
+          <div className="product-detail__shipping-note"><GlobeIcon /><span>{t.product.shippingWorldwide}</span><Link href="/shipping-returns"><ArrowIcon /><span className="sr-only">{t.product.shippingTitle}</span></Link></div>
+          {inCart > 0 ? <p className="product-detail__note" role="status">{t.common.inCart}</p> : null}
+        </div>
+      </div>
+
+      <section className="page-container product-particulars" id="stone-details" aria-labelledby="stone-details-title">
+        <div className="product-particulars__heading">
+          <div className="eyebrow">{t.product.particulars}</div>
+          <h2 id="stone-details-title">{t.product.closerLook}</h2>
+          <span className="product-particulars__reference">REF. {variant?.sku ?? product.sku}</span>
+        </div>
+        <div className="product-particulars__content">
           <ul className="detail-list">
             <li>
               <span>{t.product.specStone}</span>
@@ -244,7 +277,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
             </li>
             <li>
               <span>{t.product.specWeight}</span>
-              <span>{selectedWeight} g</span>
+              <span>{selectedWeight > 0 ? `${selectedWeight} g` : t.product.notRecorded}</span>
             </li>
             {product.mohsHardness ? (
               <li>
@@ -254,65 +287,63 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
             ) : null}
             <li>
               <span>{t.product.specDimensions}</span>
-              <span>{formatDimensions(selectedDimensions)}</span>
+              <span>{selectedDimensions.length > 0 && selectedDimensions.width > 0 && selectedDimensions.height > 0 ? formatDimensions(selectedDimensions) : t.product.notRecorded}</span>
             </li>
             <li>
               <span>{t.product.specCondition}</span>
               <span>{conditionLabel}</span>
             </li>
           </ul>
-          {inCart > 0 ? <p className="product-detail__note">{t.common.inCart}</p> : null}
+          <div className="product-detail__accordions" aria-label={t.product.detailsTitle}>
+            <details open>
+              <summary>{t.product.detailsDescription}</summary>
+              <div className="product-detail__accordion-body">
+                {descriptionParagraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+              </div>
+            </details>
+            <details>
+              <summary>{t.product.conditionTitle}</summary>
+              <div className="product-detail__accordion-body">
+                <p>{conditionNote}</p>
+                {conditionNote !== t.product.noConditionNote ? <p className="product-detail__note">{t.product.noConditionNote}</p> : null}
+                {product.fragile ? <p className="product-detail__note">{t.product.fragileNote}</p> : null}
+              </div>
+            </details>
+            <details>
+              <summary>{t.product.shippingTitle}</summary>
+              <div className="product-detail__accordion-body">
+                <p>{t.product.shippingIntro}</p>
+                <dl className="shipping-facts">
+                  <div>
+                    <dt>{t.product.shippingWeight}</dt>
+                    <dd>{packageWeight} g</dd>
+                  </div>
+                  <div>
+                    <dt>{t.product.shippingDimensions}</dt>
+                    <dd>{formatDimensions(packageDimensions)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t.product.shippingClass}</dt>
+                    <dd>{product.shipping.shippingClass}</dd>
+                  </div>
+                </dl>
+                <p className="product-detail__note">{t.product.shippingWorldwide}</p>
+                <p className="product-detail__note">
+                  <Link href="/shipping-returns" className="text-button">{t.product.returnsNote}</Link>
+                </p>
+              </div>
+            </details>
+          </div>
         </div>
-      </div>
-
-      <section className="page-container product-detail__accordions" aria-label={t.product.detailsTitle}>
-        <details open>
-          <summary>{t.product.detailsDescription}</summary>
-          <div className="product-detail__accordion-body">
-            <p>{product.description}</p>
-            <p className="product-detail__note">SKU: {variant?.sku ?? product.sku}</p>
-          </div>
-        </details>
-        <details>
-          <summary>{t.product.conditionTitle}</summary>
-          <div className="product-detail__accordion-body">
-            <p>{conditionNote}</p>
-            <p className="product-detail__note">{t.product.noConditionNote}</p>
-            {product.fragile ? <p className="product-detail__note">{t.product.fragileNote}</p> : null}
-          </div>
-        </details>
-        <details>
-          <summary>{t.product.shippingTitle}</summary>
-          <div className="product-detail__accordion-body">
-            <p>{t.product.shippingIntro}</p>
-            <dl className="shipping-facts">
-              <div>
-                <dt>{t.product.shippingWeight}</dt>
-                <dd>{packageWeight} g</dd>
-              </div>
-              <div>
-                <dt>{t.product.shippingDimensions}</dt>
-                <dd>{formatDimensions(packageDimensions)}</dd>
-              </div>
-              <div>
-                <dt>{t.product.shippingClass}</dt>
-                <dd>{product.shipping.shippingClass}</dd>
-              </div>
-            </dl>
-            <p className="product-detail__note">{t.product.shippingWorldwide}</p>
-            <p className="product-detail__note">
-              <Link href="/shipping-returns" className="text-button">{t.product.returnsNote}</Link>
-            </p>
-          </div>
-        </details>
       </section>
 
       <ProductReviews slug={product.slug} />
 
       {related.length ? (
-        <section className="page-container product-detail__related">
-          <div className="section-heading">
-            <h2>{t.product.relatedTitle}</h2>
+        <section className={`page-container product-detail__related ${related.length <= 2 ? "product-detail__related--compact" : ""}`}>
+          <div className="home-section-heading">
+            <div><div className="eyebrow">{t.product.collectionMore}</div><h2>{t.product.relatedTitle}</h2></div>
+            <Link className="text-button" href={`/shop/${product.categorySlug}`}>{t.product.backToCollection}<ArrowIcon /></Link>
           </div>
           <div className="product-grid">
             {related.map((item) => (
@@ -353,6 +384,6 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
           </div>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }

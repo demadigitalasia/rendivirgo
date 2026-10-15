@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsEnum,
   IsInt,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -15,7 +16,7 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { OrderStatus, PaymentStatus } from "../../../generated/prisma";
+import { OrderStatus, PaymentMethod, PaymentStatus } from "../../../generated/prisma";
 import { PaginationQueryDto } from "../../common/dto/pagination.dto";
 
 export class ShippingAddressDto {
@@ -76,6 +77,10 @@ export class CreateOrderDto {
   @IsOptional()
   @IsUUID("4")
   checkoutKey?: string;
+
+  @IsOptional()
+  @IsIn(["PayPal", "BankTransfer"])
+  paymentMethod?: PaymentMethod;
 
   @IsEmail()
   @MaxLength(200)

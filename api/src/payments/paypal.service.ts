@@ -25,6 +25,10 @@ export type PayPalCapture = {
   amount: { currency_code: string; value: string };
 };
 
+export function paypalCredentialsConfigured(clientId?: string, clientSecret?: string): boolean {
+  return Boolean(clientId?.trim() && clientSecret?.trim());
+}
+
 @Injectable()
 export class PayPalService {
   private readonly logger = new Logger(PayPalService.name);
@@ -43,7 +47,7 @@ export class PayPalService {
   }
 
   isConfigured(): boolean {
-    return Boolean(this.clientId && this.clientSecret);
+    return paypalCredentialsConfigured(this.clientId, this.clientSecret);
   }
 
   private async accessToken(): Promise<string> {
@@ -107,10 +111,11 @@ export class PayPalService {
     referenceId: string;
     returnUrl: string;
     cancelUrl: string;
+    idempotencyKey?: string;
   }): Promise<{ id: string; approveUrl: string | null }> {
     const order = await this.request<PayPalOrder>("/v2/checkout/orders", {
       method: "POST",
-      idempotencyKey: `rv-${input.referenceId}`,
+      idempotencyKey: input.idempotencyKey ?? `rv-${input.referenceId}`,
       body: JSON.stringify({
         intent: "CAPTURE",
         purchase_units: [
@@ -134,14 +139,15 @@ export class PayPalService {
       }),
     });
 
-    const approveUrl =
-      order.links?.find((link) => link.rel === "payer-action" || link.rel === "approve")?.href ?? null;
-
-    return { id: order.id, approveUrl };
+    return { id: order.id, approveUrl: this.approvalUrl(order) };
   }
 
   async getOrder(paypalOrderId: string): Promise<PayPalOrder> {
     return this.request<PayPalOrder>(`/v2/checkout/orders/${encodeURIComponent(paypalOrderId)}`);
+  }
+
+  approvalUrl(order: PayPalOrder): string | null {
+    return order.links?.find((link) => link.rel === "payer-action" || link.rel === "approve")?.href ?? null;
   }
 
   async captureOrder(paypalOrderId: string): Promise<PayPalOrder> {

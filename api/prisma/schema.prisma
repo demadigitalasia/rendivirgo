@@ -385,6 +385,9 @@ model Order {
   paymentStatus   PaymentStatus @default(Pending)
   paymentMethod   PaymentMethod @default(PayPal)
   paymentRef      String?
+  paymentProofPath String?
+  paymentProofMime String?
+  paymentProofUploadedAt DateTime?
   currency        String        @default("USD")
   subtotal        Decimal       @db.Decimal(12, 2)
   shippingCost    Decimal       @db.Decimal(12, 2)
@@ -425,6 +428,7 @@ model Order {
 
   @@index([status])
   @@index([paymentStatus])
+  @@index([paymentMethod, paymentStatus, paymentProofUploadedAt])
   @@index([placedAt])
   @@index([email])
   @@index([customerId])

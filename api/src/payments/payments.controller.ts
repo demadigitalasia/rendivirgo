@@ -1,10 +1,30 @@
-import { Body, Controller, Get, Post, Req, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  Post,
+  Req,
+  StreamableFile,
+  UnauthorizedException,
+  UploadedFile,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { createReadStream } from "node:fs";
 import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { Public } from "../common/decorators/public.decorator";
-import { CapturePayPalOrderDto, CreatePayPalOrderDto, ResumeCheckoutDto } from "./dto/payments.dto";
+import {
+  CapturePayPalOrderDto,
+  CreatePayPalOrderDto,
+  ResumeCheckoutDto,
+  SubmitBankTransferProofDto,
+} from "./dto/payments.dto";
 import { PayPalService } from "./paypal.service";
-import { PaymentsService } from "./payments.service";
+import { PaymentsService, type PaymentProofFile } from "./payments.service";
 
 @Controller("payments")
 export class PaymentsController {
@@ -38,6 +58,40 @@ export class PaymentsController {
   @Post("paypal/capture")
   capture(@Body() dto: CapturePayPalOrderDto) {
     return this.paymentsService.capturePaypalOrder(dto.paypalOrderId);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post("bank-transfer/:orderId/proof")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 8 * 1024 * 1024 },
+      fileFilter: (_request, file, callback) => {
+        const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
+        if (!allowed.includes(file.mimetype)) {
+          callback(new BadRequestException("Only jpeg, png, webp, gif, or avif receipts are allowed"), false);
+          return;
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  submitBankTransferProof(
+    @Param("orderId") orderId: string,
+    @Body() dto: SubmitBankTransferProofDto,
+    @UploadedFile() file: PaymentProofFile | undefined,
+  ) {
+    return this.paymentsService.submitBankTransferProof(orderId, dto.email, file);
+  }
+
+  @Get("admin/orders/:orderId/bank-transfer-proof")
+  @Header("Cache-Control", "private, no-store")
+  async bankTransferProof(@Param("orderId") orderId: string) {
+    const proof = await this.paymentsService.getBankTransferProof(orderId);
+    return new StreamableFile(createReadStream(proof.path), {
+      type: proof.mimeType,
+      disposition: "inline",
+    });
   }
 
   @Public()

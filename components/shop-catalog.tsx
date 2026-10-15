@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
+import { CloseIcon } from "@/components/icons";
 import { useCopy } from "@/components/providers";
 import type { Product } from "@/lib/catalog";
 
@@ -30,6 +31,9 @@ export function ShopCatalog({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [mobileFilters, setMobileFilters] = useState(false);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const filterPanelRef = useRef<HTMLElement>(null);
   const category = searchParams.get("category") ?? "all";
   const stone = searchParams.get("stone") ?? "all";
   const price = searchParams.get("price") ?? "all";
@@ -52,13 +56,35 @@ export function ShopCatalog({
   const hasActiveFilters = [category, stone, price, weight, origin].some((value) => value !== "all");
 
   useEffect(() => {
-    if (!filtersOpen) return;
+    const media = window.matchMedia("(max-width: 720px)");
+    const update = () => { setMobileFilters(media.matches); if (!media.matches) setFiltersOpen(false); };
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!filtersOpen || !mobileFilters) return;
+    const panel = filterPanelRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panel?.querySelector<HTMLButtonElement>("button")?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setFiltersOpen(false);
+      if (event.key !== "Tab" || !panel) return;
+      const controls = Array.from(panel.querySelectorAll<HTMLElement>("button, input, select, a[href]"));
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [filtersOpen]);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      filterButtonRef.current?.focus();
+    };
+  }, [filtersOpen, mobileFilters]);
 
   return (
     <>
@@ -72,6 +98,7 @@ export function ShopCatalog({
       </section>
       <section className="page-container section">
         <button
+          ref={filterButtonRef}
           className="filter-toggle"
           type="button"
           aria-expanded={filtersOpen}
@@ -116,11 +143,15 @@ export function ShopCatalog({
           </div>
         </div>
         <div className="catalog-layout">
-          <aside id="shop-filters" className={`filter-panel${filtersOpen ? " is-open" : ""}`}>
+          <aside ref={filterPanelRef} id="shop-filters" className={`filter-panel${filtersOpen ? " is-open" : ""}`}
+            inert={mobileFilters && !filtersOpen}
+            role={mobileFilters && filtersOpen ? "dialog" : undefined}
+            aria-modal={mobileFilters && filtersOpen ? true : undefined}
+            aria-label={t.shop.browse}>
             <div className="filter-panel__head">
               <h2>{t.shop.browse}</h2>
-              <button className="filter-panel__close" type="button" onClick={() => setFiltersOpen(false)}>
-                {t.shop.filterClose}
+              <button className="filter-panel__close" type="button" aria-label={t.shop.filterClose} onClick={() => setFiltersOpen(false)}>
+                <CloseIcon />
               </button>
             </div>
             <div className="filter-group">

@@ -240,6 +240,7 @@ export function TextArea({
   onChange,
   rows,
   placeholder,
+  maxLength,
   code,
   id,
   name,
@@ -251,6 +252,7 @@ export function TextArea({
   onChange: (value: string) => void;
   rows?: number;
   placeholder?: string;
+  maxLength?: number;
   code?: boolean;
   id?: string;
   name?: string;
@@ -266,6 +268,7 @@ export function TextArea({
       name={name}
       rows={rows}
       placeholder={placeholder}
+      maxLength={maxLength}
       required={required}
       aria-invalid={ariaInvalid || undefined}
       aria-describedby={ariaDescribedBy}

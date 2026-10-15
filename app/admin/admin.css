@@ -1035,6 +1035,24 @@
   gap: 14px;
 }
 
+.rv-ai-copy-message {
+  border-radius: 7px;
+  padding: 9px 11px;
+  font-size: 0.82rem;
+}
+
+.rv-ai-copy-message--error {
+  border: 1px solid rgba(159, 81, 72, 0.35);
+  background: #fbefec;
+  color: var(--rv-danger);
+}
+
+.rv-ai-copy-message--success {
+  border: 1px solid rgba(47, 97, 68, 0.25);
+  background: #edf4ed;
+  color: #2f6144;
+}
+
 .rv-watermark-position-editor {
   display: flex;
   flex-direction: column;

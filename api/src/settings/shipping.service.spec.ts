@@ -230,6 +230,23 @@ describe("ShippingService.resolveOrderShipping", () => {
     assert.equal(result.name, "Rate us");
   });
 
+  it("does not allow a worldwide rate when the destination has country-specific rates", async () => {
+    const service = buildService({
+      rates: [rate({ id: "world", price: 30 }), rate({ id: "us", region: "US", price: 25 })],
+    });
+    await assert.rejects(
+      service.resolveOrderShipping({
+        shippingRateId: "world",
+        subtotal: subtotal(100),
+        weightGram: 50,
+        countryCode: "US",
+        fragile: false,
+        oversized: false,
+      }),
+      /not available/,
+    );
+  });
+
   it("throws when no rate matches the parcel", async () => {
     const service = buildService({ rates: [] });
     await assert.rejects(
@@ -246,6 +263,14 @@ describe("ShippingService.resolveOrderShipping", () => {
 });
 
 describe("ShippingService.quote", () => {
+  it("shows country-specific options instead of worldwide fallbacks", async () => {
+    const service = buildService({
+      rates: [rate({ id: "world", price: 30 }), rate({ id: "us", region: "US", price: 25 })],
+    });
+    const quote = await service.quote({ weightGram: 50, subtotal: 100, countryCode: "US" });
+    assert.deepEqual(quote.options.map((option) => option.id), ["us"]);
+  });
+
   it("keeps quote fees consistent with order resolution", async () => {
     const service = buildService({ rates: [rate({ id: "r1" })] });
     const quote = await service.quote({ weightGram: 50, subtotal: 100, countryCode: "US", fragile: true, oversized: true });

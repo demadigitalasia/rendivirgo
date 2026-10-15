@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
 import { Prisma, type OrderStatus } from "../../generated/prisma";
@@ -12,12 +19,14 @@ import {
   renderNewOrderAdminEmail,
   renderOrderCancelledEmail,
   renderOrderCompletedEmail,
+  renderOrderPaidEmail,
   renderOrderReceivedEmail,
   renderOrderShippedEmail,
   renderOrdersLinkEmail,
 } from "../email/email.templates";
 import { buildOrderEmailData } from "../email/order-email-data";
 import { PrismaService } from "../prisma/prisma.service";
+import { paypalCredentialsConfigured } from "../payments/paypal.service";
 import { SettingsService } from "../settings/settings.service";
 import { ShippingService } from "../settings/shipping.service";
 import {
@@ -131,6 +140,7 @@ export class OrdersService {
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
       paymentRef: order.paymentRef,
+      paymentProofUploadedAt: order.paymentProofUploadedAt,
       currency: order.currency,
       subtotal: order.subtotal,
       shippingCost: order.shippingCost,
@@ -398,6 +408,7 @@ export class OrdersService {
 
   async create(dto: CreateOrderDto) {
     const email = dto.email.trim().toLowerCase();
+    const paymentMethod = dto.paymentMethod ?? "PayPal";
     const checkoutFingerprint = dto.checkoutKey
       ? createHash("sha256")
           .update(
@@ -417,6 +428,7 @@ export class OrdersService {
               customerNote: dto.customerNote?.trim() || null,
               shippingRateId: dto.shippingRateId ?? null,
               discountCode: dto.discountCode?.trim().toUpperCase() || null,
+              paymentMethod,
               items: dto.items.map(({ productId, variantId, quantity }) => ({ productId, variantId: variantId ?? null, quantity })),
             }),
           )
@@ -432,6 +444,25 @@ export class OrdersService {
         return this.toApiOrder(previous);
       }
     }
+
+    const paymentSettings = await this.settings.getPaymentSettings();
+    if (paymentMethod === "BankTransfer") {
+      if (!paymentSettings.bankTransferEnabled) throw new BadRequestException("Bank transfer is currently unavailable");
+      if (!paymentSettings.bankName || !paymentSettings.bankAccountNumber || !paymentSettings.bankSwiftCode) {
+        throw new BadRequestException("Bank transfer details are incomplete");
+      }
+      if (paymentSettings.currency.trim().toUpperCase() !== "USD") {
+        throw new BadRequestException("Bank transfer checkout is currently available in USD only");
+      }
+    } else {
+      if (!paymentSettings.paypalEnabled) throw new ServiceUnavailableException("PayPal is currently unavailable");
+      const hasPaypalCredentials = paypalCredentialsConfigured(
+        this.config.get<string>("PAYPAL_CLIENT_ID"),
+        this.config.get<string>("PAYPAL_CLIENT_SECRET"),
+      );
+      if (!hasPaypalCredentials) throw new ServiceUnavailableException("PayPal is not configured on the server");
+    }
+
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
 
     const products = await this.prisma.product.findMany({
@@ -463,6 +494,11 @@ export class OrdersService {
         fragile: product.fragile,
         oversized: shippingClass === "Oversized",
       });
+    }
+
+    const currencies = new Set(lines.map((line) => line.product.currency.trim().toUpperCase()));
+    if (currencies.size !== 1 || !currencies.has("USD")) {
+      throw new BadRequestException("Checkout currently supports USD products only. Please contact the store for help.");
     }
 
     const quantityByProduct = new Map<string, number>();
@@ -513,7 +549,7 @@ export class OrdersService {
     const shippingCost = discountResult?.shippingCost ?? baseShippingCost;
     const discountTotal = discountResult?.discountTotal ?? new Prisma.Decimal(0);
     const total = subtotal.minus(discountTotal).plus(shippingCost).toDecimalPlaces(2);
-    const currency = lines[0]?.product.currency ?? "USD";
+    const currency = "USD";
 
     let order: OrderWithRelations;
     try {
@@ -590,6 +626,7 @@ export class OrdersService {
           phone: dto.phone ?? null,
           status: "New",
           paymentStatus: "Pending",
+          paymentMethod,
           currency,
           subtotal,
           shippingCost,
@@ -688,7 +725,17 @@ export class OrdersService {
       await this.email.send({
         to: order.email,
         subject: `Order ${order.orderNumber} received — payment pending`,
-        html: renderOrderReceivedEmail({ ...emailData, paypalEnabled: paymentSettings.paypalEnabled }),
+        html: renderOrderReceivedEmail({
+          ...emailData,
+          paypalEnabled: paymentSettings.paypalEnabled,
+          paymentMethod: order.paymentMethod,
+          bankTransfer: {
+            bankName: paymentSettings.bankName,
+            accountName: paymentSettings.bankAccountName,
+            accountNumber: paymentSettings.bankAccountNumber,
+            swiftCode: paymentSettings.bankSwiftCode,
+          },
+        }),
       });
     }
 
@@ -951,6 +998,27 @@ export class OrdersService {
         },
       });
       await this.sendStatusEmail(updated, dto.status);
+    }
+
+    if (paymentChanged && dto.paymentStatus === "Paid" && effectiveStatus !== "Cancelled" && effectiveStatus !== "Returned") {
+      await this.prisma.notification.create({
+        data: {
+          type: "Order",
+          title: `Payment received for ${updated.orderNumber}`,
+          body: `${updated.customerName} paid ${updated.currency} ${updated.total.toFixed(2)} via ${updated.paymentMethod}.`,
+          href: `/admin/orders/${updated.id}`,
+          entityType: "Order",
+          entityId: updated.id,
+        },
+      });
+      const notificationSettings = await this.settings.getNotificationSettings();
+      if (notificationSettings.orderConfirmation) {
+        await this.email.send({
+          to: updated.email,
+          subject: `Payment received — order ${updated.orderNumber} confirmed`,
+          html: renderOrderPaidEmail(buildOrderEmailData(updated)),
+        });
+      }
     }
 
     await this.audit.log({

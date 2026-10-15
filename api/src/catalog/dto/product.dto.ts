@@ -142,8 +142,9 @@ export class CreateProductDto {
   compareAtPrice?: number | null;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim().toUpperCase() : value))
+  @IsIn(["USD"], { message: "Only USD product prices are supported for checkout" })
   @IsString()
-  @MaxLength(8)
   currency?: string;
 
   @IsOptional()
@@ -385,4 +386,53 @@ export class CatalogPdfQueryDto {
   @IsOptional()
   @IsEnum(["newest", "oldest", "price-asc", "price-desc", "name", "weight-desc"])
   sort?: "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
+}
+
+export class GenerateProductCopyDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  shortDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  category?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  stoneType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  origin?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  condition?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  unit?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  weightCarat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  weightGram?: number;
 }

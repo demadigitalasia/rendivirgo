@@ -15,9 +15,9 @@ export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "store.address": "",
   "store.socials": { instagram: "", facebook: "", youtube: "", tiktok: "" },
   "store.productWatermarkEnabled": true,
-  "store.productWatermarkLogo": "/brand/rendi-virgo-logo-white.png",
-  "store.productWatermarkOpacity": 0.72,
-  "store.productWatermarkSize": 26,
+  "store.productWatermarkLogo": "/brand/rendi-virgo-logo-white.webp",
+  "store.productWatermarkOpacity": 0.35,
+  "store.productWatermarkSize": 18,
   "store.productWatermarkX": 69,
   "store.productWatermarkY": 86,
   "seo.defaultTitle": "RENDI VIRGO",
@@ -28,7 +28,11 @@ export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "notifications.lowStockThreshold": 3,
   "payments.paypalEnabled": true,
   "payments.paypalEmail": "",
-  "payments.bankTransferEnabled": false,
+  "payments.bankTransferEnabled": true,
+  "payments.bankName": "PT BANK CENTRAL ASIA",
+  "payments.bankAccountName": "RENDI VIRGO",
+  "payments.bankAccountNumber": "3770362741",
+  "payments.bankSwiftCode": "CENAIDJA",
   "payments.currency": "USD",
 };
 
@@ -72,6 +76,11 @@ export type NotificationSettings = {
 export type PaymentSettings = {
   paypalEnabled: boolean;
   bankTransferEnabled: boolean;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankSwiftCode: string;
+  currency: string;
 };
 
 @Injectable()
@@ -141,10 +150,19 @@ export class SettingsService {
       const value = stored.get(key);
       return typeof value === "boolean" ? value : fallback;
     };
+    const text = (key: string, fallback: string): string => {
+      const value = stored.get(key);
+      return typeof value === "string" ? value.trim() : fallback;
+    };
 
     return {
       paypalEnabled: boolean("payments.paypalEnabled", true),
-      bankTransferEnabled: boolean("payments.bankTransferEnabled", false),
+      bankTransferEnabled: boolean("payments.bankTransferEnabled", true),
+      bankName: text("payments.bankName", String(SETTINGS_DEFAULTS["payments.bankName"])),
+      bankAccountName: text("payments.bankAccountName", String(SETTINGS_DEFAULTS["payments.bankAccountName"])) || "RENDI VIRGO",
+      bankAccountNumber: text("payments.bankAccountNumber", String(SETTINGS_DEFAULTS["payments.bankAccountNumber"])),
+      bankSwiftCode: text("payments.bankSwiftCode", String(SETTINGS_DEFAULTS["payments.bankSwiftCode"])),
+      currency: text("payments.currency", String(SETTINGS_DEFAULTS["payments.currency"])),
     };
   }
 

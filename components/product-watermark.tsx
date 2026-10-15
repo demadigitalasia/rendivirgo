@@ -8,8 +8,8 @@ export function ProductWatermark() {
   const watermark = useProductWatermark();
   if (!watermark.enabled || !watermark.logo) return null;
 
-  const size = Math.min(50, Math.max(8, Number.isFinite(watermark.size) ? watermark.size : 26));
-  const opacity = Math.min(1, Math.max(0.1, Number.isFinite(watermark.opacity) ? watermark.opacity : 0.72));
+  const size = Math.min(50, Math.max(8, Number.isFinite(watermark.size) ? watermark.size : 18));
+  const opacity = Math.min(1, Math.max(0.1, Number.isFinite(watermark.opacity) ? watermark.opacity : 0.35));
   const x = Math.min(100, Math.max(0, Number.isFinite(watermark.x) ? watermark.x : 69));
   const y = Math.min(100, Math.max(0, Number.isFinite(watermark.y) ? watermark.y : 86));
 

@@ -162,8 +162,8 @@ export function ProductReviews({ slug }: { slug: string }) {
         </button>
       ) : null}
 
-      <div className="review-form-wrap">
-        <h3>{t.reviews.formTitle}</h3>
+      <details className="review-form-wrap">
+        <summary>{t.reviews.formTitle}</summary>
         {submitted ? (
           <p className="form-status form-status--success" role="status">
             {t.reviews.pending}
@@ -210,7 +210,7 @@ export function ProductReviews({ slug }: { slug: string }) {
             </button>
           </form>
         )}
-      </div>
+      </details>
     </section>
   );
 }

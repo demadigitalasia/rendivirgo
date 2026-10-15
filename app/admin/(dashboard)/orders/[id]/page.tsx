@@ -62,6 +62,7 @@ type OrderDetail = {
   paymentStatus: string;
   paymentMethod: string | null;
   paymentRef: string | null;
+  paymentProofUploadedAt: string | null;
   currency: string;
   subtotal: number;
   shippingCost: number;
@@ -432,6 +433,26 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                     </Button>
                   </div>
                 </Card>
+
+                {order.paymentMethod === "BankTransfer" && order.paymentProofUploadedAt ? (
+                  <Card title="Bank transfer receipt" description={`Uploaded ${formatDateTime(order.paymentProofUploadedAt)}`}>
+                    <a
+                      href={`/api/payments/admin/orders/${encodeURIComponent(order.id)}/bank-transfer-proof`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <img
+                        src={`/api/payments/admin/orders/${encodeURIComponent(order.id)}/bank-transfer-proof`}
+                        alt={`Bank transfer receipt for ${order.orderNumber}`}
+                        style={{ display: "block", width: "100%", maxHeight: 460, objectFit: "contain", background: "#f4f4f4" }}
+                      />
+                    </a>
+                  </Card>
+                ) : order.paymentMethod === "BankTransfer" ? (
+                  <Card title="Bank transfer receipt">
+                    <p className="rv-hint">The customer has not uploaded a receipt yet.</p>
+                  </Card>
+                ) : null}
 
                 <Card title="Customer">
                   <KeyValue

@@ -5,11 +5,12 @@ import { ProductsService } from "./products.service";
 import { AdminProductsController, ProductsController } from "./products.controller";
 import { CatalogPdfService } from "./catalog-pdf.service";
 import { ConditionsService } from "./conditions.service";
+import { ProductCopyService } from "./product-copy.service";
 import { AdminConditionsController, ConditionsController } from "./conditions.controller";
 
 @Module({
   controllers: [CategoriesController, AdminCategoriesController, ConditionsController, AdminConditionsController, ProductsController, AdminProductsController],
-  providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService],
+  providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService, ProductCopyService],
   exports: [CategoriesService, ProductsService],
 })
 export class CatalogModule {}
