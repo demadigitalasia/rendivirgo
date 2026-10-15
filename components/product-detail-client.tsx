@@ -335,15 +335,17 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               ‹
             </button>
             <div className="product-lightbox__image-wrap">
-              <Image
-                className="product-lightbox__image"
-                src={images[activeImageIndex]}
-                alt={imageAlt(activeImageIndex)}
-                width={1400}
-                height={1400}
-                sizes="90vw"
-              />
-              <ProductWatermark />
+              <div className="product-lightbox__image-stage">
+                <Image
+                  className="product-lightbox__image"
+                  src={images[activeImageIndex]}
+                  alt={imageAlt(activeImageIndex)}
+                  width={1400}
+                  height={1400}
+                  sizes="90vw"
+                />
+                <ProductWatermark />
+              </div>
             </div>
             <button className="product-lightbox__nav product-lightbox__nav--next" type="button" aria-label={t.product.nextImage} onClick={() => moveImage(1)}>
               ›
