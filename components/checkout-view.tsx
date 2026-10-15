@@ -76,7 +76,9 @@ type Discount = {
   message: string;
 };
 
-type PaymentNotice = "cancelled" | "unavailable" | "failed" | "review";
+type PaymentNotice = "cancelled" | "unavailable" | "failed" | "review" | "recovered" | "expired";
+type ShippingQuoteStatus = "loading" | "ready" | "unavailable" | "error";
+type PaymentAvailability = "loading" | "available" | "unavailable" | "error";
 
 type PaymentResult = {
   orderId: string;
@@ -91,34 +93,54 @@ type StoredOrder = {
   orderNumber: string;
   total: number;
   email: string;
+  createdAt?: string;
+  paymentStatus?: "Pending" | "Paid";
 };
 
 const LAST_ORDER_KEY = "rv.lastOrder";
+const CHECKOUT_DRAFT_KEY = "rv.checkoutDraft";
+const CHECKOUT_REQUEST_KEY = "rv.checkoutRequestKey";
+const CHECKOUT_REQUEST_EMAIL_KEY = "rv.checkoutRequestEmail";
 
 const readLastOrder = (): StoredOrder | null => {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(LAST_ORDER_KEY);
-    return raw ? (JSON.parse(raw) as StoredOrder) : null;
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as Partial<StoredOrder>;
+    if (
+      typeof stored.orderId !== "string" ||
+      typeof stored.orderNumber !== "string" ||
+      typeof stored.total !== "number" ||
+      typeof stored.email !== "string"
+    ) return null;
+    return stored as StoredOrder;
   } catch {
     return null;
   }
 };
 
-const sourceLabel: Record<Quote["source"], string> = {
-  CarrierAPI: "API default",
-  AdminOverride: "Admin override",
-  FreeShipping: "Free shipping",
+const checkoutRequest = (email: string) => {
+  try {
+    const key = window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY) ?? window.crypto.randomUUID();
+    window.sessionStorage.setItem(CHECKOUT_REQUEST_KEY, key);
+    if (!window.sessionStorage.getItem(CHECKOUT_REQUEST_EMAIL_KEY)) {
+      window.sessionStorage.setItem(CHECKOUT_REQUEST_EMAIL_KEY, email.trim().toLowerCase());
+    }
+    return key;
+  } catch {
+    return window.crypto.randomUUID();
+  }
 };
 
 export function CheckoutView() {
   const t = useCopy();
   const searchParams = useSearchParams();
-  const { lines, subtotal, totalWeight, clearCart } = useCart();
+  const { lines, hydrated: cartHydrated, subtotal, totalWeight, clearCart } = useCart();
 
   const [country, setCountry] = useState("United States");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [otherCountryName, setOtherCountryName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -128,8 +150,10 @@ export function CheckoutView() {
   const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteStatus, setQuoteStatus] = useState<ShippingQuoteStatus>("loading");
   const [selectedRateId, setSelectedRateId] = useState<string>("");
+  const [paymentAvailability, setPaymentAvailability] = useState<PaymentAvailability>("loading");
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
@@ -140,15 +164,23 @@ export function CheckoutView() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [result, setResult] = useState<PaymentResult | null>(null);
+  const [recoveryStatus, setRecoveryStatus] = useState<"waiting" | "checking" | "done" | "error">("waiting");
   const handledReturn = useRef(false);
+  const quoteRequestId = useRef(0);
 
   const countryCode = useMemo(() => countries.find((item) => item.name === country)?.code ?? "", [country]);
   const hasFragile = lines.some((line) => line.fragile);
   const hasOversized = lines.some((line) => line.shipping.shippingClass === "Oversized");
 
   const loadQuote = useCallback(async () => {
-    if (!lines.length) return;
-    setQuoteLoading(true);
+    const requestId = ++quoteRequestId.current;
+    if (!lines.length) {
+      setQuote(null);
+      setQuoteStatus("unavailable");
+      return;
+    }
+    setQuote(null);
+    setQuoteStatus("loading");
     try {
       const response = await fetch("/api/shipping/quote", {
         method: "POST",
@@ -162,23 +194,23 @@ export function CheckoutView() {
         }),
       });
       if (!response.ok) {
-        setQuote(null);
+        if (requestId === quoteRequestId.current) setQuoteStatus("error");
         return;
       }
       const payload = (await response.json()) as Quote;
       if (!Array.isArray(payload?.options)) {
-        setQuote(null);
+        if (requestId === quoteRequestId.current) setQuoteStatus("error");
         return;
       }
+      if (requestId !== quoteRequestId.current) return;
       setQuote(payload);
+      setQuoteStatus(payload.options.length ? "ready" : "unavailable");
       setSelectedRateId((current) => {
         if (payload.options.some((option) => option.id === current)) return current;
         return payload.options[0]?.id ?? "";
       });
     } catch {
-      setQuote(null);
-    } finally {
-      setQuoteLoading(false);
+      if (requestId === quoteRequestId.current) setQuoteStatus("error");
     }
   }, [lines.length, totalWeight, subtotal, countryCode, hasFragile, hasOversized]);
 
@@ -186,10 +218,109 @@ export function CheckoutView() {
     void loadQuote();
   }, [loadQuote]);
 
+  const loadPaymentAvailability = useCallback(async () => {
+    setPaymentAvailability("loading");
+    try {
+      const response = await fetch("/api/payments/methods", { cache: "no-store" });
+      const payload = (await response.json()) as { paypal?: { enabled?: unknown } };
+      if (!response.ok || typeof payload?.paypal?.enabled !== "boolean") throw new Error("Payment availability unavailable");
+      setPaymentAvailability(payload.paypal.enabled ? "available" : "unavailable");
+    } catch {
+      setPaymentAvailability("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPaymentAvailability();
+  }, [loadPaymentAvailability]);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw) as Record<string, unknown>;
+        const value = (key: string) => (typeof draft[key] === "string" ? (draft[key] as string) : "");
+        setCountry(value("country") || "United States");
+        setOtherCountryName(value("otherCountryName"));
+        setFullName(value("fullName"));
+        setEmail(value("email"));
+        setPhone(value("phone"));
+        setAddress(value("address"));
+        setAddressLine2(value("addressLine2"));
+        setCity(value("city"));
+        setState(value("state"));
+        setPostalCode(value("postalCode"));
+        setNotes(value("notes"));
+      }
+    } catch {
+      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+    } finally {
+      setDraftHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    const draft = { country, otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes };
+    if ([otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes].some((value) => value.trim())) {
+      try {
+        window.sessionStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        // Checkout remains usable when session storage is unavailable.
+      }
+    } else {
+      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+    }
+  }, [draftHydrated, country, otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes]);
+
   const selectedOption = quote?.options.find((option) => option.id === selectedRateId) ?? quote?.options[0] ?? null;
   const shippingCost = discount?.freeShipping ? 0 : (selectedOption?.price ?? 0);
   const discountTotal = discount?.valid ? discount.discountAmount : 0;
   const total = Math.max(0, subtotal - discountTotal) + shippingCost;
+  const totalIsKnown = quoteStatus === "ready" && selectedOption !== null;
+
+  const renderOrderSummary = (className: string) => (
+    <section className={`summary-card ${className}`}>
+      <h2>{t.checkout.summary}</h2>
+      <Link href="/cart" className="text-button checkout-summary__edit">{t.checkout.editCart}</Link>
+      {lines.map((line) => (
+        <div className="summary-row" key={`${line.id}:${line.variantId ?? "base"}`}>
+          <span>
+            {line.name}{line.variantName ? ` — ${line.variantName}` : ""} × {line.quantity}
+          </span>
+          <strong>{formatUSD(line.price * line.quantity)}</strong>
+        </div>
+      ))}
+      <div className="summary-row">
+        <span>{t.checkout.subtotal}</span>
+        <strong>{formatUSD(subtotal)}</strong>
+      </div>
+      <div className="summary-row">
+        <span>{t.checkout.totalWeight}</span>
+        <span>{t.checkout.weightUnit(totalWeight)}</span>
+      </div>
+      {discountTotal > 0 ? (
+        <div className="summary-row">
+          <span>{discount?.code}</span>
+          <strong>−{formatUSD(discountTotal)}</strong>
+        </div>
+      ) : null}
+      <div className="summary-row">
+        <span>{t.checkout.shipping}</span>
+        <strong>
+          {selectedOption
+            ? shippingCost === 0
+              ? t.checkout.freeShipping
+              : formatUSD(shippingCost)
+            : t.checkout.calculatedShipping}
+        </strong>
+      </div>
+      <div className="summary-row summary-row--total">
+        <span>{t.checkout.total}</span>
+        <strong>{totalIsKnown ? formatUSD(total) : t.checkout.totalAfterShipping}</strong>
+      </div>
+    </section>
+  );
 
   const startPayment = useCallback(
     async (orderId: string, orderNumber: string, orderTotal: number) => {
@@ -268,6 +399,12 @@ export function CheckoutView() {
 
         const stored = readLastOrder();
         const paid = payload.status === "Paid";
+        if (stored && stored.orderId === (payload.orderId ?? orderId)) {
+          window.localStorage.setItem(
+            LAST_ORDER_KEY,
+            JSON.stringify({ ...stored, paymentStatus: paid ? "Paid" : "Pending" }),
+          );
+        }
         setResult({
           orderId: payload.orderId ?? orderId,
           orderNumber: payload.orderNumber ?? stored?.orderNumber ?? "",
@@ -291,6 +428,95 @@ export function CheckoutView() {
       }
     })();
   }, [searchParams, clearCart, t]);
+
+  const recoverCheckout = useCallback(async () => {
+    const stored = readLastOrder();
+    let checkoutKey: string | undefined;
+    let attemptEmail: string | undefined;
+    try {
+      checkoutKey = window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY) ?? undefined;
+      attemptEmail = window.sessionStorage.getItem(CHECKOUT_REQUEST_EMAIL_KEY) ?? undefined;
+    } catch {
+      // A saved order below can still be recovered without session storage.
+    }
+    const emailForLookup = attemptEmail || stored?.email;
+    if (!emailForLookup || (!checkoutKey && !stored?.orderId)) {
+      setRecoveryStatus("done");
+      return;
+    }
+
+    setRecoveryStatus("checking");
+    try {
+      const response = await fetch("/api/payments/resume", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...(checkoutKey ? { checkoutKey } : { orderId: stored?.orderId }),
+          email: emailForLookup,
+        }),
+      });
+      if (response.status === 404) {
+        setRecoveryStatus("done");
+        return;
+      }
+      const payload = (await response.json().catch(() => ({}))) as {
+        orderId?: string;
+        orderNumber?: string;
+        total?: number;
+        paymentStatus?: string;
+      };
+      if (!response.ok || !payload.orderId || !payload.orderNumber || typeof payload.total !== "number") {
+        throw new Error("The saved order could not be recovered");
+      }
+
+      const paid = payload.paymentStatus === "Paid";
+      const failed = payload.paymentStatus === "Failed" || payload.paymentStatus === "Refunded";
+      const recovered: StoredOrder = {
+        orderId: payload.orderId,
+        orderNumber: payload.orderNumber,
+        total: payload.total,
+        email: emailForLookup,
+        createdAt: new Date().toISOString(),
+        paymentStatus: paid ? "Paid" : "Pending",
+      };
+      window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(recovered));
+      window.sessionStorage.removeItem(CHECKOUT_REQUEST_KEY);
+      window.sessionStorage.removeItem(CHECKOUT_REQUEST_EMAIL_KEY);
+      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      clearCart();
+      setResult({
+        orderId: recovered.orderId,
+        orderNumber: recovered.orderNumber,
+        total: recovered.total,
+        paymentStatus: paid ? "Paid" : "Pending",
+        notice: paid ? undefined : failed ? "expired" : "recovered",
+      });
+      setRecoveryStatus("done");
+    } catch {
+      setRecoveryStatus("error");
+    }
+  }, [clearCart]);
+
+  useEffect(() => {
+    if (!cartHydrated || !draftHydrated || recoveryStatus !== "waiting") return;
+    if (searchParams.has("paypal")) {
+      setRecoveryStatus("done");
+      return;
+    }
+
+    let hasAttempt = false;
+    try {
+      hasAttempt = Boolean(window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY));
+    } catch {
+      // The last-order record is checked below when available.
+    }
+    const stored = readLastOrder();
+    if (hasAttempt || (!lines.length && stored?.paymentStatus !== "Paid" && stored?.orderId)) {
+      void recoverCheckout();
+      return;
+    }
+    setRecoveryStatus("done");
+  }, [cartHydrated, draftHydrated, lines.length, recoveryStatus, searchParams, recoverCheckout]);
 
   const applyDiscount = async () => {
     const code = discountInput.trim();
@@ -327,15 +553,18 @@ export function CheckoutView() {
   };
 
   const placeOrder = async () => {
+    if (paymentAvailability !== "available" || !totalIsKnown || !selectedOption) return;
     setPlacing(true);
     setOrderError(null);
     try {
+      const checkoutKey = checkoutRequest(email);
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          checkoutKey,
           email,
-          customerName: `${firstName} ${lastName}`.trim(),
+          customerName: fullName.trim(),
           phone: phone || undefined,
           shippingAddress: {
             line1: address,
@@ -343,7 +572,7 @@ export function CheckoutView() {
             city,
             state: state || undefined,
             postalCode: postalCode || undefined,
-            country,
+            country: country === "Other" ? otherCountryName.trim() : country,
             countryCode: countryCode || undefined,
           },
           customerNote: notes || undefined,
@@ -359,6 +588,10 @@ export function CheckoutView() {
         message?: string | string[];
       };
       if (!response.ok || !payload.id || !payload.orderNumber) {
+        if (response.status === 409) {
+          await recoverCheckout();
+          return;
+        }
         const raw = payload?.message;
         setOrderError(Array.isArray(raw) ? raw.join(", ") : (raw ?? t.checkout.orderError));
         return;
@@ -370,8 +603,13 @@ export function CheckoutView() {
         orderNumber: payload.orderNumber,
         total: orderTotal,
         email,
+        createdAt: new Date().toISOString(),
+        paymentStatus: "Pending",
       };
       window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(stored));
+      window.sessionStorage.removeItem(CHECKOUT_REQUEST_KEY);
+      window.sessionStorage.removeItem(CHECKOUT_REQUEST_EMAIL_KEY);
+      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
       clearCart();
       await startPayment(stored.orderId, stored.orderNumber, stored.total);
     } catch {
@@ -395,7 +633,7 @@ export function CheckoutView() {
 
   if (result) {
     const paid = result.paymentStatus === "Paid";
-    const canRetry = result.notice === "cancelled" || result.notice === "failed";
+    const canRetry = result.notice === "cancelled" || result.notice === "failed" || result.notice === "unavailable" || result.notice === "recovered";
     const pendingMessage =
       result.notice === "unavailable"
         ? t.checkout.paypalUnavailable
@@ -403,6 +641,8 @@ export function CheckoutView() {
           ? t.checkout.paymentCancelled
           : result.notice === "review"
             ? t.checkout.paymentPendingReview
+            : result.notice === "expired"
+              ? t.checkout.paymentExpired
             : result.notice === "failed"
               ? t.checkout.paymentFailed
               : t.checkout.successPending;
@@ -453,16 +693,18 @@ export function CheckoutView() {
   }
 
   if (!lines.length) {
+    const isRecovering = !cartHydrated || recoveryStatus === "waiting" || recoveryStatus === "checking";
     return (
       <div className="page-container content-page">
         <div className="eyebrow">{t.checkout.eyebrow}</div>
-        <h1>{t.checkout.emptyTitle}</h1>
+        <h1>{isRecovering ? t.checkout.restoringCart : recoveryStatus === "error" ? t.checkout.recoveryError : t.checkout.emptyTitle}</h1>
         <p className="muted" style={{ margin: "18px 0 26px" }}>
-          {t.checkout.emptyBody}
+          {isRecovering ? t.checkout.processingBody : recoveryStatus === "error" ? t.checkout.recoveryErrorBody : t.checkout.emptyBody}
         </p>
-        <Link href="/shop" className="button">
-          {t.checkout.browse}
-        </Link>
+        {recoveryStatus === "error" ? (
+          <button type="button" className="button" onClick={() => void recoverCheckout()}>{t.checkout.retryRecovery}</button>
+        ) : null}
+        {!isRecovering && recoveryStatus !== "error" ? <Link href="/shop" className="button">{t.checkout.browse}</Link> : null}
       </div>
     );
   }
@@ -479,18 +721,16 @@ export function CheckoutView() {
           className="checkout-form"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!placing && lines.length) void placeOrder();
+            if (!placing && lines.length && paymentAvailability === "available" && totalIsKnown) void placeOrder();
           }}
         >
-          <div className="field-grid">
-            <div className="field">
-              <label htmlFor="first-name">{t.checkout.firstName}</label>
-              <input id="first-name" name="firstName" autoComplete="given-name" required value={firstName} onChange={(event) => setFirstName(event.target.value)} />
-            </div>
-            <div className="field">
-              <label htmlFor="last-name">{t.checkout.lastName}</label>
-              <input id="last-name" name="lastName" autoComplete="family-name" required value={lastName} onChange={(event) => setLastName(event.target.value)} />
-            </div>
+          <details className="checkout-summary-mobile">
+            <summary>{t.checkout.summary} · {totalIsKnown ? formatUSD(total) : t.checkout.totalAfterShipping}</summary>
+            {renderOrderSummary("checkout-summary-card")}
+          </details>
+          <div className="field">
+            <label htmlFor="full-name">{t.checkout.fullName}</label>
+            <input id="full-name" name="name" autoComplete="name" required value={fullName} onChange={(event) => setFullName(event.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="email">{t.checkout.email}</label>
@@ -498,7 +738,7 @@ export function CheckoutView() {
           </div>
           <div className="field">
             <label htmlFor="phone">{t.checkout.phone}</label>
-            <input id="phone" name="phone" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} />
+            <input id="phone" name="phone" type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="address">{t.checkout.address}</label>
@@ -534,10 +774,16 @@ export function CheckoutView() {
               </select>
             </div>
           </div>
+          {country === "Other" ? (
+            <div className="field">
+              <label htmlFor="other-country">{t.checkout.otherCountry}</label>
+              <input id="other-country" name="otherCountry" autoComplete="country-name" required value={otherCountryName} onChange={(event) => setOtherCountryName(event.target.value)} />
+            </div>
+          ) : null}
 
           <div className="field">
             <label id="shipping-method-label">{t.checkout.shippingTitle}</label>
-            {quoteLoading ? (
+            {quoteStatus === "loading" ? (
               <p className="muted">{t.checkout.shippingCalculating}</p>
             ) : quote?.options.length ? (
               <div className="shipping-options" role="radiogroup" aria-labelledby="shipping-method-label">
@@ -559,10 +805,14 @@ export function CheckoutView() {
                   </label>
                 ))}
               </div>
+            ) : quoteStatus === "error" ? (
+              <div className="checkout-shipping-error">
+                <p className="form-status form-status--error" role="alert">{t.checkout.shippingError}</p>
+                <button type="button" className="text-button" onClick={() => void loadQuote()}>{t.checkout.retryShipping}</button>
+              </div>
             ) : (
               <p className="muted">{t.checkout.shippingUnavailable}</p>
             )}
-            {quote ? <p className="product-detail__note">{t.checkout.shippingSource(sourceLabel[quote.source])}</p> : null}
           </div>
 
           <div className="field">
@@ -606,7 +856,20 @@ export function CheckoutView() {
 
           <div className="payment-box">
             <strong>{t.checkout.paypalTitle}</strong>
-            <span>{t.checkout.paypalRedirectHint}</span>
+            {paymentAvailability === "available" ? <span>{t.checkout.paypalRedirectHint}</span> : null}
+            {paymentAvailability === "loading" ? <span>{t.checkout.checkingPayment}</span> : null}
+            {paymentAvailability === "unavailable" ? (
+              <>
+                <span>{t.checkout.paypalUnavailable}</span>
+                <Link href="/contact" className="text-button">{t.checkout.shippingSupport}</Link>
+              </>
+            ) : null}
+            {paymentAvailability === "error" ? (
+              <>
+                <span className="form-status form-status--error" role="alert">{t.checkout.paypalCheckFailed}</span>
+                <button type="button" className="text-button" onClick={() => void loadPaymentAvailability()}>{t.checkout.retryPaymentCheck}</button>
+              </>
+            ) : null}
           </div>
 
           {orderError ? (
@@ -615,46 +878,20 @@ export function CheckoutView() {
             </p>
           ) : null}
 
-          <button className="button button--full" type="submit" disabled={placing || !selectedOption}>
-            {placing ? t.checkout.placing : t.checkout.placeOrder(formatUSD(total))}
+          <button className="button button--full" type="submit" disabled={placing || !selectedOption || !totalIsKnown || paymentAvailability !== "available"}>
+            {placing
+              ? t.checkout.placing
+              : paymentAvailability === "loading"
+                ? t.checkout.checkingPayment
+                : paymentAvailability !== "available"
+                  ? t.checkout.paypalUnavailableShort
+                  : !totalIsKnown
+                    ? t.checkout.waitingForShipping
+                    : t.checkout.placeOrder(formatUSD(total))}
           </button>
         </form>
 
-        <aside className="summary-card">
-          <h2>{t.checkout.summary}</h2>
-          {lines.map((line) => (
-            <div className="summary-row" key={`${line.id}:${line.variantId ?? "base"}`}>
-              <span>
-                {line.name} × {line.quantity}
-              </span>
-              <strong>{formatUSD(line.price * line.quantity)}</strong>
-            </div>
-          ))}
-          <div className="summary-row">
-            <span>{t.checkout.totalWeight}</span>
-            <span>{t.checkout.weightUnit(totalWeight)}</span>
-          </div>
-          {discountTotal > 0 ? (
-            <div className="summary-row">
-              <span>{discount?.code}</span>
-              <strong>−{formatUSD(discountTotal)}</strong>
-            </div>
-          ) : null}
-          <div className="summary-row">
-            <span>{t.checkout.shipping}</span>
-            <strong>
-              {selectedOption
-                ? shippingCost === 0
-                  ? t.checkout.freeShipping
-                  : formatUSD(shippingCost)
-                : "—"}
-            </strong>
-          </div>
-          <div className="summary-row summary-row--total">
-            <span>{t.checkout.total}</span>
-            <strong>{formatUSD(total)}</strong>
-          </div>
-        </aside>
+        {renderOrderSummary("checkout-summary-desktop")}
       </div>
     </div>
   );

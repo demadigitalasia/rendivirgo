@@ -60,14 +60,57 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     return { paypal: { enabled: settings.paypalEnabled && this.paypal.isConfigured() } };
   }
 
-  private appOrigin(): string {
-    const configured = (this.config.get<string>("APP_ORIGIN") ?? "http://localhost:3000").split(",")[0];
-    return configured.trim().replace(/\/+$/, "");
+  async resumeCheckout(input: { orderId?: string; checkoutKey?: string; email: string }) {
+    if (!input.orderId && !input.checkoutKey) throw new BadRequestException("An order reference is required");
+    const order = input.checkoutKey
+      ? await this.prisma.order.findUnique({
+          where: { checkoutKey: input.checkoutKey },
+          select: { id: true, orderNumber: true, email: true, paymentStatus: true, total: true, placedAt: true },
+        })
+      : await this.prisma.order.findUnique({
+          where: { id: input.orderId },
+          select: { id: true, orderNumber: true, email: true, paymentStatus: true, total: true, placedAt: true },
+        });
+
+    if (!order || order.email.toLowerCase() !== input.email.trim().toLowerCase()) {
+      throw new NotFoundException("Order not found");
+    }
+
+    if (order.paymentStatus === "Pending" && Date.now() - order.placedAt.getTime() > this.reservationMinutes * 60_000) {
+      await this.releaseExpiredOrders();
+    }
+
+    const current = await this.prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+      select: { id: true, orderNumber: true, paymentStatus: true, total: true },
+    });
+    const paymentMethods = await this.methods();
+    return {
+      orderId: current.id,
+      orderNumber: current.orderNumber,
+      paymentStatus: current.paymentStatus,
+      total: current.total.toNumber(),
+      canRetry: current.paymentStatus === "Pending" && paymentMethods.paypal.enabled,
+    };
+  }
+
+  private appOrigin(requestOrigin?: string): string {
+    const isProduction = this.config.get<string>("NODE_ENV") === "production";
+    const configured = (this.config.get<string>("APP_ORIGIN") ?? "http://localhost:3000")
+      .split(",")
+      .map((origin) => origin.trim().replace(/\/+$/, ""))
+      .filter(Boolean);
+    const allowed = isProduction
+      ? configured
+      : [...new Set([...configured, "http://localhost:3000", "http://localhost:3001", "http://localhost:3002"])];
+    const candidate = requestOrigin?.trim().replace(/\/+$/, "");
+    if (candidate && allowed.includes(candidate)) return candidate;
+    return configured[0] ?? "http://localhost:3000";
   }
 
   // ------------------------------------------------------------ PayPal checkout
 
-  async createPaypalOrder(orderId: string) {
+  async createPaypalOrder(orderId: string, requestOrigin?: string) {
     const paymentSettings = await this.settings.getPaymentSettings();
     if (!paymentSettings.paypalEnabled) throw new ServiceUnavailableException("PayPal payments are disabled");
     if (!this.paypal.isConfigured()) throw new ServiceUnavailableException("PayPal is not configured on the server");
@@ -77,13 +120,13 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (order.paymentStatus !== "Pending") throw new BadRequestException("This order is not awaiting payment");
     if (!order.total.greaterThan(0)) throw new BadRequestException("This order has nothing to pay");
 
-    const origin = this.appOrigin();
+    const origin = this.appOrigin(requestOrigin);
     const created = await this.paypal.createOrder({
       amount: order.total.toFixed(2),
       currency: order.currency,
       referenceId: order.orderNumber,
-      returnUrl: `${origin}/checkout?paypal=return`,
-      cancelUrl: `${origin}/checkout?paypal=cancel`,
+      returnUrl: `${origin}/checkout?paypal=return&orderId=${encodeURIComponent(order.id)}`,
+      cancelUrl: `${origin}/checkout?paypal=cancel&orderId=${encodeURIComponent(order.id)}`,
     });
 
     if (!created.approveUrl) throw new BadGatewayException("PayPal did not return an approval link");
@@ -293,15 +336,18 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       return { received: true, handled: false };
     }
 
-    if (resource.amount?.value && resource.amount.currency_code) {
-      const matchesValue = Number(resource.amount.value).toFixed(2) === order.total.toFixed(2);
-      const matchesCurrency = resource.amount.currency_code.toUpperCase() === order.currency.toUpperCase();
-      if (!matchesValue || !matchesCurrency) {
-        this.logger.error(
-          `PayPal webhook amount mismatch for ${order.orderNumber}: expected ${order.currency} ${order.total.toFixed(2)}, got ${resource.amount.currency_code} ${resource.amount.value}`,
-        );
-        return { received: true, handled: false };
-      }
+    if (!resource.amount?.value || !resource.amount.currency_code) {
+      this.logger.error(`PayPal webhook for ${order.orderNumber} did not include a capture amount`);
+      return { received: true, handled: false };
+    }
+
+    const matchesValue = Number(resource.amount.value).toFixed(2) === order.total.toFixed(2);
+    const matchesCurrency = resource.amount.currency_code.toUpperCase() === order.currency.toUpperCase();
+    if (!matchesValue || !matchesCurrency) {
+      this.logger.error(
+        `PayPal webhook amount mismatch for ${order.orderNumber}: expected ${order.currency} ${order.total.toFixed(2)}, got ${resource.amount.currency_code} ${resource.amount.value}`,
+      );
+      return { received: true, handled: false };
     }
 
     await this.markOrderPaid(
@@ -309,7 +355,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       {
         id: resource.id,
         status: "COMPLETED",
-        amount: { currency_code: resource.amount?.currency_code ?? order.currency, value: resource.amount?.value ?? "" },
+        amount: { currency_code: resource.amount.currency_code, value: resource.amount.value },
       },
       "PayPal webhook",
     );

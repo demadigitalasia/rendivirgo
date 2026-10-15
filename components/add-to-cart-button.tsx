@@ -13,15 +13,18 @@ export function AddToCartButton({ product, variantId, variantName }: { product: 
   const timer = useRef<number | undefined>(undefined);
   const limit = maxQuantityFor(product, variantId);
   const inCart = quantityInCart(product.id, variantId);
-  const unavailable = product.status !== "Available";
+  const outOfStock = limit === 0;
+  const unavailable = product.status !== "Available" || outOfStock;
   const reached = inCart >= limit;
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const label = unavailable
-    ? product.status === "Sold"
-      ? t.common.sold
-      : t.common.reserved
+    ? outOfStock
+      ? t.common.outOfStock
+      : product.status === "Sold"
+        ? t.common.sold
+        : t.common.reserved
     : reached
       ? limit === 1
         ? t.common.inCart

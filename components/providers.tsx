@@ -18,6 +18,7 @@ export const cartLineKey = (line: Pick<CartLine, "id" | "variantId">) => `${line
 
 type CartContextValue = {
   lines: CartLine[];
+  hydrated: boolean;
   addToCart: (product: Product, quantity?: number, variantId?: string, variantName?: string) => void;
   removeFromCart: (key: string) => void;
   updateQuantity: (key: string, quantity: number) => void;
@@ -54,6 +55,7 @@ export function Providers({
   productWatermark: ProductWatermarkSettings;
 }) {
   const [lines, setLines] = useState<CartLine[]>([]);
+  const [storageReady, setStorageReady] = useState(false);
   const [activeProductWatermark, setActiveProductWatermark] = useState(productWatermark);
   const [language, setLanguage] = useState<Language>(defaultLanguage);
   const [cartAnnouncement, setCartAnnouncement] = useState("");
@@ -66,12 +68,15 @@ export function Providers({
         savedCart.flatMap((line) => {
           if (!line || typeof line !== "object" || typeof line.id !== "string") return [];
           const limit = maxQuantityFor(line, line.variantId);
-          return [{ ...line, maxQuantity: limit, quantity: Math.min(Math.max(1, line.quantity), limit) }];
+          const quantity = Number(line.quantity);
+          if (limit <= 0 || !Number.isInteger(quantity) || quantity < 1) return [];
+          return [{ ...line, maxQuantity: limit, quantity: Math.min(quantity, limit) }];
         }),
       );
     }
     const savedLanguage = window.localStorage.getItem(languageStorageKey);
     if (savedLanguage === "en" || savedLanguage === "id") setLanguage(savedLanguage);
+    setStorageReady(true);
   }, []);
 
   useEffect(() => {
@@ -107,18 +112,22 @@ export function Providers({
   }, [productWatermark]);
 
   useEffect(() => {
+    if (!storageReady) return;
     window.localStorage.setItem(cartStorageKey, JSON.stringify(lines));
-  }, [lines]);
+  }, [lines, storageReady]);
 
   useEffect(() => {
+    if (!storageReady) return;
     window.localStorage.setItem(languageStorageKey, language);
     document.documentElement.lang = language;
-  }, [language]);
+  }, [language, storageReady]);
 
   const cartValue = useMemo<CartContextValue>(() => {
     const addToCart = (product: Product, quantity = 1, variantId?: string, variantName?: string) => {
       if (product.status !== "Available") return;
+      if (product.variants?.length && !variantId) return;
       const limit = maxQuantityFor(product, variantId);
+      if (limit <= 0) return;
       const key = cartLineKey({ id: product.id, variantId });
       setLines((current) => {
         const existing = current.find((line) => cartLineKey(line) === key);
@@ -152,6 +161,7 @@ export function Providers({
 
     return {
       lines,
+      hydrated: storageReady,
       addToCart,
       removeFromCart,
       updateQuantity,
@@ -161,7 +171,7 @@ export function Providers({
       totalWeight,
       quantityInCart,
     };
-  }, [lines]);
+  }, [lines, storageReady]);
 
   useEffect(() => {
     const count = cartValue.itemCount;

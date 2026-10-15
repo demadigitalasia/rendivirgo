@@ -156,9 +156,17 @@ export class PayPalService {
     return capture ?? null;
   }
 
-  async verifyWebhook(headers: Record<string, string | string[] | undefined>, event: unknown): Promise<boolean> {
+  async verifyWebhook(
+    headers: Record<string, string | string[] | undefined>,
+    event: unknown,
+    rawBody?: Buffer,
+  ): Promise<boolean> {
     if (!this.webhookId) {
       this.logger.warn("PayPal webhook received but PAYPAL_WEBHOOK_ID is not configured — rejecting");
+      return false;
+    }
+    if (!rawBody) {
+      this.logger.warn("PayPal webhook received without its raw request body — rejecting");
       return false;
     }
 
@@ -175,17 +183,23 @@ export class PayPalService {
     if (!transmissionId || !transmissionTime || !certUrl || !authAlgo || !transmissionSig) return false;
 
     try {
+      const rawEvent = rawBody.toString("utf8");
+      const parsedEvent: unknown = JSON.parse(rawEvent);
+      if (JSON.stringify(parsedEvent) !== JSON.stringify(event)) return false;
+
+      // Keep the original event bytes intact inside PayPal's verification request.
+      const verificationBody = [
+        `{"auth_algo":${JSON.stringify(authAlgo)}`,
+        `,"cert_url":${JSON.stringify(certUrl)}`,
+        `,"transmission_id":${JSON.stringify(transmissionId)}`,
+        `,"transmission_sig":${JSON.stringify(transmissionSig)}`,
+        `,"transmission_time":${JSON.stringify(transmissionTime)}`,
+        `,"webhook_id":${JSON.stringify(this.webhookId)}`,
+        `,"webhook_event":${rawEvent}}`,
+      ].join("");
       const result = await this.request<{ verification_status?: string }>("/v1/notifications/verify-webhook-signature", {
         method: "POST",
-        body: JSON.stringify({
-          auth_algo: authAlgo,
-          cert_url: certUrl,
-          transmission_id: transmissionId,
-          transmission_sig: transmissionSig,
-          transmission_time: transmissionTime,
-          webhook_id: this.webhookId,
-          webhook_event: event,
-        }),
+        body: verificationBody,
       });
       return result.verification_status === "SUCCESS";
     } catch {

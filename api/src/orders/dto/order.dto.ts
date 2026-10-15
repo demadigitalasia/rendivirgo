@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -72,6 +73,10 @@ export class OrderItemInputDto {
 }
 
 export class CreateOrderDto {
+  @IsOptional()
+  @IsUUID("4")
+  checkoutKey?: string;
+
   @IsEmail()
   @MaxLength(200)
   email: string;

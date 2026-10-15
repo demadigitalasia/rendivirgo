@@ -74,7 +74,7 @@ export const formatDimensions = ({ length, width, height }: DimensionsMm) => `${
 
 export const maxQuantityFor = (product: Product, variantId?: string) => {
   const variant = product.variants?.find((item) => item.id === variantId);
-  if (variant) return Math.max(1, variant.stockQuantity);
-  if (product.stockModel === "Quantity") return Math.max(1, product.stockQuantity ?? 1);
+  if (variant) return Math.max(0, variant.stockQuantity);
+  if (product.stockModel === "Quantity") return Math.max(0, product.stockQuantity ?? 0);
   return 1;
 };

@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsInt, IsString, Max, MaxLength, Min, MinLength } from "class-validator";
+import { IsEmail, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from "class-validator";
 
 export class CreatePayPalOrderDto {
   @IsString()
@@ -13,6 +13,22 @@ export class CapturePayPalOrderDto {
   @MinLength(1)
   @MaxLength(80)
   paypalOrderId: string;
+}
+
+export class ResumeCheckoutDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  orderId?: string;
+
+  @IsOptional()
+  @IsUUID("4")
+  checkoutKey?: string;
+
+  @IsEmail()
+  @MaxLength(200)
+  email: string;
 }
 
 export class ReleaseExpiredDto {

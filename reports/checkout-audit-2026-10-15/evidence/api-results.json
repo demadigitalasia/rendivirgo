@@ -1,0 +1,200 @@
+[
+  {
+    "scenario": "Ketersediaan PayPal",
+    "method": "GET",
+    "path": "/api/payments/methods",
+    "origin": null,
+    "status": 200,
+    "response": {
+      "paypal": {
+        "enabled": false
+      }
+    }
+  },
+  {
+    "scenario": "Daftar produk",
+    "method": "GET",
+    "path": "/api/products?page=1&pageSize=12&sort=featured",
+    "origin": null,
+    "status": 500,
+    "response": {
+      "statusCode": 500,
+      "error": "PrismaError",
+      "message": "Internal server error",
+      "path": "/api/products?page=1&pageSize=12&sort=featured",
+      "timestamp": "2026-10-15T09:17:05.982Z"
+    }
+  },
+  {
+    "scenario": "Detail produk",
+    "method": "GET",
+    "path": "/api/products/forest-river-cabochon",
+    "origin": null,
+    "status": 500,
+    "response": {
+      "statusCode": 500,
+      "error": "PrismaError",
+      "message": "Internal server error",
+      "path": "/api/products/forest-river-cabochon",
+      "timestamp": "2026-10-15T09:17:05.988Z"
+    }
+  },
+  {
+    "scenario": "Ongkir US origin aktif",
+    "method": "POST",
+    "path": "/api/shipping/quote",
+    "origin": "http://localhost:3001",
+    "status": 403,
+    "response": {
+      "statusCode": 403,
+      "message": "Invalid request origin"
+    }
+  },
+  {
+    "scenario": "Ongkir US origin terdaftar (diagnostik)",
+    "method": "POST",
+    "path": "/api/shipping/quote",
+    "origin": "http://localhost:3002",
+    "status": 201,
+    "response": {
+      "options": [
+        {
+          "id": "cmue0y9sp000e3lvk6pcph6ht",
+          "name": "Asia Pacific Standard",
+          "carrier": "Pos Indonesia",
+          "price": 25,
+          "breakdown": {
+            "base": 22,
+            "handling": 3,
+            "insurance": 0,
+            "fragile": 0,
+            "oversized": 0,
+            "total": 25
+          }
+        },
+        {
+          "id": "cmue0y9sp000f3lvk62upx7an",
+          "name": "Asia Pacific Express",
+          "carrier": "DHL",
+          "price": 50,
+          "breakdown": {
+            "base": 46,
+            "handling": 4,
+            "insurance": 0,
+            "fragile": 0,
+            "oversized": 0,
+            "total": 50
+          }
+        },
+        {
+          "id": "cmue0y9sp000h3lvkqjf8dxpy",
+          "name": "Rest of World Express",
+          "carrier": "FedEx",
+          "price": 77,
+          "breakdown": {
+            "base": 72,
+            "handling": 5,
+            "insurance": 0,
+            "fragile": 0,
+            "oversized": 0,
+            "total": 77
+          }
+        }
+      ],
+      "source": "CarrierAPI",
+      "overrideApplied": false
+    }
+  },
+  {
+    "scenario": "Ongkir ID origin aktif",
+    "method": "POST",
+    "path": "/api/shipping/quote",
+    "origin": "http://localhost:3001",
+    "status": 403,
+    "response": {
+      "statusCode": 403,
+      "message": "Invalid request origin"
+    }
+  },
+  {
+    "scenario": "Ongkir ID origin terdaftar (diagnostik)",
+    "method": "POST",
+    "path": "/api/shipping/quote",
+    "origin": "http://localhost:3002",
+    "status": 201,
+    "response": {
+      "options": [
+        {
+          "id": "cmue0y9sp000e3lvk6pcph6ht",
+          "name": "Asia Pacific Standard",
+          "carrier": "Pos Indonesia",
+          "price": 25,
+          "breakdown": {
+            "base": 22,
+            "handling": 3,
+            "insurance": 0,
+            "fragile": 0,
+            "oversized": 0,
+            "total": 25
+          }
+        },
+        {
+          "id": "cmue0y9sp000f3lvk62upx7an",
+          "name": "Asia Pacific Express",
+          "carrier": "DHL",
+          "price": 50,
+          "breakdown": {
+            "base": 46,
+            "handling": 4,
+            "insurance": 0,
+            "fragile": 0,
+            "oversized": 0,
+            "total": 50
+          }
+        },
+        {
+          "id": "cmue0y9sp000h3lvkqjf8dxpy",
+          "name": "Rest of World Express",
+          "carrier": "FedEx",
+          "price": 77,
+          "breakdown": {
+            "base": 72,
+            "handling": 5,
+            "insurance": 0,
+            "fragile": 0,
+            "oversized": 0,
+            "total": 77
+          }
+        }
+      ],
+      "source": "CarrierAPI",
+      "overrideApplied": false
+    }
+  },
+  {
+    "scenario": "Diskon invalid origin aktif",
+    "method": "POST",
+    "path": "/api/discounts/validate",
+    "origin": "http://localhost:3001",
+    "status": 403,
+    "response": {
+      "statusCode": 403,
+      "message": "Invalid request origin"
+    }
+  },
+  {
+    "scenario": "Diskon invalid origin terdaftar (diagnostik)",
+    "method": "POST",
+    "path": "/api/discounts/validate",
+    "origin": "http://localhost:3002",
+    "status": 201,
+    "response": {
+      "valid": false,
+      "code": "QA-INVALID-20261015",
+      "type": null,
+      "discountAmount": 0,
+      "freeShipping": false,
+      "message": "Discount code not found"
+    }
+  }
+]

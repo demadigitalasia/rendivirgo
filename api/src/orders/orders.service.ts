@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { createHash } from "node:crypto";
 import { Prisma, type OrderStatus } from "../../generated/prisma";
 import type { Customer, OrderItem } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
@@ -397,6 +398,40 @@ export class OrdersService {
 
   async create(dto: CreateOrderDto) {
     const email = dto.email.trim().toLowerCase();
+    const checkoutFingerprint = dto.checkoutKey
+      ? createHash("sha256")
+          .update(
+            JSON.stringify({
+              email,
+              customerName: dto.customerName.trim(),
+              phone: dto.phone?.trim() || null,
+              shippingAddress: {
+                line1: dto.shippingAddress.line1.trim(),
+                line2: dto.shippingAddress.line2?.trim() || null,
+                city: dto.shippingAddress.city.trim(),
+                state: dto.shippingAddress.state?.trim() || null,
+                postalCode: dto.shippingAddress.postalCode?.trim() || null,
+                country: dto.shippingAddress.country.trim(),
+                countryCode: dto.shippingAddress.countryCode?.trim().toUpperCase() || null,
+              },
+              customerNote: dto.customerNote?.trim() || null,
+              shippingRateId: dto.shippingRateId ?? null,
+              discountCode: dto.discountCode?.trim().toUpperCase() || null,
+              items: dto.items.map(({ productId, variantId, quantity }) => ({ productId, variantId: variantId ?? null, quantity })),
+            }),
+          )
+          .digest("hex")
+      : null;
+
+    if (dto.checkoutKey && checkoutFingerprint) {
+      const previous = await this.prisma.order.findUnique({ where: { checkoutKey: dto.checkoutKey }, include: orderInclude });
+      if (previous) {
+        if (previous.checkoutFingerprint !== checkoutFingerprint) {
+          throw new ConflictException("This checkout was already submitted with different details. Reload to recover the earlier order.");
+        }
+        return this.toApiOrder(previous);
+      }
+    }
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
 
     const products = await this.prisma.product.findMany({
@@ -480,7 +515,9 @@ export class OrdersService {
     const total = subtotal.minus(discountTotal).plus(shippingCost).toDecimalPlaces(2);
     const currency = lines[0]?.product.currency ?? "USD";
 
-    const order = await this.prisma.$transaction(async (tx) => {
+    let order: OrderWithRelations;
+    try {
+      order = await this.prisma.$transaction(async (tx) => {
       for (const { line, quantity } of quantityByStockKey.values()) {
         if (line.variant) {
           const result = await tx.productVariant.updateMany({
@@ -544,6 +581,9 @@ export class OrdersService {
       const created = await tx.order.create({
         data: {
           orderNumber,
+          ...(dto.checkoutKey && checkoutFingerprint
+            ? { checkoutKey: dto.checkoutKey, checkoutFingerprint }
+            : {}),
           customerId: customer.id,
           email,
           customerName: dto.customerName,
@@ -606,7 +646,19 @@ export class OrdersService {
       }
 
       return created;
-    });
+      });
+    } catch (error) {
+      if (dto.checkoutKey && checkoutFingerprint) {
+        const previous = await this.prisma.order.findUnique({ where: { checkoutKey: dto.checkoutKey }, include: orderInclude });
+        if (previous) {
+          if (previous.checkoutFingerprint !== checkoutFingerprint) {
+            throw new ConflictException("This checkout was already submitted with different details. Reload to recover the earlier order.");
+          }
+          return this.toApiOrder(previous);
+        }
+      }
+      throw error;
+    }
 
     await this.prisma.notification.create({
       data: {

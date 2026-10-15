@@ -1,0 +1,86 @@
+[
+  {
+    "id": "first-name",
+    "message": "",
+    "required": true,
+    "type": "text",
+    "valid": true
+  },
+  {
+    "id": "last-name",
+    "message": "",
+    "required": true,
+    "type": "text",
+    "valid": true
+  },
+  {
+    "id": "email",
+    "message": "",
+    "required": true,
+    "type": "email",
+    "valid": false
+  },
+  {
+    "id": "phone",
+    "message": "",
+    "required": false,
+    "type": "text",
+    "valid": true
+  },
+  {
+    "id": "address",
+    "message": "",
+    "required": true,
+    "type": "textarea",
+    "valid": true
+  },
+  {
+    "id": "address-2",
+    "message": "",
+    "required": false,
+    "type": "text",
+    "valid": true
+  },
+  {
+    "id": "city",
+    "message": "",
+    "required": true,
+    "type": "text",
+    "valid": true
+  },
+  {
+    "id": "state",
+    "message": "",
+    "required": false,
+    "type": "text",
+    "valid": true
+  },
+  {
+    "id": "postal-code",
+    "message": "",
+    "required": false,
+    "type": "text",
+    "valid": true
+  },
+  {
+    "id": "country",
+    "message": "",
+    "required": false,
+    "type": "select-one",
+    "valid": true
+  },
+  {
+    "id": "notes",
+    "message": "",
+    "required": false,
+    "type": "textarea",
+    "valid": true
+  },
+  {
+    "id": "discount",
+    "message": "",
+    "required": false,
+    "type": "text",
+    "valid": true
+  }
+]

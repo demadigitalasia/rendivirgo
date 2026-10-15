@@ -375,6 +375,8 @@ model Customer {
 model Order {
   id              String        @id @default(cuid())
   orderNumber     String        @unique
+  checkoutKey     String?       @unique
+  checkoutFingerprint String?
   customerId      String?
   email           String
   customerName    String

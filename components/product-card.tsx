@@ -19,7 +19,10 @@ export function ProductCard({ product }: { product: Product }) {
   const maxQuantity = maxQuantityFor(product);
   const inCart = quantityInCart(product.id);
   const unavailable = product.status !== "Available";
-  const reachedLimit = inCart >= maxQuantity;
+  const hasVariants = Boolean(product.variants?.length);
+  const variantsInStock = product.variants?.some((variant) => variant.stockQuantity > 0) ?? false;
+  const outOfStock = !hasVariants && product.stockModel === "Quantity" && maxQuantity === 0;
+  const reachedLimit = hasVariants ? !variantsInStock : inCart >= maxQuantity;
   const [wishlisted, setWishlisted] = useState(false);
 
   useEffect(() => {
@@ -50,6 +53,10 @@ export function ProductCard({ product }: { product: Product }) {
   const statusLabel = product.status === "Sold" ? t.common.sold : product.status === "Reserved" ? t.common.reserved : t.common.available;
   const buttonLabel = unavailable
     ? statusLabel
+    : outOfStock || (hasVariants && !variantsInStock)
+      ? t.common.outOfStock
+    : hasVariants
+      ? t.product.format
     : reachedLimit
       ? maxQuantity === 1
         ? t.common.inCart
@@ -94,17 +101,23 @@ export function ProductCard({ product }: { product: Product }) {
         </Link>
         <div className="product-card__footer">
           <strong>{formatUSD(product.price)}</strong>
-          <button
-            className="text-button"
-            type="button"
-            disabled={unavailable || reachedLimit}
-            onClick={() => {
-              addToCart(product);
-              toast.success(t.common.addedToast(product.name));
-            }}
-          >
-            {buttonLabel}
-          </button>
+          {hasVariants && !unavailable && variantsInStock ? (
+            <Link className="text-button" href={`/shop/${product.categorySlug}/${product.slug}`}>
+              {buttonLabel}
+            </Link>
+          ) : (
+            <button
+              className="text-button"
+              type="button"
+              disabled={unavailable || reachedLimit}
+              onClick={() => {
+                addToCart(product);
+                toast.success(t.common.addedToast(product.name));
+              }}
+            >
+              {buttonLabel}
+            </button>
+          )}
         </div>
       </div>
     </article>

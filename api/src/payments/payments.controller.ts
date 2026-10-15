@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req, UnauthorizedException } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { Public } from "../common/decorators/public.decorator";
-import { CapturePayPalOrderDto, CreatePayPalOrderDto } from "./dto/payments.dto";
+import { CapturePayPalOrderDto, CreatePayPalOrderDto, ResumeCheckoutDto } from "./dto/payments.dto";
 import { PayPalService } from "./paypal.service";
 import { PaymentsService } from "./payments.service";
 
@@ -21,9 +21,16 @@ export class PaymentsController {
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post("resume")
+  resume(@Body() dto: ResumeCheckoutDto) {
+    return this.paymentsService.resumeCheckout(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("paypal/orders")
-  createPaypalOrder(@Body() dto: CreatePayPalOrderDto) {
-    return this.paymentsService.createPaypalOrder(dto.orderId);
+  createPaypalOrder(@Body() dto: CreatePayPalOrderDto, @Req() request: Request) {
+    return this.paymentsService.createPaypalOrder(dto.orderId, request.headers.origin);
   }
 
   @Public()
@@ -40,9 +47,10 @@ export class PaymentsController {
     const verified = await this.paypalService.verifyWebhook(
       request.headers as Record<string, string | string[] | undefined>,
       event,
+      (request as Request & { rawBody?: Buffer }).rawBody,
     );
     if (!verified) {
-      return { received: true, verified: false };
+      throw new UnauthorizedException("PayPal webhook signature could not be verified");
     }
     const result = await this.paymentsService.handleWebhook(event);
     return { ...result, verified: true };

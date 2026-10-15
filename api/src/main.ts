@@ -12,7 +12,7 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { DecimalSerializerInterceptor } from "./common/interceptors/decimal-serializer.interceptor";
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: true, rawBody: true });
   const config = app.get(ConfigService);
   const logger = new Logger("Http");
   const port = Number(config.get("PORT") ?? 4000);
@@ -28,7 +28,11 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
   const origins = Array.from(
-    new Set(isProduction ? configuredOrigins : [...configuredOrigins, "http://localhost:3000", "http://localhost:3002"]),
+    new Set(
+      isProduction
+        ? configuredOrigins
+        : [...configuredOrigins, "http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
+    ),
   );
   const allowedOrigins = new Set(origins);
 

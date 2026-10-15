@@ -26,7 +26,7 @@ function packageDimensionsFor(dimensions: DimensionsMm): DimensionsMm {
 export function ProductDetailClient({ product, related = [] }: { product: Product; related?: Product[] }) {
   const t = useCopy();
   const images = product.images.length ? product.images : [fallbackImage];
-  const initialVariant = product.variants?.[0];
+  const initialVariant = product.variants?.find((item) => item.stockQuantity > 0) ?? product.variants?.[0];
   const [variantId, setVariantId] = useState(initialVariant?.id);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -57,6 +57,8 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
       ? t.product.stockSold
       : product.status === "Reserved"
         ? t.product.stockReserved
+        : maxQuantity === 0
+          ? t.common.outOfStock
         : maxQuantity === 1
           ? t.product.stockOne
           : t.product.stockMany(maxQuantity);
@@ -213,9 +215,10 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
                     className={variantId === item.id ? "is-selected" : ""}
                     type="button"
                     aria-pressed={variantId === item.id}
+                    disabled={product.status !== "Available" || item.stockQuantity <= 0}
                     onClick={() => setVariantId(item.id)}
                   >
-                    {item.name}
+                    {item.name}{item.stockQuantity <= 0 ? ` — ${t.common.outOfStock}` : ""}
                   </button>
                 ))}
               </div>

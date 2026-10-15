@@ -239,15 +239,20 @@ export function mapProduct(item: ApiProduct): Product {
   };
 }
 
-async function apiGet<T>(path: string, options?: { revalidate?: number }): Promise<T | null> {
+async function apiGet<T>(path: string, options?: { revalidate?: number; strictError?: boolean }): Promise<T | null> {
   try {
     const response = await fetch(`${apiOrigin}${path}`, {
       headers: { accept: "application/json" },
       next: { revalidate: options?.revalidate ?? 60 },
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      if (options?.strictError) throw new Error("The store API could not load this product");
+      return null;
+    }
     return (await response.json()) as T;
-  } catch {
+  } catch (error) {
+    if (options?.strictError) throw error instanceof Error ? error : new Error("The store API is unavailable");
     return null;
   }
 }
@@ -330,7 +335,7 @@ export async function getProductReviewSummary(slug: string) {
 }
 
 export async function getProductBySlug(slug: string) {
-  const item = await apiGet<ApiProduct>(`/api/products/${encodeURIComponent(slug)}`);
+  const item = await apiGet<ApiProduct>(`/api/products/${encodeURIComponent(slug)}`, { strictError: true });
   return item ? mapProduct(item) : null;
 }
 

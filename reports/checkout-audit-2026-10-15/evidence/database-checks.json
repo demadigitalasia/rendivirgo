@@ -1,0 +1,250 @@
+{
+  "videoColumn": [],
+  "migrations": [
+    {
+      "migration_name": "20260923111225_init",
+      "finished_at": "2026-09-23T11:12:25.864Z",
+      "rolled_back_at": null
+    },
+    {
+      "migration_name": "20260923111802_product_shipping_fields",
+      "finished_at": "2026-09-23T11:18:02.298Z",
+      "rolled_back_at": null
+    },
+    {
+      "migration_name": "20260928085142_admin_password_reset",
+      "finished_at": "2026-09-28T08:51:42.153Z",
+      "rolled_back_at": null
+    },
+    {
+      "migration_name": "20260928093835_newsletter_subscribers",
+      "finished_at": "2026-09-28T09:38:35.298Z",
+      "rolled_back_at": null
+    },
+    {
+      "migration_name": "20260928100809_product_reviews",
+      "finished_at": "2026-09-28T10:08:09.738Z",
+      "rolled_back_at": null
+    },
+    {
+      "migration_name": "20260928104006_add_missing_indexes",
+      "finished_at": "2026-09-28T10:40:06.264Z",
+      "rolled_back_at": null
+    },
+    {
+      "migration_name": "20261008120000_dynamic_conditions",
+      "finished_at": "2026-10-08T06:29:11.455Z",
+      "rolled_back_at": null
+    }
+  ],
+  "rates": [
+    {
+      "name": "Asia Pacific Standard",
+      "region": "Worldwide",
+      "minWeightGram": 0,
+      "maxWeightGram": 500,
+      "price": "22.00",
+      "isActive": true
+    },
+    {
+      "name": "Asia Pacific Express",
+      "region": "Worldwide",
+      "minWeightGram": 0,
+      "maxWeightGram": 1000,
+      "price": "46.00",
+      "isActive": true
+    },
+    {
+      "name": "Rest of World Standard",
+      "region": "Worldwide",
+      "minWeightGram": 500,
+      "maxWeightGram": 3000,
+      "price": "38.00",
+      "isActive": true
+    },
+    {
+      "name": "Rest of World Express",
+      "region": "Worldwide",
+      "minWeightGram": 0,
+      "maxWeightGram": 5000,
+      "price": "72.00",
+      "isActive": true
+    }
+  ],
+  "variantCounts": [
+    {
+      "slug": "amber-nugget-strand",
+      "stockModel": "Quantity",
+      "stockQuantity": 4,
+      "variantCount": 0
+    },
+    {
+      "slug": "briolette-earring-pair",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "clear-water-round-brilliant",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "coastal-agate-slab",
+      "stockModel": "Quantity",
+      "stockQuantity": 1,
+      "variantCount": 0
+    },
+    {
+      "slug": "drilled-dewdrop",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "druzy-river-geode",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "dusk-amethyst-point",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "emerald-garden-cabochon",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "forest-chip-pouch",
+      "stockModel": "Quantity",
+      "stockQuantity": 12,
+      "variantCount": 0
+    },
+    {
+      "slug": "forest-river-cabochon",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "forest-river-cabochon-copy",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "forest-sphere",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "forest-strand",
+      "stockModel": "Quantity",
+      "stockQuantity": 5,
+      "variantCount": 1
+    },
+    {
+      "slug": "harvest-oval-cabochon",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "ivory-obelisk",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "jade-twin-pair",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "jasper-crushed-pouch",
+      "stockModel": "Quantity",
+      "stockQuantity": 6,
+      "variantCount": 0
+    },
+    {
+      "slug": "leaf-carved-pendant",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "misty-ridge-oval-cut",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "moonlit-rose-cut",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "moss-garden-rough-lot",
+      "stockModel": "Quantity",
+      "stockQuantity": 5,
+      "variantCount": 0
+    },
+    {
+      "slug": "moss-tumbled-selection",
+      "stockModel": "Quantity",
+      "stockQuantity": 8,
+      "variantCount": 2
+    },
+    {
+      "slug": "ocean-tumbled-selection",
+      "stockModel": "Quantity",
+      "stockQuantity": 6,
+      "variantCount": 0
+    },
+    {
+      "slug": "ocean-twin-cabochons",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "pattern-window-slab",
+      "stockModel": "Quantity",
+      "stockQuantity": 2,
+      "variantCount": 0
+    },
+    {
+      "slug": "quiet-mountain-specimen",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "sitting-frog-figurine",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "veil-point-cluster",
+      "stockModel": "Unique",
+      "stockQuantity": null,
+      "variantCount": 0
+    },
+    {
+      "slug": "volcanic-garden-rough",
+      "stockModel": "Quantity",
+      "stockQuantity": 4,
+      "variantCount": 0
+    }
+  ]
+}
