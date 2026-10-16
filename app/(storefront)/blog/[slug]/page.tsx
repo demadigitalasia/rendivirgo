@@ -12,14 +12,7 @@ import { dictionaries } from "@/lib/i18n";
 import { getRequestLanguage } from "@/lib/server-locale";
 import { localizedAlternates, localizedPath } from "@/lib/locale";
 
-export const revalidate = 60;
-
 const escapeJsonLd = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
-
-export async function generateStaticParams() {
-  const { posts } = await getBlogPosts({ pageSize: 100 });
-  return posts.slice(0, 50).map((post) => ({ slug: post.slug }));
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

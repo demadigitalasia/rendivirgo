@@ -257,11 +257,11 @@ type ApiReadResult<T> =
   | { status: "not-found" }
   | { status: "unavailable"; error: Error };
 
-async function apiGetWithStatus<T>(path: string, options?: { revalidate?: number; language?: Language }): Promise<ApiReadResult<T>> {
+async function apiGetWithStatus<T>(path: string, options?: { revalidate?: number; language?: Language; tags?: string[] }): Promise<ApiReadResult<T>> {
   try {
     const response = await fetch(`${apiOrigin}${path}`, {
       headers: { accept: "application/json", "x-rv-language": options?.language ?? "en" },
-      next: { revalidate: options?.revalidate ?? 60 },
+      next: { revalidate: options?.revalidate ?? 60, ...(options?.tags ? { tags: options.tags } : {}) },
     });
     if (response.status === 404) return { status: "not-found" };
     if (!response.ok) return { status: "unavailable", error: new Error(`The store API returned ${response.status}`) };
@@ -271,7 +271,7 @@ async function apiGetWithStatus<T>(path: string, options?: { revalidate?: number
   }
 }
 
-async function apiGet<T>(path: string, options?: { revalidate?: number; strictError?: boolean; language?: Language }): Promise<T | null> {
+async function apiGet<T>(path: string, options?: { revalidate?: number; strictError?: boolean; language?: Language; tags?: string[] }): Promise<T | null> {
   const result = await apiGetWithStatus<T>(path, options);
   if (result.status === "ok") return result.data;
   if (result.status === "unavailable" && options?.strictError) throw result.error;
@@ -398,12 +398,12 @@ export async function getBlogPosts(params: { page?: number; pageSize?: number; t
     if (value === undefined || value === null || value === "") continue;
     search.set(key, String(value));
   }
-  const result = await apiGet<{ items: ApiBlogPost[]; total: number; pageCount: number }>(`/api/blog?${search.toString()}`, { language });
+  const result = await apiGet<{ items: ApiBlogPost[]; total: number; pageCount: number }>(`/api/blog?${search.toString()}`, { language, tags: ["blog-posts"] });
   return { posts: result?.items ?? [], total: result?.total ?? 0, pageCount: result?.pageCount ?? 1 };
 }
 
 export async function getBlogPost(slug: string, language: Language = "en") {
-  return apiGet<ApiBlogPost>(`/api/blog/${encodeURIComponent(slug)}`, { language });
+  return apiGet<ApiBlogPost>(`/api/blog/${encodeURIComponent(slug)}`, { language, tags: ["blog-posts"] });
 }
 
 export async function getPages(language: Language = "en") {

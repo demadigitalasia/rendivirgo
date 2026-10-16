@@ -9,8 +9,6 @@ import { getRequestLanguage } from "@/lib/server-locale";
 import { localizedAlternates } from "@/lib/locale";
 import { getBlogPosts } from "@/lib/storefront";
 
-export const revalidate = 60;
-
 const PAGE_SIZE = 9;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -147,7 +145,7 @@ export default async function BlogPage({
               </Link>
             ))}
           </div>
-        ) : (
+        ) : posts.length === 0 ? (
           <div className="empty-state">
             {activeTag ? (
               <>
@@ -160,7 +158,7 @@ export default async function BlogPage({
               journal.empty
             )}
           </div>
-        )}
+        ) : null}
         <Pagination page={page} pageCount={pageCount} />
       </div>
     </>
