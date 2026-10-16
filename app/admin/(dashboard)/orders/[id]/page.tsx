@@ -51,6 +51,19 @@ type OrderAddress = {
   countryCode: string | null;
 };
 
+type ReturnRequest = {
+  id: string;
+  status: "Pending" | "Approved" | "Rejected";
+  reason: string;
+  details: string;
+  hasEvidence: boolean;
+  submittedAt: string;
+  reviewedAt: string | null;
+  adminResponse: string | null;
+  reviewedById?: string | null;
+  reviewedBy?: { id: string; name: string } | null;
+};
+
 type OrderDetail = {
   id: string;
   orderNumber: string;
@@ -60,6 +73,7 @@ type OrderDetail = {
   phone: string | null;
   status: string;
   paymentStatus: string;
+  settlementOutcome?: "settled" | "late" | "duplicate" | "review";
   paymentMethod: string | null;
   paymentRef: string | null;
   paymentProofUploadedAt: string | null;
@@ -91,9 +105,8 @@ type OrderDetail = {
   customer: { id: string; email: string; name: string; phone: string | null; tags: string[]; acceptsMarketing: boolean } | null;
   items: OrderItem[];
   events: OrderEvent[];
+  returnRequests: ReturnRequest[];
 };
-
-const paymentStatuses = ["Pending", "Paid", "Failed", "Refunded", "PartiallyRefunded"];
 
 const eventTypes = [
   { value: "note", label: "Note" },
@@ -103,8 +116,6 @@ const eventTypes = [
 ];
 
 const labelize = (value: string) => value.replace(/([a-z])([A-Z])/g, "$1 $2");
-
-const paymentOptions = paymentStatuses.map((value) => ({ value, label: labelize(value) }));
 
 function ShippingAddress({ address }: { address: OrderAddress }) {
   const cityLine = [address.city, address.state, address.postalCode].filter(Boolean).join(", ");
@@ -130,12 +141,12 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   );
 
   const [status, setStatus] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
   const [carrier, setCarrier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
   const [internalNote, setInternalNote] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [savingFulfilment, setSavingFulfilment] = useState(false);
   const [eventMessage, setEventMessage] = useState("");
   const [eventType, setEventType] = useState("note");
@@ -143,13 +154,14 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
+  const [refundExternalReference, setRefundExternalReference] = useState("");
   const [refundError, setRefundError] = useState<string | null>(null);
   const [refunding, setRefunding] = useState(false);
+  const [reviewingReturnId, setReviewingReturnId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!order) return;
     setStatus(order.status);
-    setPaymentStatus(order.paymentStatus);
     setCarrier(order.carrier ?? "");
     setTrackingNumber(order.trackingNumber ?? "");
     setTrackingUrl(order.trackingUrl ?? "");
@@ -163,13 +175,41 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   };
 
   const saveStatus = async () => {
+    if (!order || status === order.status) return;
     setSavingStatus(true);
     try {
-      await saveOrder({ status, paymentStatus }, "Order status updated");
+      const updated =
+        status === "Cancelled"
+          ? await apiFetch<OrderDetail>("/api/admin/orders/" + id + "/cancel", { method: "POST" })
+          : status === "Returned"
+            ? await apiFetch<OrderDetail>("/api/admin/orders/" + id + "/return", { method: "POST" })
+            : await apiFetch<OrderDetail>("/api/admin/orders/" + id + "/fulfillment", {
+                method: "PATCH",
+                json: { status },
+              });
+      state.setData(updated);
+      toast.success("Order status updated");
     } catch (caught) {
       toast.error(errorMessage(caught));
     } finally {
       setSavingStatus(false);
+    }
+  };
+
+  const confirmManualPayment = async () => {
+    setConfirmingPayment(true);
+    try {
+      const updated = await apiFetch<OrderDetail>("/api/admin/orders/" + id + "/confirm-payment", { method: "POST" });
+      state.setData(updated);
+      if (updated.settlementOutcome === "late" || updated.settlementOutcome === "review") {
+        toast.error("Payment needs manual review; check the order timeline");
+      } else {
+        toast.success("Payment confirmation recorded");
+      }
+    } catch (caught) {
+      toast.error(errorMessage(caught));
+    } finally {
+      setConfirmingPayment(false);
     }
   };
 
@@ -214,10 +254,19 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   };
 
   const refundable = order ? Math.max(0, order.total - order.refundedAmount) : 0;
+  const canConfirmManualPayment =
+    Boolean(order && ["BankTransfer", "Manual"].includes(order.paymentMethod ?? "")) &&
+    Boolean(
+      order &&
+        ((order.paymentStatus === "Pending" && !["Cancelled", "Returned"].includes(order.status)) ||
+          (order.status === "Cancelled" && order.paymentStatus === "Failed")),
+    );
 
   const openRefund = () => {
     setRefundError(null);
     setRefundAmount(refundable > 0 ? refundable.toFixed(2) : "");
+    setRefundReason("");
+    setRefundExternalReference("");
     setRefundOpen(true);
   };
 
@@ -232,17 +281,41 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
     try {
       const updated = await apiFetch<OrderDetail>(`/api/admin/orders/${id}/refund`, {
         method: "POST",
-        json: { amount, reason: refundReason.trim() || undefined },
+        json: {
+          amount,
+          reason: refundReason.trim() || undefined,
+          externalReference: refundExternalReference.trim() || undefined,
+        },
       });
       state.setData(updated);
       setRefundOpen(false);
       setRefundAmount("");
       setRefundReason("");
-      toast.success(`Refunded ${formatUSD(amount)}`);
+      setRefundExternalReference("");
+      toast.success(`Refund record added for ${formatUSD(amount)}`);
     } catch (caught) {
       setRefundError(errorMessage(caught));
     } finally {
       setRefunding(false);
+    }
+  };
+
+  const reviewReturnRequest = async (request: ReturnRequest, status: "Approved" | "Rejected") => {
+    setReviewingReturnId(request.id);
+    try {
+      const reviewed = await apiFetch<ReturnRequest>(`/api/admin/orders/${id}/return-requests/${request.id}`, {
+        method: "PATCH",
+        json: { status },
+      });
+      state.setData((current) => current ? {
+        ...current,
+        returnRequests: current.returnRequests.map((entry) => entry.id === reviewed.id ? { ...entry, ...reviewed } : entry),
+      } : current);
+      toast.success(`Return request ${status.toLowerCase()}`);
+    } catch (caught) {
+      toast.error(errorMessage(caught));
+    } finally {
+      setReviewingReturnId(null);
     }
   };
 
@@ -405,12 +478,14 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                     <Field label="Status">
                       <Select value={status} onChange={setStatus} options={statusOptions} />
                     </Field>
-                    <Field label="Payment status">
-                      <Select value={paymentStatus} onChange={setPaymentStatus} options={paymentOptions} />
-                    </Field>
                     <Button variant="primary" loading={savingStatus} onClick={saveStatus}>
                       Save status
                     </Button>
+                    {canConfirmManualPayment ? (
+                      <Button loading={confirmingPayment} onClick={confirmManualPayment}>
+                        {order?.status === "Cancelled" ? "Record late payment for review" : "Confirm payment"}
+                      </Button>
+                    ) : null}
                   </div>
                 </Card>
 
@@ -451,6 +526,35 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                 ) : order.paymentMethod === "BankTransfer" ? (
                   <Card title="Bank transfer receipt">
                     <p className="rv-hint">The customer has not uploaded a receipt yet.</p>
+                  </Card>
+                ) : null}
+
+                {order.returnRequests.length ? (
+                  <Card title="Customer return requests" description="Review the customer's reason and evidence before changing the order status.">
+                    <div className="rv-stack">
+                      {order.returnRequests.map((request) => (
+                        <div key={request.id} className="rv-stack" style={{ paddingTop: 12 }}>
+                          <div className="rv-inline" style={{ justifyContent: "space-between" }}>
+                            <strong>{labelize(request.reason)}</strong>
+                            <StatusBadge status={request.status} />
+                          </div>
+                          <p className="rv-hint">Submitted {formatDateTime(request.submittedAt)}</p>
+                          <p style={{ whiteSpace: "pre-wrap" }}>{request.details}</p>
+                          {request.adminResponse ? <p className="rv-hint">Admin response: {request.adminResponse}</p> : null}
+                          {request.hasEvidence ? (
+                            <a href={`/api/admin/orders/${encodeURIComponent(order.id)}/return-requests/${encodeURIComponent(request.id)}/evidence`} target="_blank" rel="noreferrer">
+                              View customer evidence
+                            </a>
+                          ) : null}
+                          {request.status === "Pending" ? (
+                            <div className="rv-inline" style={{ marginTop: 12 }}>
+                              <Button size="sm" variant="primary" loading={reviewingReturnId === request.id} onClick={() => void reviewReturnRequest(request, "Approved")}>Approve</Button>
+                              <Button size="sm" variant="danger" disabled={reviewingReturnId === request.id} onClick={() => void reviewReturnRequest(request, "Rejected")}>Reject</Button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
                   </Card>
                 ) : null}
 
@@ -519,7 +623,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
         }
       >
         <div className="rv-stack">
-          <p className="rv-hint">{formatUSD(refundable)} is still refundable on this order.</p>
+          <p className="rv-hint">This records a refund amount on the order. It does not send money to PayPal or your bank. {formatUSD(refundable)} remains available to record.</p>
           <Field label="Amount" hint="USD">
             <TextInput
               type="number"
@@ -532,6 +636,9 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
           </Field>
           <Field label="Reason">
             <TextArea value={refundReason} onChange={setRefundReason} rows={3} placeholder="Damaged on arrival" />
+          </Field>
+          <Field label="External transfer reference (optional)">
+            <TextInput value={refundExternalReference} onChange={setRefundExternalReference} placeholder="Bank transaction or provider reference" />
           </Field>
           {refundError ? <p className="rv-error-text">{refundError}</p> : null}
         </div>

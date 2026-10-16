@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { ContactForm } from "@/components/contact-form";
 import { ArrowIcon, GlobeIcon, LeafIcon, SparkleIcon } from "@/components/icons";
+import { useCopy } from "@/components/providers";
 
 export type ContactContentProps = {
   email: string;
@@ -14,26 +15,23 @@ export type ContactContentProps = {
 };
 
 export function ContactContent({ email, whatsapp, whatsappHref, address, hours, socials }: ContactContentProps) {
-
+  const t = useCopy().contact;
   return (
     <div>
       <section className="contact-hero">
         <div className="page-container contact-hero__inner">
           <div className="contact-hero__copy">
-            <div className="eyebrow eyebrow--light">Get in touch</div>
+            <div className="eyebrow eyebrow--light">{t.heroEyebrow}</div>
             <h1>
-              Let us look
+              {t.title.split("\n")[0]}
               <br />
-              closer together.
+              {t.title.split("\n")[1]}
             </h1>
-            <p>
-              Questions about a stone, a parcel, or a future sourcing request? Choose the fastest
-              channel — we reply with care, usually within one business day.
-            </p>
+            <p>{t.intro}</p>
             <div className="contact-hero__actions">
               {whatsappHref ? (
                 <a href={whatsappHref} target="_blank" rel="noreferrer noopener" className="button button--light">
-                  Chat on WhatsApp <ArrowIcon />
+                  {t.chat} <ArrowIcon />
                 </a>
               ) : null}
               <a href={`mailto:${email}`} className="button contact-hero__ghost">
@@ -44,8 +42,8 @@ export function ContactContent({ email, whatsapp, whatsappHref, address, hours, 
           <div className="contact-hero__note">
             <span className="contact-hero__pulse" aria-hidden="true" />
             <div>
-              <strong>Replies within 1 business day</strong>
-              <span>{hours || "Monday – Saturday (GMT+7)"}</span>
+              <strong>{t.replyTime}</strong>
+              <span>{hours || t.hoursDefault}</span>
             </div>
           </div>
         </div>
@@ -56,9 +54,9 @@ export function ContactContent({ email, whatsapp, whatsappHref, address, hours, 
           <span className="contact-channel__icon" aria-hidden="true">
             <ArrowIcon />
           </span>
-          <div className="eyebrow">Email</div>
-          <h2>For details &amp; photos</h2>
-          <p>Order numbers, stone links, and close-up photos are easiest by email.</p>
+          <div className="eyebrow">{t.email}</div>
+          <h2>{t.emailHeading}</h2>
+          <p>{t.emailBody}</p>
           <a href={`mailto:${email}`} className="text-button">
             {email}
           </a>
@@ -67,12 +65,12 @@ export function ContactContent({ email, whatsapp, whatsappHref, address, hours, 
           <span className="contact-channel__icon" aria-hidden="true">
             <GlobeIcon />
           </span>
-          <div className="eyebrow eyebrow--light">WhatsApp</div>
-          <h2>For fast questions</h2>
-          <p>{whatsapp || "Chat with the studio directly."}</p>
+          <div className="eyebrow eyebrow--light">{t.whatsapp}</div>
+          <h2>{t.quickQuestions}</h2>
+          <p>{whatsapp || t.chatDirect}</p>
           {whatsappHref ? (
             <a href={whatsappHref} target="_blank" rel="noreferrer noopener" className="text-button text-button--light">
-              Open WhatsApp chat
+              {t.openWhatsapp}
             </a>
           ) : null}
         </article>
@@ -80,8 +78,8 @@ export function ContactContent({ email, whatsapp, whatsappHref, address, hours, 
           <span className="contact-channel__icon" aria-hidden="true">
             <LeafIcon />
           </span>
-          <div className="eyebrow">Studio</div>
-          <h2>From Indonesia</h2>
+          <div className="eyebrow">{t.studio}</div>
+          <h2>{t.fromIndonesia}</h2>
           <p>{address || "Bandung, West Java, Indonesia"}</p>
           <span className="muted">{hours}</span>
         </article>
@@ -89,9 +87,9 @@ export function ContactContent({ email, whatsapp, whatsappHref, address, hours, 
 
       <section className="page-container contact-main">
         <div className="contact-formpanel reveal">
-          <div className="eyebrow">Send a message</div>
-          <h2>Tell us what you&apos;re looking for.</h2>
-          <p className="muted">Include a stone name or order number (e.g. RV-20260101-0001) so we can answer in one reply.</p>
+          <div className="eyebrow">{t.sendMessage}</div>
+          <h2>{t.messageHeading}</h2>
+          <p className="muted">{t.messageIntro}</p>
           <ContactForm />
         </div>
         <aside className="contact-side">
@@ -99,25 +97,25 @@ export function ContactContent({ email, whatsapp, whatsappHref, address, hours, 
             <span className="contact-side__icon" aria-hidden="true">
               <SparkleIcon />
             </span>
-            <h3>Before you write</h3>
+            <h3>{t.beforeWriting}</h3>
             <ul>
               <li>
-                <Link href="/track">Track your parcel</Link> — live status with your order number &amp; email.
+                <Link href="/track">{t.trackParcel}</Link> — {t.trackDescription}
               </li>
               <li>
-                <Link href="/shipping-returns">Shipping &amp; returns</Link> — timelines, handling, and damage claims.
+                <Link href="/shipping-returns">{t.shippingReturns}</Link> — {t.shippingDescription}
               </li>
               <li>
-                <Link href="/faq">FAQ</Link> — natural vs. treated stones, uniqueness, and care.
+                <Link href="/faq">{t.faq}</Link> — {t.faqDescription}
               </li>
               <li>
-                <Link href="/orders">Order history</Link> — resend your secure magic link anytime.
+                <Link href="/orders">{t.orderHistory}</Link> — {t.orderHistoryDescription}
               </li>
             </ul>
           </div>
           {socials.length ? (
             <div className="contact-side__card reveal">
-              <h3>Follow the finds</h3>
+              <h3>{t.follow}</h3>
               <div className="contact-socialgrid">
                 {socials.map((social) => (
                   <a key={social.network} href={social.url} target="_blank" rel="noreferrer noopener">

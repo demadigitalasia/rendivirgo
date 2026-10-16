@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { CreateTestimonialDto, TestimonialQueryDto, UpdateTestimonialDto } from "./dto/content.dto";
 import { TestimonialsService } from "./testimonials.service";
+import { storefrontLanguage } from "../common/utils/storefront-language";
 
 @Controller("testimonials")
 export class TestimonialsController {
@@ -11,8 +12,8 @@ export class TestimonialsController {
 
   @Public()
   @Get()
-  list() {
-    return this.testimonialsService.listPublic();
+  list(@Headers("x-rv-language") language?: string) {
+    return this.testimonialsService.listPublic(storefrontLanguage(language));
   }
 }
 

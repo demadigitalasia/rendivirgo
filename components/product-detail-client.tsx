@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useEffect, useRef, useState } from "react";
 import type { DimensionsMm, Product } from "@/lib/catalog";
 import { formatDimensions, formatUSD, maxQuantityFor } from "@/lib/catalog";
-import { useCart, useCopy } from "@/components/providers";
+import { useCart, useCopy, useLanguage } from "@/components/providers";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ArrowIcon, CloseIcon, GlobeIcon } from "@/components/icons";
@@ -26,6 +26,7 @@ function packageDimensionsFor(dimensions: DimensionsMm): DimensionsMm {
 
 export function ProductDetailClient({ product, related = [] }: { product: Product; related?: Product[] }) {
   const t = useCopy();
+  const { language } = useLanguage();
   const images = product.images.length ? product.images : [fallbackImage];
   const initialVariant = product.variants?.find((item) => item.stockQuantity > 0) ?? product.variants?.[0];
   const [variantId, setVariantId] = useState(initialVariant?.id);
@@ -63,7 +64,8 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
         : maxQuantity === 1
           ? t.product.stockOne
           : t.product.stockMany(maxQuantity);
-  const imageAlt = (index: number) => `${product.name} — ${product.stoneType} from ${product.origin}, view ${index + 1}`;
+  const imageAlt = (index: number) =>
+    `${product.name} — ${product.stoneType}${product.origin ? ` from ${product.origin}` : ""}, view ${index + 1}`;
   const descriptionParagraphs = product.description.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
   const introduction = descriptionParagraphs[0] ?? product.description;
   const titleBreak = product.name.lastIndexOf(" ");
@@ -129,6 +131,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
         : product.condition === "Dyed"
           ? t.product.conditionDyedNote
           : t.product.noConditionNote);
+  const conditionNoteLanguage = product.conditionNote ? product.conditionNoteContentLocale ?? "en" : language;
 
   return (
     <div className="product-page">
@@ -141,6 +144,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
       />
 
       <div className="page-container product-detail">
+        {language === "id" && (product.contentLocale === "en" || product.categoryContentLocale === "en") ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
         <section className="product-gallery" aria-label={t.product.galleryLabel}>
           <div className="product-gallery__folio">
             <span>{t.product.collectionLabel}</span>
@@ -205,7 +209,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
           <div className="product-detail__meta">
             <div className="eyebrow">
               <span className="product-detail__category-mark" aria-hidden="true" />
-              {product.category}
+              <span lang={product.categoryContentLocale}>{product.category}</span>
             </div>
             {product.status === "Sold" || product.status === "Reserved" ? (
               <span className={`status-badge status-badge--${product.status.toLowerCase()}`}>
@@ -213,13 +217,13 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               </span>
             ) : null}
           </div>
-          <h1>{titleBreak > 0 ? <>{product.name.slice(0, titleBreak)} <em>{product.name.slice(titleBreak + 1)}</em></> : product.name}</h1>
-          <p className="product-detail__description">{introduction}</p>
+          <h1 lang={product.contentLocale}>{titleBreak > 0 ? <>{product.name.slice(0, titleBreak)} <em>{product.name.slice(titleBreak + 1)}</em></> : product.name}</h1>
+          <p className="product-detail__description" lang={product.contentLocale}>{introduction}</p>
           <a className="product-detail__read" href="#stone-details">{t.product.readDetails}<ArrowIcon /></a>
 
           <div className="product-detail__purchase">
             <div>
-              <div className="product-detail__price">{formatUSD(selectedProduct.price)}</div>
+              <div className="product-detail__price">{formatUSD(selectedProduct.price, language)}</div>
               <span className="product-detail__unit">USD · {t.product.priceUnits[product.unit]}</span>
             </div>
             <p className={`product-detail__stock ${product.status === "Available" && maxQuantity > 0 ? "is-available" : ""}`}>{stockMessage}</p>
@@ -271,10 +275,12 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               <span>{t.product.specStone}</span>
               <span>{product.stoneType}</span>
             </li>
-            <li>
-              <span>{t.product.specOrigin}</span>
-              <span>{product.origin}</span>
-            </li>
+            {product.origin ? (
+              <li>
+                <span>{t.product.specOrigin}</span>
+                <span>{product.origin}</span>
+              </li>
+            ) : null}
             <li>
               <span>{t.product.specWeight}</span>
               <span>{selectedWeight > 0 ? `${selectedWeight} g` : t.product.notRecorded}</span>
@@ -304,7 +310,9 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
             <details>
               <summary>{t.product.conditionTitle}</summary>
               <div className="product-detail__accordion-body">
-                <p>{conditionNote}</p>
+                {language === "id" && conditionNoteLanguage === "en" && product.conditionNote
+                  ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+                <p lang={conditionNoteLanguage}>{conditionNote}</p>
                 {conditionNote !== t.product.noConditionNote ? <p className="product-detail__note">{t.product.noConditionNote}</p> : null}
                 {product.fragile ? <p className="product-detail__note">{t.product.fragileNote}</p> : null}
               </div>

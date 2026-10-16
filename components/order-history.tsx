@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useCopy } from "@/components/providers";
+import { useCopy, useLanguage } from "@/components/providers";
 import { formatUSD } from "@/lib/catalog";
 
 type HistoryOrder = {
@@ -26,6 +26,8 @@ const labelize = (value: string) => value.replace(/([a-z])([A-Z])/g, "$1 $2");
 
 export function OrderHistory() {
   const t = useCopy();
+  const { language } = useLanguage();
+  const dateLocale = language === "id" ? "id-ID" : "en-GB";
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [email, setEmail] = useState("");
@@ -94,14 +96,14 @@ export function OrderHistory() {
                   <li key={order.id} className="history-item">
                     <div className="history-item__head">
                       <strong>{order.orderNumber}</strong>
-                      <span className={`track-status track-status--${order.status.toLowerCase()}`}>{labelize(order.status)}</span>
+                      <span className={`track-status track-status--${order.status.toLowerCase()}`}>{t.orderStatus[order.status as keyof typeof t.orderStatus] ?? labelize(order.status)}</span>
                       <span className={`track-status track-status--${order.paymentStatus.toLowerCase()}`}>
-                        {labelize(order.paymentStatus)}
+                        {t.orderStatus[order.paymentStatus as keyof typeof t.orderStatus] ?? labelize(order.paymentStatus)}
                       </span>
                     </div>
                     <p className="muted">
-                      {new Date(order.placedAt).toLocaleDateString()} · {t.orderHistory.itemCount(order.itemCount)} ·{" "}
-                      {t.orderHistory.total} {formatUSD(order.total)}
+                      {new Date(order.placedAt).toLocaleDateString(dateLocale)} · {t.orderHistory.itemCount(order.itemCount)} ·{" "}
+                      {t.orderHistory.total} {formatUSD(order.total, language)}
                     </p>
                     <Link
                       className="text-button"

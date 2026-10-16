@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { ProductArt } from "@/components/product-art";
-import { cartLineKey, useCart, useCopy } from "@/components/providers";
+import { cartLineKey, useCart, useCopy, useLanguage } from "@/components/providers";
 import { formatUSD } from "@/lib/catalog";
 
 export function CartView() {
   const t = useCopy();
+  const { language } = useLanguage();
   const { lines, subtotal, totalWeight, removeFromCart, updateQuantity } = useCart();
 
   if (!lines.length) {
@@ -59,7 +60,7 @@ export function CartView() {
                     {line.variantName ?? line.category} · {line.weightGram} g
                   </div>
                   <div className="cart-line__meta">
-                    {formatUSD(line.price)} {t.cart.each}
+                    {formatUSD(line.price, language)} {t.cart.each}
                   </div>
                 </div>
                 <div className="cart-line__actions">
@@ -81,7 +82,7 @@ export function CartView() {
                       </button>
                     </div>
                   )}
-                  <strong>{formatUSD(line.price * line.quantity)}</strong>
+                  <strong>{formatUSD(line.price * line.quantity, language)}</strong>
                   <button className="text-button" type="button" onClick={() => removeFromCart(key)}>
                     {t.cart.remove}
                   </button>
@@ -94,7 +95,7 @@ export function CartView() {
           <h2>{t.cart.summary}</h2>
           <div className="summary-row">
             <span>{t.cart.subtotal}</span>
-            <strong>{formatUSD(subtotal)}</strong>
+            <strong>{formatUSD(subtotal, language)}</strong>
           </div>
           <div className="summary-row">
             <span>{t.cart.totalWeight}</span>
@@ -106,7 +107,7 @@ export function CartView() {
           </div>
           <div className="summary-row summary-row--total">
             <span>{t.cart.totalBefore}</span>
-            <strong>{formatUSD(subtotal)}</strong>
+            <strong>{formatUSD(subtotal, language)}</strong>
           </div>
           <Link href="/checkout" className="button button--full" style={{ marginTop: 20 }}>
             {t.cart.checkout}

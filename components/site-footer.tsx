@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFacebook, faInstagram, faTiktok, faXTwitter, faYoutube } from "@fortawesome/free-brands-svg-icons";
-import { useCopy } from "@/components/providers";
+import { useCopy, useLanguage } from "@/components/providers";
 
 const socialLabels: Record<string, string> = {
   instagram: "Instagram",
@@ -27,6 +27,7 @@ const socialIcons: Record<string, typeof faInstagram> = {
 
 export function SiteFooter({ socials, email }: { socials?: Record<string, string>; email?: string }) {
   const t = useCopy();
+  const { language } = useLanguage();
   const [emailInput, setEmailInput] = useState("");
   const [subscribeState, setSubscribeState] = useState<"idle" | "loading" | "success" | "error">("idle");
 
@@ -38,7 +39,7 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
       const response = await fetch("/api/newsletter/subscribe", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: emailInput.trim(), source: "footer" }),
+        body: JSON.stringify({ email: emailInput.trim(), source: "footer", locale: language }),
       });
       if (!response.ok) throw new Error("subscribe failed");
       setSubscribeState("success");
@@ -78,7 +79,7 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
       <div className="page-container site-footer__grid">
         <div className="site-footer__brand">
           <Link href="/" className="footer-logo-plate" aria-label="RENDI VIRGO">
-            <Image src="/brand/rendi-virgo-logo-white.webp" alt="RENDI VIRGO" width={780} height={260} sizes="200px" />
+            <Image src="/brand/rendi-virgo-logo-footer.png" alt="RENDI VIRGO" width={780} height={260} sizes="200px" />
           </Link>
           <p>{t.footer.tagline}</p>
         </div>
@@ -92,6 +93,7 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
         <nav className="footer-nav" aria-labelledby="footer-care-heading">
           <h2 id="footer-care-heading" className="footer-label">{t.footer.help}</h2>
           <Link href="/shipping-returns">{t.footer.shipping}</Link>
+          <Link href="/returns">{t.footer.requestReturn}</Link>
           <Link href="/track">{t.footer.track}</Link>
           <Link href="/orders">{t.footer.orders}</Link>
           <Link href="/faq">{t.footer.faq}</Link>

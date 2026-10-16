@@ -14,6 +14,8 @@ type OrderRow = {
   phone: string | null;
   status: string;
   paymentStatus: string;
+  paymentMethod: string;
+  paymentProofUploadedAt: string | null;
   currency: string;
   subtotal: number;
   shippingCost: number;
@@ -49,7 +51,8 @@ export default function AdminOrdersPage() {
   const data = state.data as OrdersResponse | null;
   const params = state.params;
 
-  const hasFilters = Boolean(params.search || params.status || params.paymentStatus || params.from || params.to);
+  const proofQueueActive = params.proofQueue === "true";
+  const hasFilters = Boolean(params.search || params.status || params.paymentStatus || params.from || params.to || proofQueueActive);
 
   const columns: Array<Column<OrderRow>> = [
     {
@@ -86,7 +89,16 @@ export default function AdminOrdersPage() {
     {
       key: "paymentStatus",
       header: "Payment",
-      render: (order) => <StatusBadge status={order.paymentStatus} />,
+      render: (order) => (
+        <div>
+          <StatusBadge status={order.paymentStatus} />
+          {order.paymentMethod === "BankTransfer" && order.paymentProofUploadedAt ? (
+            <div className="rv-hint" style={{ marginTop: 4 }}>
+              Receipt {Math.max(0, Math.floor((Date.now() - Date.parse(order.paymentProofUploadedAt)) / 86_400_000))} day(s) ago
+            </div>
+          ) : null}
+        </div>
+      ),
     },
     {
       key: "actions",
@@ -129,41 +141,74 @@ export default function AdminOrdersPage() {
         ) : null}
 
         <Card flush>
-          <div className="rv-toolbar">
-            <TextInput value={state.searchInput} onChange={state.setSearchInput} placeholder="Search order, name or email" />
-            <Select
-              value={String(params.status ?? "")}
-              onChange={(value) => state.update({ status: value || undefined, page: 1 })}
-              options={statusOptions}
-              placeholder="All statuses"
-            />
-            <Select
-              value={String(params.paymentStatus ?? "")}
-              onChange={(value) => state.update({ paymentStatus: value || undefined, page: 1 })}
-              options={paymentOptions}
-              placeholder="All payments"
-            />
-            <div className="rv-inline">
-              <span className="rv-hint">From</span>
-              <TextInput
-                type="date"
-                value={String(params.from ?? "")}
-                onChange={(value) => state.update({ from: value || undefined, page: 1 })}
-              />
-            </div>
-            <div className="rv-inline">
-              <span className="rv-hint">To</span>
-              <TextInput
-                type="date"
-                value={String(params.to ?? "")}
-                onChange={(value) => state.update({ to: value || undefined, page: 1 })}
-              />
-            </div>
-            {hasFilters ? (
-              <Button size="sm" onClick={state.reset}>
-                Reset
+          <div className="rv-toolbar rv-orders-toolbar">
+            <div className="rv-orders-toolbar__main">
+              <Button
+                size="sm"
+                variant={proofQueueActive ? "primary" : "default"}
+                onClick={() => state.update({ proofQueue: proofQueueActive ? undefined : "true", page: 1 })}
+              >
+                {proofQueueActive ? "Showing transfer receipts" : "Review transfer receipts"}
               </Button>
-            ) : null}
+              <div className="rv-orders-toolbar__search">
+                <label className="rv-sr-only" htmlFor="orders-search">Search orders by number, customer name, or email</label>
+                <TextInput
+                  id="orders-search"
+                  value={state.searchInput}
+                  onChange={state.setSearchInput}
+                  placeholder="Search order, name or email"
+                />
+              </div>
+            </div>
+
+            <div className="rv-orders-toolbar__filters">
+              <label className="rv-orders-toolbar__field">
+                <span className="rv-label">Status</span>
+                <Select
+                  value={String(params.status ?? "")}
+                  onChange={(value) => state.update({ status: value || undefined, page: 1 })}
+                  options={statusOptions}
+                  placeholder="All statuses"
+                />
+              </label>
+              <label className="rv-orders-toolbar__field">
+                <span className="rv-label">Payment</span>
+                <Select
+                  value={String(params.paymentStatus ?? "")}
+                  onChange={(value) => state.update({ paymentStatus: value || undefined, page: 1 })}
+                  options={paymentOptions}
+                  placeholder="All payments"
+                />
+              </label>
+              <div className="rv-orders-toolbar__date-range" role="group" aria-label="Filter by order date">
+                <span className="rv-label">Order date</span>
+                <div className="rv-orders-toolbar__dates">
+                  <label className="rv-orders-toolbar__field">
+                    <span className="rv-hint">From</span>
+                    <TextInput
+                      type="date"
+                      value={String(params.from ?? "")}
+                      onChange={(value) => state.update({ from: value || undefined, page: 1 })}
+                    />
+                  </label>
+                  <label className="rv-orders-toolbar__field">
+                    <span className="rv-hint">To</span>
+                    <TextInput
+                      type="date"
+                      value={String(params.to ?? "")}
+                      onChange={(value) => state.update({ to: value || undefined, page: 1 })}
+                    />
+                  </label>
+                </div>
+              </div>
+              {hasFilters ? (
+                <div className="rv-orders-toolbar__reset">
+                  <Button size="sm" onClick={state.reset}>
+                    Reset filters
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <DataTable

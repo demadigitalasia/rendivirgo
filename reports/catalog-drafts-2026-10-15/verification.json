@@ -1,0 +1,77 @@
+{
+  "checkedAt": "2026-10-15T14:13:42.820Z",
+  "products": [
+    {
+      "id": "cmv9lsubo00086evkit1jcdjw",
+      "name": "Blue Cloud Crescent",
+      "slug": "blue-cloud-crescent",
+      "status": "Draft",
+      "price": 48,
+      "currency": "USD",
+      "images": [
+        {
+          "url": "http://localhost:4000/uploads/products/202610/mv9lsub5-24be670ccf99.webp",
+          "status": 200,
+          "type": "image/webp"
+        },
+        {
+          "url": "http://localhost:4000/uploads/products/202610/mv9lsubc-a4a5c0556e7b.webp",
+          "status": 200,
+          "type": "image/webp"
+        }
+      ],
+      "matches": 1,
+      "publicStatus": 404
+    },
+    {
+      "id": "cmv9lsuc1000g6evkg6um1y0p",
+      "name": "Tidal Reef Freeform",
+      "slug": "tidal-reef-freeform",
+      "status": "Draft",
+      "price": 58,
+      "currency": "USD",
+      "images": [
+        {
+          "url": "http://localhost:4000/uploads/products/202610/mv9lsubv-b67cee6ba039.webp",
+          "status": 200,
+          "type": "image/webp"
+        },
+        {
+          "url": "http://localhost:4000/uploads/products/202610/mv9lsuby-9a514edf1689.webp",
+          "status": 200,
+          "type": "image/webp"
+        }
+      ],
+      "matches": 1,
+      "publicStatus": 404
+    },
+    {
+      "id": "cmv9lsucf000o6evkcf1kuy2r",
+      "name": "Bloom Teardrop Pair",
+      "slug": "bloom-teardrop-pair",
+      "status": "Draft",
+      "price": 68,
+      "currency": "USD",
+      "images": [
+        {
+          "url": "http://localhost:4000/uploads/products/202610/mv9lsuc5-a8bafa7bc1f7.webp",
+          "status": 200,
+          "type": "image/webp"
+        },
+        {
+          "url": "http://localhost:4000/uploads/products/202610/mv9lsuc8-978b255dcf63.jpg",
+          "status": 200,
+          "type": "image/jpeg"
+        }
+      ],
+      "matches": 1,
+      "publicStatus": 404
+    }
+  ],
+  "visualReview": {
+    "background": "Consistent cream and sage",
+    "pair": "Two stones preserved",
+    "fidelity": "General silhouettes and recognizable motifs retained; fine details are not guaranteed identical after generative editing. Original photos retained for comparison.",
+    "adminScreenshot": "evidence/drafts-admin.png"
+  }
+}

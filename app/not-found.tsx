@@ -1,22 +1,23 @@
-import Link from "next/link";
+import Link from "@/components/localized-link";
+import { dictionaries } from "@/lib/i18n";
+import { getRequestLanguage } from "@/lib/server-locale";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const language = await getRequestLanguage();
+  const t = dictionaries[language];
   return (
     <div className="page-container content-page">
       <div className="eyebrow">404</div>
-      <h1>This piece is not here.</h1>
+      <h1>{t.notFound.title}</h1>
       <p className="muted" style={{ margin: "18px 0 6px" }}>
-        The page or stone you are looking for may have moved into a private collection.
-      </p>
-      <p className="muted" lang="id" style={{ margin: "0 0 26px" }}>
-        Halaman atau batu yang Anda cari mungkin sudah pindah ke koleksi pribadi.
+        {t.notFound.body}
       </p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Link href="/" className="button">
-          Return home
+        <Link href="/" locale={language} className="button">
+          {t.notFound.home}
         </Link>
-        <Link href="/shop" className="button button--outline">
-          Browse the collection
+        <Link href="/shop" locale={language} className="button button--outline">
+          {t.notFound.shop}
         </Link>
       </div>
     </div>

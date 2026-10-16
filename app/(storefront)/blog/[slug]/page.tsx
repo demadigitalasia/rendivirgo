@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { JournalCover } from "@/components/journal-cover";
 import { journalCover } from "@/lib/editorial-images";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { notFound } from "next/navigation";
 import { ArticleShare } from "@/components/article-share";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { PageBody, formatContentDate, slugifyHeading } from "@/components/page-body";
 import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
 import { getBlogPost, getBlogPosts } from "@/lib/storefront";
+import { dictionaries } from "@/lib/i18n";
+import { getRequestLanguage } from "@/lib/server-locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
 
 export const revalidate = 60;
 
@@ -20,13 +23,17 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getBlogPost(slug);
+  const language = await getRequestLanguage();
+  const post = await getBlogPost(slug, language);
   if (!post) return {};
-  const description = post.metaDescription ?? post.excerpt;
+  const journal = dictionaries[language].journal;
+  const englishFallback = language === "id" && post.contentLocale === "en";
+  const title = englishFallback ? `Artikel berbahasa Inggris | ${post.title} | RENDI VIRGO` : post.metaTitle ?? `${post.title} | RENDI VIRGO ${journal.eyebrow}`;
+  const description = englishFallback ? dictionaries.id.draft.fallback : post.metaDescription ?? post.excerpt;
   return {
-    title: post.metaTitle ?? `${post.title} | RENDI VIRGO Journal`,
+    title,
     description,
-    alternates: { canonical: `/blog/${post.slug}` },
+    alternates: localizedAlternates(`/blog/${post.slug}`, language),
     openGraph: { title: post.title, description, type: "article" },
   };
 }
@@ -44,14 +51,17 @@ function headingsFrom(body: string): Array<{ id: string; text: string }> {
 
 export default async function BlogArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = await getBlogPost(slug);
+  const language = await getRequestLanguage();
+  const t = dictionaries[language];
+  const journal = t.journal;
+  const post = await getBlogPost(slug, language);
   if (!post) notFound();
 
   const publishedAt = post.publishedAt ?? post.updatedAt;
-  const publishedLabel = formatContentDate(publishedAt);
-  const category = post.tags[0] ?? "Journal";
+  const publishedLabel = formatContentDate(publishedAt, language);
+  const category = post.tags[0] ?? journal.eyebrow;
   const headings = headingsFrom(post.body ?? "");
-  const { posts: latest } = await getBlogPosts({ pageSize: 9 });
+  const { posts: latest } = await getBlogPosts({ pageSize: 9 }, language);
   const related = latest.filter((item) => item.slug !== post.slug && item.tags.some((tag) => post.tags.includes(tag))).slice(0, 3);
   const fallbackRelated = latest.filter((item) => item.slug !== post.slug).slice(0, 3);
   const relatedPosts = related.length ? related : fallbackRelated;
@@ -70,12 +80,13 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
       name: "RENDI VIRGO",
       logo: { "@type": "ImageObject", url: absoluteUrl("/brand/rendi-virgo-logo-white.webp") },
     },
-    mainEntityOfPage: absoluteUrl(`/blog/${post.slug}`),
+    inLanguage: post.contentLocale ?? language,
+    mainEntityOfPage: absoluteUrl(localizedPath(`/blog/${post.slug}`, language)),
   };
   const breadcrumbs = breadcrumbJsonLd([
-    { name: "Home", path: "/" },
-    { name: "Journal", path: "/blog" },
-    { name: post.title, path: `/blog/${post.slug}` },
+    { name: t.nav.home, path: localizedPath("/", language) },
+    { name: journal.eyebrow, path: localizedPath("/blog", language) },
+    { name: post.title, path: localizedPath(`/blog/${post.slug}`, language) },
   ]);
 
   return (
@@ -87,10 +98,11 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
           <Breadcrumb
             contained={false}
             tone="light"
-            items={[{ label: "Journal", href: "/blog" }, { label: post.title }]}
+            items={[{ label: journal.eyebrow, href: "/blog" }, { label: post.title }]}
           />
           <div className="article-hero__grid">
             <div>
+              {language === "id" && post.contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
               <div className="article-hero__tags">
                 <span className="article-hero__chip">{category}</span>
                 {post.tags.slice(1, 3).map((tag) => (
@@ -99,14 +111,14 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
                   </span>
                 ))}
               </div>
-              <h1>{post.title}</h1>
-              <p className="article-hero__excerpt">{post.excerpt}</p>
+              <h1 lang={post.contentLocale}>{post.title}</h1>
+              <p className="article-hero__excerpt" lang={post.contentLocale}>{post.excerpt}</p>
               <div className="article-hero__meta">
                 <span>{post.author || "RENDI VIRGO"}</span>
                 <span aria-hidden="true">·</span>
                 <span>{publishedLabel}</span>
                 <span aria-hidden="true">·</span>
-                <span>{post.readMinutes} min read</span>
+                  <span>{journal.readTime(post.readMinutes)}</span>
               </div>
             </div>
             <div className="article-hero__cover">
@@ -119,18 +131,20 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
 
       <div className="page-container article-layout">
         <article className="article article--rich">
-          <PageBody body={post.body ?? ""} className="article__body" />
+          <div lang={post.contentLocale ?? language}>
+            <PageBody body={post.body ?? ""} className="article__body" />
+          </div>
           <ArticleShare title={post.title} />
           <div className="article-cta">
-            <div className="eyebrow eyebrow--light">From reading to holding</div>
-            <h2>See these details in real stones.</h2>
-            <p>Every cabochon lists its dome, polish, dimensions, and honest close-ups.</p>
+            <div className="eyebrow eyebrow--light">{journal.ctaEyebrow}</div>
+            <h2>{journal.ctaTitle}</h2>
+            <p>{journal.ctaBody}</p>
             <div className="article-cta__actions">
               <Link href="/shop/cabochons" className="button button--light">
-                Shop cabochons
+                {journal.shopCabochons}
               </Link>
               <Link href="/shop" className="button article-cta__ghost">
-                Browse all stones
+                {journal.browseStones}
               </Link>
             </div>
           </div>
@@ -138,8 +152,8 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
 
         <aside className="article-side">
           {headings.length ? (
-            <nav className="article-toc" aria-label="In this guide">
-              <span className="article-toc__label">In this guide</span>
+            <nav className="article-toc" aria-label={journal.inGuide}>
+              <span className="article-toc__label">{journal.inGuide}</span>
               <ol>
                 {headings.map((heading) => (
                   <li key={heading.id}>
@@ -150,23 +164,23 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
             </nav>
           ) : null}
           <div className="article-facts">
-            <span className="article-facts__label">At a glance</span>
+            <span className="article-facts__label">{journal.atGlance}</span>
             <dl>
               <div>
-                <dt>Topic</dt>
+                <dt>{journal.topic}</dt>
                 <dd>{category}</dd>
               </div>
               <div>
-                <dt>Reading time</dt>
-                <dd>{post.readMinutes} min</dd>
+                <dt>{journal.readingTime}</dt>
+                <dd>{journal.readTime(post.readMinutes)}</dd>
               </div>
               <div>
-                <dt>Published</dt>
+                <dt>{journal.published}</dt>
                 <dd>{publishedLabel}</dd>
               </div>
             </dl>
             <Link href="/shop/cabochons" className="text-button">
-              Shop cabochons
+              {journal.shopCabochons}
             </Link>
           </div>
         </aside>
@@ -175,18 +189,18 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
       {relatedPosts.length ? (
         <section className="page-container article-related">
           <div className="section-heading">
-            <h2>Keep reading</h2>
+            <h2>{journal.keepReading}</h2>
             <Link href="/blog" className="text-button">
-              All journal entries
+              {journal.allEntries}
             </Link>
           </div>
           <div className="blog-grid">
             {relatedPosts.map((item) => (
               <Link href={`/blog/${item.slug}`} className="blog-card" key={item.slug}>
-                <div className="eyebrow eyebrow--light">{item.tags[0] ?? "Journal"}</div>
+                <div className="eyebrow eyebrow--light">{item.tags[0] ?? journal.eyebrow}</div>
                 <h2>{item.title}</h2>
                 <p>{item.excerpt}</p>
-                <div className="blog-card__date">{formatContentDate(item.publishedAt ?? item.updatedAt)}</div>
+                <div className="blog-card__date">{formatContentDate(item.publishedAt ?? item.updatedAt, language)}</div>
               </Link>
             ))}
           </div>

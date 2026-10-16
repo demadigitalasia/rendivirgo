@@ -30,6 +30,11 @@ type Category = {
   isActive: boolean;
   metaTitle: string | null;
   metaDescription: string | null;
+  nameId: string | null;
+  descriptionId: string | null;
+  metaTitleId: string | null;
+  metaDescriptionId: string | null;
+  idTranslationStatus: "Missing" | "Draft" | "Review" | "Ready";
   productCount: number;
 };
 
@@ -42,6 +47,11 @@ type CategoryFormValues = {
   isActive: boolean;
   metaTitle: string;
   metaDescription: string;
+  nameId: string;
+  descriptionId: string;
+  metaTitleId: string;
+  metaDescriptionId: string;
+  idTranslationStatus: "Missing" | "Draft" | "Review" | "Ready";
 };
 
 const toneValues = ["moss", "jade", "amber", "ocean", "earth"] as const;
@@ -55,6 +65,11 @@ const emptyForm: CategoryFormValues = {
   isActive: true,
   metaTitle: "",
   metaDescription: "",
+  nameId: "",
+  descriptionId: "",
+  metaTitleId: "",
+  metaDescriptionId: "",
+  idTranslationStatus: "Missing",
 };
 
 const slugify = (value: string) =>
@@ -98,6 +113,11 @@ export default function AdminCategoriesPage() {
       isActive: category.isActive,
       metaTitle: category.metaTitle ?? "",
       metaDescription: category.metaDescription ?? "",
+      nameId: category.nameId ?? "",
+      descriptionId: category.descriptionId ?? "",
+      metaTitleId: category.metaTitleId ?? "",
+      metaDescriptionId: category.metaDescriptionId ?? "",
+      idTranslationStatus: category.idTranslationStatus ?? "Missing",
     });
     setImageUrl(category.imageUrl ?? "");
     setFormError(null);
@@ -120,6 +140,11 @@ export default function AdminCategoriesPage() {
       isActive: form.isActive,
       metaTitle: form.metaTitle.trim() || null,
       metaDescription: form.metaDescription.trim() || null,
+      nameId: form.nameId.trim() || null,
+      descriptionId: form.descriptionId.trim() || null,
+      metaTitleId: form.metaTitleId.trim() || null,
+      metaDescriptionId: form.metaDescriptionId.trim() || null,
+      idTranslationStatus: form.idTranslationStatus,
     };
 
     setSaving(true);
@@ -317,6 +342,28 @@ export default function AdminCategoriesPage() {
             </Field>
             <Field label="Description" className="rv-span-2">
               <TextArea value={form.description} onChange={(value) => setField("description", value)} rows={3} />
+            </Field>
+            <div className="rv-span-2">
+              <h3>Bahasa Indonesia</h3>
+              <p className="rv-hint">Set status to Ready after reviewing the translated name and description.</p>
+            </div>
+            <Field label="Translation status">
+              <Select value={form.idTranslationStatus} onChange={(value) => setField("idTranslationStatus", value as CategoryFormValues["idTranslationStatus"])} options={[
+                { value: "Missing", label: "Missing" }, { value: "Draft", label: "Draft" },
+                { value: "Review", label: "Ready for review" }, { value: "Ready", label: "Ready to publish" },
+              ]} />
+            </Field>
+            <Field label="Name (Indonesian)">
+              <TextInput value={form.nameId} onChange={(value) => setField("nameId", value)} />
+            </Field>
+            <Field label="Description (Indonesian)" className="rv-span-2">
+              <TextArea value={form.descriptionId} onChange={(value) => setField("descriptionId", value)} rows={3} />
+            </Field>
+            <Field label="Meta title (Indonesian)">
+              <TextInput value={form.metaTitleId} onChange={(value) => setField("metaTitleId", value)} />
+            </Field>
+            <Field label="Meta description (Indonesian)" className="rv-span-2">
+              <TextArea value={form.metaDescriptionId} onChange={(value) => setField("metaDescriptionId", value)} rows={3} />
             </Field>
           </div>
           <MediaPicker

@@ -4,6 +4,7 @@ import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
 import { slugify, uniqueSlug } from "../common/utils/slug";
+import type { StorefrontLanguage } from "../common/utils/storefront-language";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreatePageDto, PageQueryDto, UpdatePageDto } from "./dto/content.dto";
 
@@ -11,6 +12,8 @@ export const pageFooterSelect = {
   id: true,
   slug: true,
   title: true,
+  titleId: true,
+  idTranslationStatus: true,
   sortOrder: true,
   showInFooter: true,
 } satisfies Prisma.PageSelect;
@@ -22,20 +25,39 @@ export class PagesService {
     private readonly audit: AuditService,
   ) {}
 
+  private toPublic<T extends {
+    title: string; titleId: string | null; body?: string; bodyId?: string | null;
+    metaTitle?: string | null; metaTitleId?: string | null; metaDescription?: string | null; metaDescriptionId?: string | null;
+    idTranslationStatus: string;
+  }>(page: T, language: StorefrontLanguage) {
+    const idReady = language === "id" && page.idTranslationStatus === "Ready" && Boolean(page.titleId?.trim()) &&
+      (page.body === undefined || !page.body.trim() || Boolean(page.bodyId?.trim()));
+    const { titleId, bodyId, metaTitleId, metaDescriptionId, idTranslationStatus, ...publicPage } = page;
+    return {
+      ...publicPage,
+      title: idReady ? titleId! : page.title,
+      ...(page.body !== undefined ? { body: idReady ? bodyId ?? page.body : page.body } : {}),
+      ...(page.metaTitle !== undefined ? { metaTitle: idReady ? metaTitleId : page.metaTitle } : {}),
+      ...(page.metaDescription !== undefined ? { metaDescription: idReady ? metaDescriptionId : page.metaDescription } : {}),
+      contentLocale: idReady ? "id" : "en",
+    };
+  }
+
   // ------------------------------------------------------------ queries
 
-  async listPublic() {
-    return this.prisma.page.findMany({
+  async listPublic(language: StorefrontLanguage = "en") {
+    const pages = await this.prisma.page.findMany({
       where: { status: "Published" },
       orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
       select: pageFooterSelect,
     });
+    return pages.map((page) => this.toPublic(page, language));
   }
 
-  async getPublicBySlug(slug: string) {
+  async getPublicBySlug(slug: string, language: StorefrontLanguage = "en") {
     const page = await this.prisma.page.findFirst({ where: { slug, status: "Published" } });
     if (!page) throw new NotFoundException("Page not found");
-    return page;
+    return this.toPublic(page, language);
   }
 
   async listAdmin(query: PageQueryDto) {
@@ -87,6 +109,11 @@ export class PagesService {
         sortOrder: dto.sortOrder ?? 0,
         metaTitle: dto.metaTitle ?? null,
         metaDescription: dto.metaDescription ?? null,
+        titleId: dto.titleId ?? null,
+        bodyId: dto.bodyId ?? null,
+        metaTitleId: dto.metaTitleId ?? null,
+        metaDescriptionId: dto.metaDescriptionId ?? null,
+        idTranslationStatus: dto.idTranslationStatus ?? "Missing",
       },
     });
 
@@ -126,6 +153,11 @@ export class PagesService {
         ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
         ...(dto.metaTitle !== undefined ? { metaTitle: dto.metaTitle } : {}),
         ...(dto.metaDescription !== undefined ? { metaDescription: dto.metaDescription } : {}),
+        ...(dto.titleId !== undefined ? { titleId: dto.titleId } : {}),
+        ...(dto.bodyId !== undefined ? { bodyId: dto.bodyId } : {}),
+        ...(dto.metaTitleId !== undefined ? { metaTitleId: dto.metaTitleId } : {}),
+        ...(dto.metaDescriptionId !== undefined ? { metaDescriptionId: dto.metaDescriptionId } : {}),
+        ...(dto.idTranslationStatus !== undefined ? { idTranslationStatus: dto.idTranslationStatus } : {}),
       },
     });
 

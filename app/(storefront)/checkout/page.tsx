@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CheckoutView } from "@/components/checkout-view";
+import { storefrontMetadata } from "@/lib/storefront-metadata";
 
-export const metadata: Metadata = {
-  title: "Checkout | RENDI VIRGO",
-  description: "Secure checkout with worldwide shipping calculated from total order weight and PayPal payment in USD.",
-  robots: { index: false, follow: false },
-};
+export const generateMetadata = (): Promise<Metadata> => storefrontMetadata("checkout", "/checkout", { robots: { index: false, follow: false } });
 
 export default function CheckoutPage() {
   return (

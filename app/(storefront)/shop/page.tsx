@@ -2,15 +2,21 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ShopCatalog } from "@/components/shop-catalog";
 import { getCategories, getProductFilters, getProducts } from "@/lib/storefront";
+import { getRequestLanguage } from "@/lib/server-locale";
+import { localizedAlternates } from "@/lib/locale";
+import { dictionaries } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Shop Natural Indonesian Stones | RENDI VIRGO",
-  description:
-    "Browse cabochons, pairs, rough, slabs, specimens, tumbled stones, beads, and faceted gemstones. Every piece is documented with origin, condition, weight, and availability.",
-  alternates: { canonical: "/shop" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const language = await getRequestLanguage();
+  const t = dictionaries[language].metadata;
+  return {
+    title: t.shopTitle,
+    description: t.shopDescription,
+    alternates: localizedAlternates("/shop", language),
+  };
+}
 
 const PAGE_SIZE = 12;
 
@@ -32,6 +38,7 @@ const weightRange = (value: string) => {
 
 export default async function ShopPage({ searchParams }: { searchParams: Promise<ShopSearchParams> }) {
   const params = await searchParams;
+  const language = await getRequestLanguage();
   const get = (key: string): string | undefined => {
     const value = params[key];
     return Array.isArray(value) ? value[0] : value;
@@ -55,8 +62,8 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
       ...(origin !== "all" ? { origin } : {}),
       ...priceRange(price),
       ...weightRange(weight),
-    }),
-    getCategories(),
+    }, language),
+    getCategories(language),
     getProductFilters(),
   ]);
 

@@ -2,28 +2,35 @@ import type { Metadata } from "next";
 import { HomeContent } from "@/components/home-content";
 import { absoluteUrl, siteUrl } from "@/lib/seo";
 import { getCategories, getProducts, getPublicSettings, getSiteContent, getTestimonials } from "@/lib/storefront";
+import { dictionaries } from "@/lib/i18n";
+import { getRequestLanguage } from "@/lib/server-locale";
+import { localizedAlternates } from "@/lib/locale";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "RENDI VIRGO | Authentic Indonesian Stones",
-  description:
-    "Natural semi-precious stones from Indonesia — cabochons, rough, slabs, beads, and one-of-a-kind specimens selected for collectors and makers worldwide.",
-  alternates: { canonical: "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const language = await getRequestLanguage();
+  const home = dictionaries[language].home;
+  return {
+    title: `RENDI VIRGO | ${dictionaries[language].metadata.homeTitle}`,
+    description: dictionaries[language].metadata.homeDescription,
+    alternates: localizedAlternates("/", language),
+  };
+}
 
 export default async function HomePage() {
+  const language = await getRequestLanguage();
   const [featuredResult, categories, siteContent, testimonials, store] = await Promise.all([
-    getProducts({ featured: true, pageSize: 4 }),
-    getCategories(),
-    getSiteContent(),
-    getTestimonials(),
+    getProducts({ featured: true, pageSize: 4 }, language),
+    getCategories(language),
+    getSiteContent(language),
+    getTestimonials(language),
     getPublicSettings(),
   ]);
 
   let featured = featuredResult.products;
   if (!featured.length) {
-    const latest = await getProducts({ pageSize: 4, sort: "newest" });
+    const latest = await getProducts({ pageSize: 4, sort: "newest" }, language);
     featured = latest.products;
   }
 
@@ -59,7 +66,7 @@ export default async function HomePage() {
         featured={featured}
         categories={categories
           .slice(0, 5)
-          .map((category) => ({ slug: category.slug, name: category.name, imageUrl: category.imageUrl }))}
+          .map((category) => ({ slug: category.slug, name: category.name, imageUrl: category.imageUrl, contentLocale: category.contentLocale }))}
         siteContent={siteContent}
         testimonials={testimonials}
         whatsapp={store.store.whatsapp}

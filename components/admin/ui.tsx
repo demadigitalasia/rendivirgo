@@ -3,12 +3,23 @@
 import Link from "next/link";
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from "react";
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  eyebrow = "Admin workspace",
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+  eyebrow?: string;
+}) {
   return (
     <>
       <div className="rv-topbar">
-        <div>
-          <div className="rv-topbar__title">{title}</div>
+        <div className="rv-topbar__heading">
+          <span className="rv-topbar__eyebrow">{eyebrow}</span>
+          <h1 className="rv-topbar__title">{title}</h1>
           {subtitle ? <div className="rv-topbar__subtitle">{subtitle}</div> : null}
         </div>
         {actions ? <div className="rv-topbar__actions">{actions}</div> : null}
@@ -56,6 +67,7 @@ export function Button({
   size,
   disabled,
   loading,
+  ariaPressed,
   className,
   href,
 }: {
@@ -66,6 +78,7 @@ export function Button({
   size?: "sm";
   disabled?: boolean;
   loading?: boolean;
+  ariaPressed?: boolean;
   className?: string;
   href?: string;
 }) {
@@ -87,7 +100,14 @@ export function Button({
   }
 
   return (
-    <button className={classes} type={type} onClick={onClick} disabled={disabled || loading} aria-busy={loading || undefined}>
+    <button
+      className={classes}
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      aria-pressed={ariaPressed}
+    >
       {loading ? <span className="rv-spinner" /> : null}
       {children}
     </button>
@@ -192,6 +212,7 @@ export function TextInput({
   max,
   step,
   disabled,
+  readOnly,
   id,
   name,
   required,
@@ -200,13 +221,14 @@ export function TextInput({
   autoComplete,
 }: {
   value: string | number;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   type?: string;
   placeholder?: string;
   min?: number | string;
   max?: number | string;
   step?: number | string;
   disabled?: boolean;
+  readOnly?: boolean;
   id?: string;
   name?: string;
   required?: boolean;
@@ -226,11 +248,12 @@ export function TextInput({
       max={max}
       step={step}
       disabled={disabled}
+      readOnly={readOnly}
       required={required}
       aria-invalid={ariaInvalid || undefined}
       aria-describedby={ariaDescribedBy}
       autoComplete={autoComplete}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={onChange ? (event) => onChange(event.target.value) : undefined}
     />
   );
 }

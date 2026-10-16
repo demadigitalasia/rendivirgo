@@ -13,17 +13,25 @@ import { ConfigService } from "@nestjs/config";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
-import { EmailService } from "../email/email.service";
-import { renderOrderPaidEmail } from "../email/email.templates";
-import { buildOrderEmailData } from "../email/order-email-data";
-import { OrdersService } from "../orders/orders.service";
+import type { Order } from "../../generated/prisma";
+import { OrderLifecycleService } from "../orders/order-lifecycle.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
 import { detectImageType, ALLOWED_IMAGE_MIME } from "../uploads/image-validation";
-import { PayPalService, type PayPalCapture, type PayPalOrder } from "./paypal.service";
+import { PayPalService, type PayPalOrder, type PayPalShippingAddress } from "./paypal.service";
 
 const SWEEP_INTERVAL_MS = 5 * 60_000;
-const BANK_TRANSFER_RESERVATION_HOURS = 72;
+type OrderWithShippingAddress = Pick<
+  Order,
+  | "orderNumber"
+  | "customerName"
+  | "shippingLine1"
+  | "shippingLine2"
+  | "shippingCity"
+  | "shippingState"
+  | "shippingPostalCode"
+  | "shippingCountryCode"
+>;
 
 export type PaymentProofFile = {
   originalname: string;
@@ -35,8 +43,6 @@ export type PaymentProofFile = {
 @Injectable()
 export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PaymentsService.name);
-  private readonly reservationMinutes: number;
-  private readonly bankTransferReservationHours: number;
   private readonly sweepIntervalMs: number;
   private readonly paymentProofRoot: string;
   private timer?: NodeJS.Timeout;
@@ -44,15 +50,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly paypal: PayPalService,
-    private readonly orders: OrdersService,
+    private readonly lifecycle: OrderLifecycleService,
     private readonly settings: SettingsService,
-    private readonly email: EmailService,
     private readonly config: ConfigService,
   ) {
-    const configured = Number(this.config.get("ORDER_RESERVATION_MINUTES") ?? 60);
-    this.reservationMinutes = Number.isFinite(configured) && configured > 0 ? Math.max(10, configured) : 60;
-    const bankHours = Number(this.config.get("BANK_TRANSFER_RESERVATION_HOURS") ?? BANK_TRANSFER_RESERVATION_HOURS);
-    this.bankTransferReservationHours = Number.isFinite(bankHours) && bankHours > 0 ? Math.max(24, bankHours) : BANK_TRANSFER_RESERVATION_HOURS;
     this.paymentProofRoot = resolve(join(process.cwd(), this.config.get<string>("UPLOAD_DIR") ?? "uploads", ".payment-proofs"));
     const sweep = Number(this.config.get("PAYMENT_SWEEP_INTERVAL_MS") ?? SWEEP_INTERVAL_MS);
     this.sweepIntervalMs = Number.isFinite(sweep) && sweep >= 10_000 ? sweep : SWEEP_INTERVAL_MS;
@@ -101,6 +102,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
             orderNumber: true,
             email: true,
             paymentStatus: true,
+            status: true,
             paymentMethod: true,
             paymentProofUploadedAt: true,
             total: true,
@@ -114,6 +116,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
             orderNumber: true,
             email: true,
             paymentStatus: true,
+            status: true,
             paymentMethod: true,
             paymentProofUploadedAt: true,
             total: true,
@@ -125,11 +128,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException("Order not found");
     }
 
-    const expired = order.paymentMethod === "BankTransfer"
-      ? !order.paymentProofUploadedAt && Date.now() - order.placedAt.getTime() > this.bankTransferReservationHours * 60 * 60_000
-      : Date.now() - order.placedAt.getTime() > this.reservationMinutes * 60_000;
-    if (order.paymentStatus === "Pending" && expired) {
-      await this.releaseExpiredOrders();
+    if (order.paymentStatus === "Pending" && this.lifecycle.isPaymentWindowExpired(order)) {
+      await this.lifecycle.releaseExpiredOrders();
     }
 
     const current = await this.prisma.order.findUniqueOrThrow({
@@ -138,6 +138,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         id: true,
         orderNumber: true,
         paymentStatus: true,
+        status: true,
         paymentMethod: true,
         paymentProofUploadedAt: true,
         total: true,
@@ -148,10 +149,16 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       orderId: current.id,
       orderNumber: current.orderNumber,
       paymentStatus: current.paymentStatus,
+      orderStatus: current.status,
       total: current.total.toNumber(),
       paymentMethod: current.paymentMethod,
       paymentProofUploadedAt: current.paymentProofUploadedAt,
-      canRetry: current.paymentStatus === "Pending" && current.paymentMethod === "PayPal" && paymentMethods.paypal.enabled,
+      canRetry:
+        current.paymentStatus === "Pending" &&
+        current.status !== "Cancelled" &&
+        current.status !== "Returned" &&
+        current.paymentMethod === "PayPal" &&
+        paymentMethods.paypal.enabled,
     };
   }
 
@@ -180,8 +187,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (order.paymentStatus !== "Pending" || order.status === "Cancelled" || order.status === "Returned") {
       throw new BadRequestException("This order is no longer awaiting a bank transfer");
     }
-    if (!order.paymentProofUploadedAt && Date.now() - order.placedAt.getTime() > this.bankTransferReservationHours * 60 * 60_000) {
-      await this.releaseExpiredOrders();
+    if (!order.paymentProofUploadedAt && this.lifecycle.isPaymentWindowExpired(order)) {
+      await this.lifecycle.releaseExpiredOrders();
       throw new BadRequestException("The payment window has expired. Please contact us before sending a transfer.");
     }
 
@@ -194,50 +201,28 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const relativePath = relative(this.paymentProofRoot, absolutePath).split("\\").join("/");
     await writeFile(absolutePath, file.buffer, { flag: "wx" });
 
+    let proofResult: { previousPath: string | null; firstUpload: boolean };
     try {
-      await this.prisma.$transaction(async (tx) => {
-        const updated = await tx.order.updateMany({
-          where: {
-            id: order.id,
-            paymentMethod: "BankTransfer",
-            paymentStatus: "Pending",
-            status: { notIn: ["Cancelled", "Returned"] },
-          },
-          data: {
-            paymentProofPath: relativePath,
-            paymentProofMime: detected.mime,
-            paymentProofUploadedAt: now,
-          },
-        });
-        if (updated.count !== 1) throw new BadRequestException("This order is no longer awaiting a bank transfer");
-
-        await tx.orderEvent.create({
-          data: {
-            orderId: order.id,
-            type: "payment",
-            message: order.paymentProofUploadedAt ? "Customer replaced the bank transfer receipt" : "Customer uploaded a bank transfer receipt — awaiting verification",
-          },
-        });
-        if (!order.paymentProofUploadedAt) {
-          await tx.notification.create({
-            data: {
-              type: "Order",
-              title: `Transfer receipt received for ${order.orderNumber}`,
-              body: "A customer uploaded a bank transfer receipt for verification.",
-              href: `/admin/orders/${order.id}`,
-              entityType: "Order",
-              entityId: order.id,
-            },
-          });
-        }
+      proofResult = await this.lifecycle.recordBankTransferProof({
+        orderId: order.id,
+        path: relativePath,
+        mimeType: detected.mime,
+        uploadedAt: now,
+        expectedPreviousPath: order.paymentProofPath,
       });
     } catch (error) {
-      await unlink(absolutePath).catch(() => undefined);
+      const current = await this.prisma.order.findUnique({
+        where: { id: order.id },
+        select: { paymentProofPath: true },
+      });
+      if (current?.paymentProofPath !== relativePath) {
+        await unlink(absolutePath).catch(() => undefined);
+      }
       throw error;
     }
 
-    if (order.paymentProofPath) {
-      const previousPath = resolve(this.paymentProofRoot, order.paymentProofPath);
+    if (proofResult.previousPath) {
+      const previousPath = resolve(this.paymentProofRoot, proofResult.previousPath);
       if (previousPath.startsWith(this.paymentProofRoot + sep)) await unlink(previousPath).catch(() => undefined);
     }
 
@@ -272,6 +257,48 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
   // ------------------------------------------------------------ PayPal checkout
 
+  private paypalShippingAddress(order: OrderWithShippingAddress): PayPalShippingAddress {
+    const countryCode = order.shippingCountryCode?.trim().toUpperCase();
+    if (!order.shippingLine1?.trim() || !order.shippingCity?.trim() || !countryCode || !/^[A-Z]{2}$/.test(countryCode)) {
+      throw new BadRequestException("A listed destination with a valid two-letter country code is required for PayPal shipping");
+    }
+
+    return {
+      fullName: order.customerName,
+      line1: order.shippingLine1,
+      ...(order.shippingLine2 ? { line2: order.shippingLine2 } : {}),
+      city: order.shippingCity,
+      ...(order.shippingState ? { state: order.shippingState } : {}),
+      ...(order.shippingPostalCode ? { postalCode: order.shippingPostalCode } : {}),
+      countryCode,
+    };
+  }
+
+  private paypalShippingMatchesOrder(order: OrderWithShippingAddress, paypalOrder: PayPalOrder): boolean {
+    const purchaseUnit = paypalOrder.purchase_units?.find(
+      (unit) => unit.reference_id === order.orderNumber || unit.custom_id === order.orderNumber,
+    );
+    const address = purchaseUnit?.shipping?.address;
+    if (!address) return false;
+
+    const normalize = (value: string | null | undefined) => (value ?? "").normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+    const expectedCountryCode = order.shippingCountryCode?.trim().toUpperCase();
+    const requiredFieldsMatch =
+      normalize(address.address_line_1) === normalize(order.shippingLine1) &&
+      normalize(address.admin_area_2) === normalize(order.shippingCity) &&
+      address.country_code?.trim().toUpperCase() === expectedCountryCode;
+    if (!requiredFieldsMatch) return false;
+
+    const optionalFields = [
+      [order.shippingLine2, address.address_line_2],
+      [order.shippingPostalCode, address.postal_code],
+    ] as const;
+    if (optionalFields.some(([expected, actual]) => expected?.trim() && normalize(expected) !== normalize(actual))) return false;
+
+    const paypalName = purchaseUnit?.shipping?.name?.full_name;
+    return !paypalName || normalize(paypalName) === normalize(order.customerName);
+  }
+
   async createPaypalOrder(orderId: string, requestOrigin?: string) {
     const paymentSettings = await this.settings.getPaymentSettings();
     if (!paymentSettings.paypalEnabled) throw new ServiceUnavailableException("PayPal payments are disabled");
@@ -281,11 +308,18 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     if (!order) throw new NotFoundException("Order not found");
     if (order.paymentStatus !== "Pending") throw new BadRequestException("This order is not awaiting payment");
     if (order.paymentMethod !== "PayPal") throw new BadRequestException("This order was placed with a different payment method");
+    if (order.status === "Cancelled" || order.status === "Returned") throw new ConflictException("This order is no longer active for payment");
+    if (this.lifecycle.isPaymentWindowExpired(order)) {
+      await this.lifecycle.releaseExpiredOrders();
+      throw new ConflictException("The payment window has expired. Please contact us before trying to pay.");
+    }
     if (!order.total.greaterThan(0)) throw new BadRequestException("This order has nothing to pay");
+    const shippingAddress = this.paypalShippingAddress(order);
 
     const origin = this.appOrigin(requestOrigin);
-    if (order.paymentRef) {
-      const existingPaypalOrder = await this.paypal.getOrder(order.paymentRef);
+    const existingPaypalOrderId = order.paypalOrderId ?? (order.paymentStatus === "Pending" ? order.paymentRef : null);
+    if (existingPaypalOrderId) {
+      const existingPaypalOrder = await this.paypal.getOrder(existingPaypalOrderId);
       const existingUnit = existingPaypalOrder.purchase_units?.find(
         (unit) => unit.reference_id === order.orderNumber || unit.custom_id === order.orderNumber,
       );
@@ -295,7 +329,10 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       if (existingPaypalOrder.status === "CREATED" || existingPaypalOrder.status === "PAYER_ACTION_REQUIRED") {
         const approveUrl = this.paypal.approvalUrl(existingPaypalOrder);
         if (!approveUrl) throw new BadGatewayException("PayPal did not return an approval link for the existing session");
-        return { orderNumber: order.orderNumber, paypalOrderId: existingPaypalOrder.id, approveUrl };
+        if (this.paypalShippingMatchesOrder(order, existingPaypalOrder)) {
+          return { orderNumber: order.orderNumber, paypalOrderId: existingPaypalOrder.id, approveUrl };
+        }
+        this.logger.warn(`Replacing stale PayPal session without the current shipping address for ${order.orderNumber}`);
       }
 
       if (existingPaypalOrder.status === "APPROVED" || existingPaypalOrder.status === "COMPLETED") {
@@ -303,13 +340,14 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const retryKey = order.paymentRef
-      ? `rv-${createHash("sha256").update(`${order.orderNumber}:${order.paymentRef}`).digest("hex").slice(0, 32)}`
+    const retryKey = existingPaypalOrderId
+      ? `rv-${createHash("sha256").update(`${order.orderNumber}:${existingPaypalOrderId}`).digest("hex").slice(0, 32)}`
       : undefined;
     const created = await this.paypal.createOrder({
       amount: order.total.toFixed(2),
       currency: order.currency,
       referenceId: order.orderNumber,
+      shippingAddress,
       returnUrl: `${origin}/checkout?paypal=return&orderId=${encodeURIComponent(order.id)}`,
       cancelUrl: `${origin}/checkout?paypal=cancel&orderId=${encodeURIComponent(order.id)}`,
       ...(retryKey ? { idempotencyKey: retryKey } : {}),
@@ -317,39 +355,34 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
 
     if (!created.approveUrl) throw new BadGatewayException("PayPal did not return an approval link");
 
-    const claimed = await this.prisma.order.updateMany({
-      where: {
-        id: order.id,
-        paymentStatus: "Pending",
-        paymentMethod: "PayPal",
-        paymentRef: order.paymentRef,
-      },
-      data: { paymentMethod: "PayPal", paymentRef: created.id },
-    });
-    if (claimed.count === 0) {
-      const current = await this.prisma.order.findUnique({ where: { id: order.id }, select: { paymentStatus: true, paymentRef: true } });
-      if (current?.paymentStatus !== "Pending" || current.paymentRef !== created.id) {
-        throw new ConflictException("The order changed while PayPal checkout was starting. Refresh and try again.");
-      }
-    } else {
-      await this.prisma.orderEvent.create({
-        data: { orderId: order.id, type: "payment", message: `PayPal order ${created.id} created — awaiting payer approval` },
-      });
+    const createdOrder = await this.paypal.getOrder(created.id);
+    this.assertAmount(order.total.toFixed(2), order.currency, createdOrder, "PayPal order amount does not match this order");
+    if (!this.paypalShippingMatchesOrder(order, createdOrder)) {
+      throw new BadGatewayException("PayPal did not retain the shipping address for this order");
     }
+
+    await this.lifecycle.attachPaypalOrderSession(order.id, order.paypalOrderId, created.id);
 
     return { orderNumber: order.orderNumber, paypalOrderId: created.id, approveUrl: created.approveUrl };
   }
 
   async capturePaypalOrder(paypalOrderId: string) {
-    const order = await this.prisma.order.findFirst({ where: { paymentRef: paypalOrderId } });
+    const order = await this.prisma.order.findFirst({
+      where: { OR: [{ paypalOrderId }, { paymentRef: paypalOrderId }] },
+    });
     if (!order) throw new NotFoundException("Order not found for this PayPal payment");
 
     return this.captureForOrder(order.id, paypalOrderId);
   }
 
   private async captureForOrder(orderId: string, paypalOrderId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    let order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException("Order not found");
+
+    if (order.paymentStatus === "Pending" && this.lifecycle.isPaymentWindowExpired(order)) {
+      await this.lifecycle.releaseExpiredOrders();
+      order = await this.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    }
 
     if (order.paymentStatus === "Paid") {
       return {
@@ -362,8 +395,18 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       };
     }
     if (order.paymentStatus !== "Pending") throw new BadRequestException("This order can no longer be paid");
+    if (order.status === "Cancelled" || order.status === "Returned") {
+      throw new ConflictException("This order is no longer active for payment");
+    }
+    if (this.lifecycle.isPaymentWindowExpired(order)) {
+      await this.lifecycle.releaseExpiredOrders();
+      throw new ConflictException("The payment window has expired. Please contact us before trying to pay.");
+    }
 
     const paypalOrder = await this.paypal.getOrder(paypalOrderId);
+    if (!this.paypalShippingMatchesOrder(order, paypalOrder)) {
+      throw new ConflictException("PayPal shipping details do not match this order. Contact the store before paying.");
+    }
     let capture = this.paypal.extractCapture(paypalOrder);
 
     if (!capture) {
@@ -375,9 +418,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       capture = this.paypal.extractCapture(captured);
       if (!capture) {
         if (captured.status === "PENDING") {
-          await this.prisma.orderEvent.create({
-            data: { orderId: order.id, type: "payment", message: "PayPal capture is pending review" },
-          });
+          await this.lifecycle.recordPaymentEvent(order.id, "PayPal capture is pending review");
           return {
             status: "Pending" as const,
             orderId: order.id,
@@ -397,14 +438,30 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    const updated = await this.markOrderPaid(order.id, capture, "PayPal checkout");
+    const settlement = await this.lifecycle.settlePayment({
+      orderId: order.id,
+      paymentMethod: "PayPal",
+      paymentRef: capture.id,
+      source: "PayPal checkout",
+    });
+    if (settlement.outcome === "review") {
+      return {
+        status: "Pending" as const,
+        orderId: settlement.order.id,
+        orderNumber: settlement.order.orderNumber,
+        total: settlement.order.total.toNumber(),
+        currency: settlement.order.currency,
+        paidAt: null,
+        manualReview: true,
+      };
+    }
     return {
       status: "Paid" as const,
-      orderId: updated.id,
-      orderNumber: updated.orderNumber,
-      total: updated.total.toNumber(),
-      currency: updated.currency,
-      paidAt: updated.paidAt,
+      orderId: settlement.order.id,
+      orderNumber: settlement.order.orderNumber,
+      total: settlement.order.total.toNumber(),
+      currency: settlement.order.currency,
+      paidAt: settlement.order.paidAt,
     };
   }
 
@@ -422,83 +479,6 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`PayPal amount mismatch: expected ${expectedCurrency} ${expectedValue}, got ${amount.currency_code} ${amount.value}`);
       throw new BadRequestException(message);
     }
-  }
-
-  // ------------------------------------------------------------ payment state
-
-  private async markOrderPaid(orderId: string, capture: PayPalCapture, source: string) {
-    const claim = await this.prisma.$transaction(async (tx) => {
-      const pending = await tx.order.updateMany({
-        where: { id: orderId, paymentStatus: "Pending" },
-        data: { paymentStatus: "Paid", paidAt: new Date(), paymentRef: capture.id },
-      });
-      if (pending.count > 0) {
-        await this.orders.markUniqueProductsSold(tx, orderId);
-        await tx.orderEvent.create({
-          data: { orderId, type: "payment", message: `${source}: payment captured (PayPal ${capture.id})` },
-        });
-        return "claimed" as const;
-      }
-
-      const current = await tx.order.findUnique({ where: { id: orderId }, select: { paymentStatus: true } });
-      if (current?.paymentStatus === "Failed") {
-        await tx.order.update({
-          where: { id: orderId },
-          data: { paymentStatus: "Paid", paidAt: new Date(), paymentRef: capture.id },
-        });
-        await tx.orderEvent.create({
-          data: {
-            orderId,
-            type: "payment",
-            message: `${source}: payment captured AFTER reservation expiry — stock was released, manual review required (PayPal ${capture.id})`,
-          },
-        });
-        return "late" as const;
-      }
-      return "duplicate" as const;
-    });
-
-    const order = await this.prisma.order.findUniqueOrThrow({ where: { id: orderId }, include: { items: true } });
-    if (claim === "duplicate") return order;
-
-    if (claim === "late") {
-      this.logger.error(
-        `PayPal ${capture.id} captured after reservation expiry for ${order.orderNumber} — stock already released, admin review required`,
-      );
-      await this.prisma.notification.create({
-        data: {
-          type: "Order",
-          title: `Payment captured after expiry — ${order.orderNumber}`,
-          body: "Stock was released when the payment window expired — review this order before shipping.",
-          href: `/admin/orders/${order.id}`,
-          entityType: "Order",
-          entityId: order.id,
-        },
-      });
-      return order;
-    }
-
-    await this.prisma.notification.create({
-      data: {
-        type: "Order",
-        title: `Payment received for ${order.orderNumber}`,
-        body: `${order.customerName} paid ${order.currency} ${order.total.toFixed(2)} via PayPal`,
-        href: `/admin/orders/${order.id}`,
-        entityType: "Order",
-        entityId: order.id,
-      },
-    });
-
-    const notificationSettings = await this.settings.getNotificationSettings();
-    if (notificationSettings.orderConfirmation) {
-      await this.email.send({
-        to: order.email,
-        subject: `Payment received — order ${order.orderNumber} confirmed`,
-        html: renderOrderPaidEmail(buildOrderEmailData(order)),
-      });
-    }
-
-    return order;
   }
 
   // ------------------------------------------------------------ webhook
@@ -519,7 +499,9 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     };
 
     const paypalOrderId = resource.supplementary_data?.related_ids?.order_id;
-    let order = paypalOrderId ? await this.prisma.order.findFirst({ where: { paymentRef: paypalOrderId } }) : null;
+    let order = paypalOrderId
+      ? await this.prisma.order.findFirst({ where: { OR: [{ paypalOrderId }, { paymentRef: paypalOrderId }] } })
+      : null;
     if (!order && resource.custom_id) {
       order = await this.prisma.order.findUnique({ where: { orderNumber: resource.custom_id } });
     }
@@ -527,7 +509,12 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`PayPal webhook ${type}: no matching order (order ${paypalOrderId ?? "unknown"})`);
       return { received: true, handled: false };
     }
-    if (order.paymentStatus === "Paid") return { received: true, handled: true };
+    if (order.paymentMethod !== "PayPal") return { received: true, handled: false };
+
+    if (paypalOrderId && order.paypalOrderId && order.paypalOrderId !== paypalOrderId) {
+      this.logger.warn(`PayPal webhook ${type}: ignoring a superseded PayPal order for ${order.orderNumber}`);
+      return { received: true, handled: false };
+    }
 
     if (!resource.id || resource.status !== "COMPLETED") {
       this.logger.warn(`PayPal webhook ${type}: capture not completed (${resource.status ?? "unknown"})`);
@@ -548,15 +535,25 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       return { received: true, handled: false };
     }
 
-    await this.markOrderPaid(
-      order.id,
-      {
-        id: resource.id,
-        status: "COMPLETED",
-        amount: { currency_code: resource.amount.currency_code, value: resource.amount.value },
-      },
-      "PayPal webhook",
-    );
+    if (!paypalOrderId) {
+      this.logger.error(`PayPal webhook for ${order.orderNumber} did not include the related PayPal order ID`);
+      return { received: true, handled: false };
+    }
+    const paypalOrder = await this.paypal.getOrder(paypalOrderId);
+    if (!this.paypalShippingMatchesOrder(order, paypalOrder)) {
+      this.logger.error(`PayPal capture shipping address did not match order ${order.orderNumber}; manual review required`);
+      return { received: true, handled: false };
+    }
+
+    const settlement = await this.lifecycle.settlePayment({
+      orderId: order.id,
+      paymentMethod: "PayPal",
+      paymentRef: resource.id,
+      source: "PayPal webhook",
+    });
+    if (settlement.outcome === "review" || settlement.outcome === "late") {
+      this.logger.warn("PayPal capture for " + settlement.order.orderNumber + " requires manual review");
+    }
 
     return { received: true, handled: true };
   }
@@ -564,61 +561,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
   // ------------------------------------------------------------ reservation expiry
 
   async releaseExpiredOrders(): Promise<number> {
-    const now = Date.now();
-    const paypalCutoff = new Date(now - this.reservationMinutes * 60_000);
-    const bankTransferCutoff = new Date(now - this.bankTransferReservationHours * 60 * 60_000);
-    const expired = await this.prisma.order.findMany({
-      where: {
-        paymentStatus: "Pending",
-        status: { in: ["New", "Processing"] },
-        OR: [
-          { paymentMethod: { not: "BankTransfer" }, placedAt: { lt: paypalCutoff } },
-          { paymentMethod: "BankTransfer", paymentProofUploadedAt: null, placedAt: { lt: bankTransferCutoff } },
-        ],
-      },
-      select: { id: true, orderNumber: true, paymentMethod: true, paymentProofUploadedAt: true },
-    });
-    if (expired.length > 0) {
-      this.logger.log(`Expiry sweep found ${expired.length} unpaid order(s) past their payment windows`);
-    }
-
-    let released = 0;
-    for (const order of expired) {
-      const done = await this.prisma.$transaction(async (tx) => {
-        const claimed = await tx.order.updateMany({
-          where: {
-            id: order.id,
-            paymentStatus: "Pending",
-            status: { in: ["New", "Processing"] },
-            OR: [
-              { paymentMethod: { not: "BankTransfer" }, placedAt: { lt: paypalCutoff } },
-              {
-                paymentMethod: "BankTransfer",
-                paymentProofUploadedAt: null,
-                placedAt: { lt: bankTransferCutoff },
-              },
-            ],
-          },
-          data: { status: "Cancelled", cancelledAt: new Date(), paymentStatus: "Failed" },
-        });
-        if (claimed.count === 0) return false;
-        await this.orders.releaseOrderInventory(tx, order.id);
-        await this.orders.releaseDiscountUsage(tx, order.id);
-        await tx.orderEvent.create({
-          data: {
-            orderId: order.id,
-            type: "payment",
-            message: order.paymentMethod === "BankTransfer"
-              ? `Bank transfer window expired after ${this.bankTransferReservationHours} hours — reserved items released`
-              : `Payment window expired after ${this.reservationMinutes} minutes — reserved items released`,
-          },
-        });
-        return true;
-      });
-      if (done) released += 1;
-    }
-
-    if (released > 0) this.logger.warn(`Released ${released} expired unpaid order(s)`);
-    return released;
+    return this.lifecycle.releaseExpiredOrders();
   }
+
 }

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Patch, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Put, Req } from "@nestjs/common";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
+import { UpdateOpenRouterSettingsDto } from "./dto/openrouter-settings.dto";
 import { SettingsService } from "./settings.service";
 
 @Controller("settings")
@@ -27,5 +28,25 @@ export class AdminSettingsController {
   @Patch()
   update(@Body() body: Record<string, unknown>, @Req() request: AuthenticatedRequest) {
     return this.settingsService.updateSettings(body, auditContextFrom(request));
+  }
+
+  @Get("ai/openrouter")
+  getOpenRouterSettings() {
+    return this.settingsService.getOpenRouterSettingsStatus();
+  }
+
+  @Get("ai/openrouter/models")
+  getOpenRouterModels() {
+    return this.settingsService.listOpenRouterModels();
+  }
+
+  @Put("ai/openrouter")
+  updateOpenRouterSettings(@Body() body: UpdateOpenRouterSettingsDto, @Req() request: AuthenticatedRequest) {
+    return this.settingsService.updateOpenRouterSettings(body, auditContextFrom(request));
+  }
+
+  @Delete("ai/openrouter/api-key")
+  clearOpenRouterApiKey(@Req() request: AuthenticatedRequest) {
+    return this.settingsService.clearOpenRouterApiKey(auditContextFrom(request));
   }
 }

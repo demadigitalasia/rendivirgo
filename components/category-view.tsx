@@ -1,15 +1,16 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import Image from "next/image";
 import type { Product } from "@/lib/catalog";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
-import { useCopy } from "@/components/providers";
+import { useCopy, useLanguage } from "@/components/providers";
 
 export function CategoryView({
   name,
+  contentLocale,
   note,
   imageUrl,
   products,
@@ -18,6 +19,7 @@ export function CategoryView({
   pageCount,
 }: {
   name: string;
+  contentLocale: "en" | "id";
   note: string;
   imageUrl?: string | null;
   products: Product[];
@@ -26,6 +28,7 @@ export function CategoryView({
   pageCount: number;
 }) {
   const t = useCopy();
+  const { language } = useLanguage();
 
   return (
     <>
@@ -36,10 +39,9 @@ export function CategoryView({
         <div className="page-container page-hero__content">
           <Breadcrumb contained={false} tone="light" items={[{ key: "shop", href: "/shop" }, { label: name }]} />
           <div className="eyebrow eyebrow--light">{t.shop.eyebrow}</div>
-          <h1>{name}</h1>
-          <p>
-            {note}. {t.shop.categoryIntro}
-          </p>
+          {language === "id" && contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+          <h1 lang={contentLocale}>{name}</h1>
+          <p><span lang={contentLocale}>{note}.</span> <span lang={language}>{t.shop.categoryIntro}</span></p>
         </div>
       </section>
       <section className="page-container section">

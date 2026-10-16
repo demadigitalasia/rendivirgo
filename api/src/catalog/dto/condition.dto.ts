@@ -1,5 +1,6 @@
 import { Transform } from "class-transformer";
-import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from "class-validator";
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from "class-validator";
+import { TranslationStatus } from "../../../generated/prisma";
 
 export class CreateConditionDto {
   @IsString()
@@ -17,6 +18,15 @@ export class CreateConditionDto {
   @IsString()
   @MaxLength(600)
   note?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(600)
+  noteId?: string | null;
+
+  @IsOptional()
+  @IsEnum(TranslationStatus)
+  idTranslationStatus?: TranslationStatus;
 
   @IsOptional()
   @IsInt()

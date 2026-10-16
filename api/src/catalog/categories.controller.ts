@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { CategoriesService } from "./categories.service";
+import { storefrontLanguage } from "../common/utils/storefront-language";
 import { CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
 
 @Controller("categories")
@@ -11,14 +12,14 @@ export class CategoriesController {
 
   @Public()
   @Get()
-  list() {
-    return this.categoriesService.listPublic();
+  list(@Headers("x-rv-language") language?: string) {
+    return this.categoriesService.listPublic(storefrontLanguage(language));
   }
 
   @Public()
   @Get(":slug")
-  detail(@Param("slug") slug: string) {
-    return this.categoriesService.findBySlug(slug);
+  detail(@Param("slug") slug: string, @Headers("x-rv-language") language?: string) {
+    return this.categoriesService.findBySlug(slug, storefrontLanguage(language));
   }
 }
 

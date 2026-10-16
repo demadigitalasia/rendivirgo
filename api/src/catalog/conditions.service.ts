@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
 import { slugify, uniqueSlug } from "../common/utils/slug";
+import type { StorefrontLanguage } from "../common/utils/storefront-language";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateConditionDto, UpdateConditionDto } from "./dto/condition.dto";
 
@@ -12,10 +13,14 @@ export class ConditionsService {
     private readonly audit: AuditService,
   ) {}
 
-  listPublic() {
-    return this.prisma.conditionOption.findMany({
+  async listPublic(language: StorefrontLanguage = "en") {
+    const conditions = await this.prisma.conditionOption.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    });
+    return conditions.map(({ noteId, idTranslationStatus, ...condition }) => {
+      const idReady = language === "id" && idTranslationStatus === "Ready" && Boolean(noteId?.trim());
+      return { ...condition, note: idReady ? noteId : condition.note, contentLocale: idReady ? "id" : "en" };
     });
   }
 
@@ -38,6 +43,8 @@ export class ConditionsService {
         name,
         slug,
         note: dto.note?.trim() || null,
+        noteId: dto.noteId?.trim() || null,
+        idTranslationStatus: dto.idTranslationStatus ?? "Missing",
         sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
       },
@@ -69,6 +76,8 @@ export class ConditionsService {
           ...(name ? { name } : {}),
           ...(slug ? { slug } : {}),
           ...(dto.note !== undefined ? { note: dto.note?.trim() || null } : {}),
+          ...(dto.noteId !== undefined ? { noteId: dto.noteId?.trim() || null } : {}),
+          ...(dto.idTranslationStatus !== undefined ? { idTranslationStatus: dto.idTranslationStatus } : {}),
           ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         },

@@ -1,21 +1,27 @@
 import type { Metadata } from "next";
 import { JournalCover } from "@/components/journal-cover";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
 import { formatContentDate } from "@/components/page-body";
+import { dictionaries } from "@/lib/i18n";
+import { getRequestLanguage } from "@/lib/server-locale";
+import { localizedAlternates } from "@/lib/locale";
 import { getBlogPosts } from "@/lib/storefront";
 
 export const revalidate = 60;
 
 const PAGE_SIZE = 9;
 
-export const metadata: Metadata = {
-  title: "Journal — Stone Guides & Sourcing Stories | RENDI VIRGO",
-  description:
-    "Practical guidance, sourcing stories, and care notes for collectors, jewelry makers, and lapidary enthusiasts working with Indonesian stones.",
-  alternates: { canonical: "/blog" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const language = await getRequestLanguage();
+  const journal = dictionaries[language].journal;
+  return {
+    title: `${journal.eyebrow} — RENDI VIRGO`,
+    description: journal.intro,
+    alternates: localizedAlternates("/blog", language),
+  };
+}
 
 export default async function BlogPage({
   searchParams,
@@ -23,14 +29,17 @@ export default async function BlogPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
+  const language = await getRequestLanguage();
+  const t = dictionaries[language];
+  const journal = t.journal;
   const rawPage = Array.isArray(query.page) ? query.page[0] : query.page;
   const rawTag = Array.isArray(query.tag) ? query.tag[0] : query.tag;
   const page = Math.max(1, Number(rawPage) || 1);
   const activeTag = rawTag?.trim() || "";
 
   const [{ posts, pageCount }, all] = await Promise.all([
-    getBlogPosts({ page, pageSize: PAGE_SIZE, tag: activeTag || undefined }),
-    getBlogPosts({ pageSize: 100 }),
+    getBlogPosts({ page, pageSize: PAGE_SIZE, tag: activeTag || undefined }, language),
+    getBlogPosts({ pageSize: 100 }, language),
   ]);
 
   const tags = Array.from(new Set(all.posts.flatMap((post) => post.tags))).slice(0, 8);
@@ -45,25 +54,25 @@ export default async function BlogPage({
           <Breadcrumb contained={false} tone="light" items={[{ key: "journal" }]} />
           <div className="journal-hero__grid">
             <div>
-              <div className="eyebrow eyebrow--light">The journal</div>
-              <h1>Notes from the collection.</h1>
-              <p>Practical guidance, sourcing stories, and small observations for anyone who enjoys natural stones.</p>
+              <div className="eyebrow eyebrow--light">{journal.eyebrow}</div>
+              <h1>{journal.title}</h1>
+              <p>{journal.intro}</p>
             </div>
             <dl className="journal-hero__facts">
               <div>
-                <dt>Entries</dt>
-                <dd>{all.total} guides</dd>
+                <dt>{journal.entries}</dt>
+                <dd>{all.total} {journal.guides}</dd>
               </div>
               <div>
-                <dt>Topics</dt>
-                <dd>{tags.length} themes</dd>
+                <dt>{journal.topics}</dt>
+                <dd>{tags.length} {journal.themes}</dd>
               </div>
             </dl>
           </div>
           {tags.length ? (
-            <div className="journal-filters" role="navigation" aria-label="Filter by topic">
+            <div className="journal-filters" role="navigation" aria-label={journal.filterByTopic}>
               <Link href="/blog" className={`journal-chip ${!activeTag ? "is-active" : ""}`}>
-                All
+                {journal.all}
               </Link>
               {tags.map((tag) => (
                 <Link
@@ -83,9 +92,9 @@ export default async function BlogPage({
       <div className="page-container journal-body">
         {activeTag ? (
           <p className="muted journal-count">
-            {posts.length} {posts.length === 1 ? "entry" : "entries"} in “{activeTag}” ·{" "}
+            {journal.filteredCount(posts.length, activeTag)} ·{" "}
             <Link href="/blog" className="text-button">
-              Clear filter
+              {journal.clearFilter}
             </Link>
           </p>
         ) : null}
@@ -97,15 +106,18 @@ export default async function BlogPage({
                 sizes="(max-width: 980px) 100vw, 50vw" />
             </div>
             <div className="journal-featured__copy">
-              <div className="eyebrow">Featured · {featured.tags[0] ?? "Journal"}</div>
+              <div className="eyebrow">{journal.featured} · {featured.tags[0] ?? journal.eyebrow}</div>
+              {language === "id" && featured.contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+              <div lang={featured.contentLocale ?? language}>
               <h2>{featured.title}</h2>
               <p>{featured.excerpt}</p>
-              <div className="journal-card__meta">
-                <span>{formatContentDate(featured.publishedAt ?? featured.updatedAt)}</span>
-                <span aria-hidden="true">·</span>
-                <span>{featured.readMinutes} min read</span>
               </div>
-              <span className="text-button">Read the guide</span>
+              <div className="journal-card__meta">
+                <span>{formatContentDate(featured.publishedAt ?? featured.updatedAt, language)}</span>
+                <span aria-hidden="true">·</span>
+                <span>{journal.readTime(featured.readMinutes)}</span>
+              </div>
+              <span className="text-button">{journal.read}</span>
             </div>
           </Link>
         ) : null}
@@ -120,13 +132,16 @@ export default async function BlogPage({
                   <span className="journal-card__index">{String(index + 1).padStart(2, "0")}</span>
                 </div>
                 <div className="journal-card__copy">
-                  <div className="eyebrow">{post.tags[0] ?? "Journal"}</div>
+                  <div className="eyebrow">{post.tags[0] ?? journal.eyebrow}</div>
+                  {language === "id" && post.contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+                  <div lang={post.contentLocale ?? language}>
                   <h2>{post.title}</h2>
                   <p>{post.excerpt}</p>
+                  </div>
                   <div className="journal-card__meta">
-                    <span>{formatContentDate(post.publishedAt ?? post.updatedAt)}</span>
+                    <span>{formatContentDate(post.publishedAt ?? post.updatedAt, language)}</span>
                     <span aria-hidden="true">·</span>
-                    <span>{post.readMinutes} min read</span>
+                    <span>{journal.readTime(post.readMinutes)}</span>
                   </div>
                 </div>
               </Link>
@@ -136,13 +151,13 @@ export default async function BlogPage({
           <div className="empty-state">
             {activeTag ? (
               <>
-                No entries in “{activeTag}” yet.{" "}
+                {journal.emptyFiltered}{" "}
                 <Link href="/blog" className="text-button">
-                  View everything
+                  {journal.viewAll}
                 </Link>
               </>
             ) : (
-              "New journal entries are on the way. Please check back soon."
+              journal.empty
             )}
           </div>
         )}

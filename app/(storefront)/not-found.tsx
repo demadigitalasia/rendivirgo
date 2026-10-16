@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useCopy } from "@/components/providers";
 
 export default function NotFound() {

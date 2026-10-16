@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { apiFetch, errorMessage } from "@/components/admin/api";
@@ -31,8 +32,12 @@ export function ForgotPasswordForm() {
   return (
     <main className="rv-login">
       <section className="rv-login__card" aria-labelledby="admin-forgot-title">
-        <div className="rv-login__brand">RENDI VIRGO</div>
-        <h1 id="admin-forgot-title" className="rv-login__tagline">Reset password</h1>
+        <div className="rv-login__brand">
+          <Image src="/brand/rendi-virgo-logo.webp" alt="RENDI VIRGO" width={780} height={260} sizes="200px" priority />
+          <span className="rv-login__eyebrow">Admin workspace</span>
+        </div>
+        <h1 id="admin-forgot-title" className="rv-login__title">Reset password</h1>
+        <p className="rv-login__tagline">We will send a secure reset link to your admin email.</p>
 
         {sent ? (
           <>

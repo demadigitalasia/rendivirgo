@@ -15,7 +15,7 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { ProductStatus, ProductTone, ProductUnit, ShippingClass, StockModel } from "../../../generated/prisma";
+import { ProductStatus, ProductTone, ProductUnit, ShippingClass, StockModel, TranslationStatus } from "../../../generated/prisma";
 
 export class ProductImageDto {
   @IsString()
@@ -222,6 +222,30 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(400)
   metaDescription?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nameId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  descriptionId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  metaTitleId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  metaDescriptionId?: string | null;
+
+  @IsOptional()
+  @IsEnum(TranslationStatus)
+  idTranslationStatus?: TranslationStatus;
 
   @IsOptional()
   @IsString()

@@ -4,6 +4,7 @@ import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake, type Paginated } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
 import { slugify, uniqueSlug } from "../common/utils/slug";
+import type { StorefrontLanguage } from "../common/utils/storefront-language";
 import { PrismaService } from "../prisma/prisma.service";
 import { BlogQueryDto, CreateBlogPostDto, UpdateBlogPostDto } from "./dto/content.dto";
 
@@ -18,6 +19,15 @@ export const blogSummarySelect = {
   readMinutes: true,
   publishedAt: true,
   views: true,
+  metaTitle: true,
+  metaDescription: true,
+  titleId: true,
+  excerptId: true,
+  bodyId: true,
+  tagsId: true,
+  metaTitleId: true,
+  metaDescriptionId: true,
+  idTranslationStatus: true,
 } satisfies Prisma.BlogPostSelect;
 
 export type BlogPostSummary = Prisma.BlogPostGetPayload<{ select: typeof blogSummarySelect }>;
@@ -29,9 +39,31 @@ export class BlogService {
     private readonly audit: AuditService,
   ) {}
 
+  private toPublic<T extends {
+    title: string; excerpt: string; tags: string[]; metaTitle: string | null; metaDescription: string | null;
+    titleId: string | null; excerptId: string | null; bodyId: string | null; tagsId: string[];
+    metaTitleId: string | null; metaDescriptionId: string | null; idTranslationStatus: string; body?: string;
+  }>(post: T, language: StorefrontLanguage) {
+    const idReady = language === "id" && post.idTranslationStatus === "Ready" && Boolean(post.titleId?.trim()) &&
+      (!post.excerpt.trim() || Boolean(post.excerptId?.trim())) &&
+      post.tagsId.length === post.tags.length &&
+      (post.body === undefined || !post.body.trim() || Boolean(post.bodyId?.trim()));
+    const { titleId, excerptId, bodyId, tagsId, metaTitleId, metaDescriptionId, idTranslationStatus, ...publicPost } = post;
+    return {
+      ...publicPost,
+      title: idReady ? titleId! : post.title,
+      excerpt: idReady ? excerptId ?? post.excerpt : post.excerpt,
+      ...(post.body !== undefined ? { body: idReady ? bodyId ?? post.body : post.body } : {}),
+      tags: idReady ? tagsId : post.tags,
+      metaTitle: idReady ? metaTitleId : post.metaTitle,
+      metaDescription: idReady ? metaDescriptionId : post.metaDescription,
+      contentLocale: idReady ? "id" : "en",
+    };
+  }
+
   // ------------------------------------------------------------ queries
 
-  private buildWhere(query: BlogQueryDto, publicOnly: boolean): Prisma.BlogPostWhereInput {
+  private buildWhere(query: BlogQueryDto, publicOnly: boolean, language: StorefrontLanguage = "en"): Prisma.BlogPostWhereInput {
     const where: Prisma.BlogPostWhereInput = {};
 
     if (publicOnly) {
@@ -41,23 +73,30 @@ export class BlogService {
       where.status = query.status;
     }
 
-    if (query.tag) where.tags = { has: query.tag };
+    if (query.tag) where.OR = [
+      { tags: { has: query.tag } },
+      ...(language === "id" ? [{ tagsId: { has: query.tag } }] : []),
+    ];
 
     const search = query.search?.trim();
     if (search) {
-      where.OR = [
+      const searchOr: Prisma.BlogPostWhereInput[] = [
         { title: { contains: search, mode: "insensitive" } },
+        ...(language === "id" ? [{ titleId: { contains: search, mode: "insensitive" as const } }] : []),
         { excerpt: { contains: search, mode: "insensitive" } },
+        ...(language === "id" ? [{ excerptId: { contains: search, mode: "insensitive" as const } }] : []),
         { body: { contains: search, mode: "insensitive" } },
+        ...(language === "id" ? [{ bodyId: { contains: search, mode: "insensitive" as const } }] : []),
         { author: { contains: search, mode: "insensitive" } },
       ];
+      where.AND = [{ OR: searchOr }];
     }
 
     return where;
   }
 
-  async listPublic(query: BlogQueryDto): Promise<Paginated<BlogPostSummary>> {
-    const where = this.buildWhere(query, true);
+  async listPublic(query: BlogQueryDto, language: StorefrontLanguage = "en") {
+    const where = this.buildWhere(query, true, language);
 
     const [total, posts] = await this.prisma.$transaction([
       this.prisma.blogPost.count({ where }),
@@ -69,10 +108,10 @@ export class BlogService {
       }),
     ]);
 
-    return paginated(posts, total, query.page, query.pageSize);
+    return paginated(posts.map((post) => this.toPublic(post, language)), total, query.page, query.pageSize);
   }
 
-  async getPublicBySlug(slug: string) {
+  async getPublicBySlug(slug: string, language: StorefrontLanguage = "en") {
     const post = await this.prisma.blogPost.findFirst({
       where: { slug, status: "Published", publishedAt: { lte: new Date() } },
     });
@@ -82,15 +121,16 @@ export class BlogService {
       .update({ where: { id: post.id }, data: { views: { increment: 1 } } })
       .catch(() => undefined);
 
-    return post;
+    return this.toPublic(post, language);
   }
 
-  async tags(): Promise<string[]> {
+  async tags(language: StorefrontLanguage = "en"): Promise<string[]> {
     const posts = await this.prisma.blogPost.findMany({
       where: { status: "Published", publishedAt: { lte: new Date() } },
-      select: { tags: true },
+      select: { tags: true, tagsId: true, idTranslationStatus: true },
     });
-    return [...new Set(posts.flatMap((post) => post.tags))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(posts.flatMap((post) => language === "id" && post.idTranslationStatus === "Ready" && post.tagsId.length === post.tags.length ? post.tagsId : post.tags))]
+      .sort((a, b) => a.localeCompare(b, language === "id" ? "id-ID" : "en-GB"));
   }
 
   async listAdmin(query: BlogQueryDto) {
@@ -149,6 +189,13 @@ export class BlogService {
         readMinutes: dto.readMinutes ?? 5,
         metaTitle: dto.metaTitle ?? null,
         metaDescription: dto.metaDescription ?? null,
+        titleId: dto.titleId ?? null,
+        excerptId: dto.excerptId ?? null,
+        bodyId: dto.bodyId ?? null,
+        tagsId: dto.tagsId ?? [],
+        metaTitleId: dto.metaTitleId ?? null,
+        metaDescriptionId: dto.metaDescriptionId ?? null,
+        idTranslationStatus: dto.idTranslationStatus ?? "Missing",
         publishedAt,
       },
     });
@@ -197,6 +244,13 @@ export class BlogService {
         ...(dto.readMinutes !== undefined ? { readMinutes: dto.readMinutes } : {}),
         ...(dto.metaTitle !== undefined ? { metaTitle: dto.metaTitle } : {}),
         ...(dto.metaDescription !== undefined ? { metaDescription: dto.metaDescription } : {}),
+        ...(dto.titleId !== undefined ? { titleId: dto.titleId } : {}),
+        ...(dto.excerptId !== undefined ? { excerptId: dto.excerptId } : {}),
+        ...(dto.bodyId !== undefined ? { bodyId: dto.bodyId } : {}),
+        ...(dto.tagsId !== undefined ? { tagsId: dto.tagsId } : {}),
+        ...(dto.metaTitleId !== undefined ? { metaTitleId: dto.metaTitleId } : {}),
+        ...(dto.metaDescriptionId !== undefined ? { metaDescriptionId: dto.metaDescriptionId } : {}),
+        ...(dto.idTranslationStatus !== undefined ? { idTranslationStatus: dto.idTranslationStatus } : {}),
         ...(shouldUpdatePublishedAt ? { publishedAt } : {}),
       },
     });

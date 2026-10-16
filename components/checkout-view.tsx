@@ -1,10 +1,25 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useSearchParams } from "next/navigation";
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useCart, useCopy } from "@/components/providers";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCart, useCopy, useLanguage } from "@/components/providers";
 import { formatUSD } from "@/lib/catalog";
+import { CheckoutOrderSummary } from "@/components/checkout/order-summary";
+import { CheckoutPaymentResult } from "@/components/checkout/payment-result";
+import { CheckoutPriceReview } from "@/components/checkout/price-review";
+import type { CheckoutPriceQuote, Discount, PaymentResult } from "@/components/checkout/types";
+import { usePaymentAvailability } from "@/components/checkout/use-payment-availability";
+import { useShippingQuote } from "@/components/checkout/use-shipping-quote";
+import {
+  checkoutRequest,
+  clearCheckoutAttempt,
+  hasCheckoutAttempt,
+  readLastOrder,
+  recoverCheckoutAttempt,
+  writeLastOrder,
+  type StoredOrder,
+} from "@/lib/checkout-recovery";
 
 const countries: Array<{ name: string; code: string }> = [
   { name: "United States", code: "US" },
@@ -53,106 +68,15 @@ const countries: Array<{ name: string; code: string }> = [
   { name: "Other", code: "" },
 ];
 
-type ShippingOption = {
-  id: string;
-  name: string;
-  carrier: string | null;
-  price: number;
-  breakdown: Record<string, number>;
-};
-
-type Quote = {
-  options: ShippingOption[];
-  source: "CarrierAPI" | "AdminOverride" | "FreeShipping";
-  overrideApplied: boolean;
-};
-
-type Discount = {
-  valid: boolean;
-  code: string;
-  type: string;
-  discountAmount: number;
-  freeShipping: boolean;
-  message: string;
-};
-
-type PaymentNotice = "cancelled" | "unavailable" | "failed" | "review" | "recovered" | "expired";
-type ShippingQuoteStatus = "loading" | "ready" | "unavailable" | "error";
-type PaymentAvailability = "loading" | "available" | "unavailable" | "error";
-
-type PaymentResult = {
-  orderId: string;
-  orderNumber: string;
-  total: number;
-  paymentStatus: "Paid" | "Pending";
-  paymentMethod?: "PayPal" | "BankTransfer";
-  paymentProofUploadedAt?: string | null;
-  notice?: PaymentNotice;
-};
-
-type StoredOrder = {
-  orderId: string;
-  orderNumber: string;
-  total: number;
-  email: string;
-  createdAt?: string;
-  paymentStatus?: "Pending" | "Paid";
-  paymentMethod?: "PayPal" | "BankTransfer";
-  paymentProofUploadedAt?: string | null;
-};
-
-type BankTransferDetails = {
-  enabled: boolean;
-  bankName: string;
-  accountName: string;
-  accountNumber: string;
-  swiftCode: string;
-  currency: string;
-};
-
-type PaymentMethods = {
-  paypal: { enabled: boolean };
-  bankTransfer: BankTransferDetails;
-};
-
-const LAST_ORDER_KEY = "rv.lastOrder";
 const CHECKOUT_DRAFT_KEY = "rv.checkoutDraft";
-const CHECKOUT_REQUEST_KEY = "rv.checkoutRequestKey";
-const CHECKOUT_REQUEST_EMAIL_KEY = "rv.checkoutRequestEmail";
-
-const readLastOrder = (): StoredOrder | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(LAST_ORDER_KEY);
-    if (!raw) return null;
-    const stored = JSON.parse(raw) as Partial<StoredOrder>;
-    if (
-      typeof stored.orderId !== "string" ||
-      typeof stored.orderNumber !== "string" ||
-      typeof stored.total !== "number" ||
-      typeof stored.email !== "string"
-    ) return null;
-    return stored as StoredOrder;
-  } catch {
-    return null;
-  }
-};
-
-const checkoutRequest = (email: string) => {
-  try {
-    const key = window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY) ?? window.crypto.randomUUID();
-    window.sessionStorage.setItem(CHECKOUT_REQUEST_KEY, key);
-    if (!window.sessionStorage.getItem(CHECKOUT_REQUEST_EMAIL_KEY)) {
-      window.sessionStorage.setItem(CHECKOUT_REQUEST_EMAIL_KEY, email.trim().toLowerCase());
-    }
-    return key;
-  } catch {
-    return window.crypto.randomUUID();
-  }
-};
 
 export function CheckoutView() {
   const t = useCopy();
+  const { language } = useLanguage();
+  const countryNames = useMemo(
+    () => new Intl.DisplayNames([language === "id" ? "id-ID" : "en-GB"], { type: "region" }),
+    [language],
+  );
   const searchParams = useSearchParams();
   const { lines, hydrated: cartHydrated, subtotal, totalWeight, clearCart } = useCart();
 
@@ -167,12 +91,6 @@ export function CheckoutView() {
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [notes, setNotes] = useState("");
-  const [quote, setQuote] = useState<Quote | null>(null);
-  const [quoteStatus, setQuoteStatus] = useState<ShippingQuoteStatus>("loading");
-  const [selectedRateId, setSelectedRateId] = useState<string>("");
-  const [paymentAvailability, setPaymentAvailability] = useState<PaymentAvailability>("loading");
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethods | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"PayPal" | "BankTransfer">("PayPal");
   const [draftHydrated, setDraftHydrated] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
   const [discount, setDiscount] = useState<Discount | null>(null);
@@ -181,91 +99,38 @@ export function CheckoutView() {
   const [placing, setPlacing] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [priceReview, setPriceReview] = useState<CheckoutPriceQuote | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentProof, setPaymentProof] = useState<File | null>(null);
-  const [proofUploadError, setProofUploadError] = useState<string | null>(null);
-  const [uploadingProof, setUploadingProof] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [result, setResult] = useState<PaymentResult | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<"waiting" | "checking" | "done" | "error">("waiting");
   const handledReturn = useRef(false);
-  const quoteRequestId = useRef(0);
-  const proofInputRef = useRef<HTMLInputElement>(null);
-
   const countryCode = useMemo(() => countries.find((item) => item.name === country)?.code ?? "", [country]);
   const hasFragile = lines.some((line) => line.fragile);
   const hasOversized = lines.some((line) => line.shipping.shippingClass === "Oversized");
-
-  const loadQuote = useCallback(async () => {
-    const requestId = ++quoteRequestId.current;
-    if (!lines.length) {
-      setQuote(null);
-      setQuoteStatus("unavailable");
-      return;
-    }
-    setQuote(null);
-    setQuoteStatus("loading");
-    try {
-      const response = await fetch("/api/shipping/quote", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          weightGram: totalWeight,
-          subtotal,
-          countryCode,
-          fragile: hasFragile,
-          oversized: hasOversized,
-        }),
-      });
-      if (!response.ok) {
-        if (requestId === quoteRequestId.current) setQuoteStatus("error");
-        return;
-      }
-      const payload = (await response.json()) as Quote;
-      if (!Array.isArray(payload?.options)) {
-        if (requestId === quoteRequestId.current) setQuoteStatus("error");
-        return;
-      }
-      if (requestId !== quoteRequestId.current) return;
-      setQuote(payload);
-      setQuoteStatus(payload.options.length ? "ready" : "unavailable");
-      setSelectedRateId((current) => {
-        if (payload.options.some((option) => option.id === current)) return current;
-        return payload.options[0]?.id ?? "";
-      });
-    } catch {
-      if (requestId === quoteRequestId.current) setQuoteStatus("error");
-    }
-  }, [lines.length, totalWeight, subtotal, countryCode, hasFragile, hasOversized]);
-
-  useEffect(() => {
-    void loadQuote();
-  }, [loadQuote]);
-
-  const loadPaymentAvailability = useCallback(async () => {
-    setPaymentAvailability("loading");
-    try {
-      const response = await fetch("/api/payments/methods", { cache: "no-store" });
-      const payload = (await response.json()) as Partial<PaymentMethods>;
-      if (!response.ok || typeof payload?.paypal?.enabled !== "boolean" || typeof payload?.bankTransfer?.enabled !== "boolean") {
-        throw new Error("Payment availability unavailable");
-      }
-      const methods = payload as PaymentMethods;
-      setPaymentMethods(methods);
-      setPaymentAvailability(methods.paypal.enabled || methods.bankTransfer.enabled ? "available" : "unavailable");
-      setSelectedPaymentMethod((current) => {
-        if (current === "PayPal" && !methods.paypal.enabled && methods.bankTransfer.enabled) return "BankTransfer";
-        if (current === "BankTransfer" && !methods.bankTransfer.enabled && methods.paypal.enabled) return "PayPal";
-        return current;
-      });
-    } catch {
-      setPaymentAvailability("error");
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadPaymentAvailability();
-  }, [loadPaymentAvailability]);
+  const {
+    quote,
+    quoteStatus,
+    selectedRateId,
+    setSelectedRateId,
+    selectedOption,
+    reloadShippingQuote: loadQuote,
+  } = useShippingQuote({
+    itemCount: lines.length,
+    totalWeight,
+    subtotal,
+    countryCode,
+    fragile: hasFragile,
+    oversized: hasOversized,
+  });
+  const {
+    paymentAvailability,
+    paymentMethods,
+    selectedPaymentMethod,
+    setSelectedPaymentMethod,
+    selectedMethodAvailable,
+    reloadPaymentAvailability: loadPaymentAvailability,
+  } = usePaymentAvailability();
 
   useEffect(() => {
     try {
@@ -306,57 +171,10 @@ export function CheckoutView() {
     }
   }, [draftHydrated, country, otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes]);
 
-  const selectedOption = quote?.options.find((option) => option.id === selectedRateId) ?? quote?.options[0] ?? null;
   const shippingCost = discount?.freeShipping ? 0 : (selectedOption?.price ?? 0);
   const discountTotal = discount?.valid ? discount.discountAmount : 0;
   const total = Math.max(0, subtotal - discountTotal) + shippingCost;
   const totalIsKnown = quoteStatus === "ready" && selectedOption !== null;
-  const selectedMethodAvailable = selectedPaymentMethod === "PayPal"
-    ? Boolean(paymentMethods?.paypal.enabled)
-    : Boolean(paymentMethods?.bankTransfer.enabled);
-
-  const renderOrderSummary = (className: string) => (
-    <section className={`summary-card ${className}`}>
-      <h2>{t.checkout.summary}</h2>
-      <Link href="/cart" className="text-button checkout-summary__edit">{t.checkout.editCart}</Link>
-      {lines.map((line) => (
-        <div className="summary-row" key={`${line.id}:${line.variantId ?? "base"}`}>
-          <span>
-            {line.name}{line.variantName ? ` — ${line.variantName}` : ""} × {line.quantity}
-          </span>
-          <strong>{formatUSD(line.price * line.quantity)}</strong>
-        </div>
-      ))}
-      <div className="summary-row">
-        <span>{t.checkout.subtotal}</span>
-        <strong>{formatUSD(subtotal)}</strong>
-      </div>
-      <div className="summary-row">
-        <span>{t.checkout.totalWeight}</span>
-        <span>{t.checkout.weightUnit(totalWeight)}</span>
-      </div>
-      {discountTotal > 0 ? (
-        <div className="summary-row">
-          <span>{discount?.code}</span>
-          <strong>−{formatUSD(discountTotal)}</strong>
-        </div>
-      ) : null}
-      <div className="summary-row">
-        <span>{t.checkout.shipping}</span>
-        <strong>
-          {selectedOption
-            ? shippingCost === 0
-              ? t.checkout.freeShipping
-              : formatUSD(shippingCost)
-            : t.checkout.calculatedShipping}
-        </strong>
-      </div>
-      <div className="summary-row summary-row--total">
-        <span>{t.checkout.total}</span>
-        <strong>{totalIsKnown ? formatUSD(total) : t.checkout.totalAfterShipping}</strong>
-      </div>
-    </section>
-  );
 
   const startPayment = useCallback(
     async (orderId: string, orderNumber: string, orderTotal: number) => {
@@ -440,10 +258,7 @@ export function CheckoutView() {
         const stored = readLastOrder();
         const paid = payload.status === "Paid";
         if (stored && stored.orderId === (payload.orderId ?? orderId)) {
-          window.localStorage.setItem(
-            LAST_ORDER_KEY,
-            JSON.stringify({ ...stored, paymentStatus: paid ? "Paid" : "Pending" }),
-          );
+          writeLastOrder({ ...stored, paymentStatus: paid ? "Paid" : "Pending" });
         }
         setResult({
           orderId: payload.orderId ?? orderId,
@@ -472,72 +287,26 @@ export function CheckoutView() {
   }, [searchParams, clearCart, t]);
 
   const recoverCheckout = useCallback(async () => {
-    const stored = readLastOrder();
-    let checkoutKey: string | undefined;
-    let attemptEmail: string | undefined;
-    try {
-      checkoutKey = window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY) ?? undefined;
-      attemptEmail = window.sessionStorage.getItem(CHECKOUT_REQUEST_EMAIL_KEY) ?? undefined;
-    } catch {
-      // A saved order below can still be recovered without session storage.
-    }
-    const emailForLookup = attemptEmail || stored?.email;
-    if (!emailForLookup || (!checkoutKey && !stored?.orderId)) {
-      setRecoveryStatus("done");
-      return;
-    }
-
     setRecoveryStatus("checking");
     try {
-      const response = await fetch("/api/payments/resume", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          ...(checkoutKey ? { checkoutKey } : { orderId: stored?.orderId }),
-          email: emailForLookup,
-        }),
-      });
-      if (response.status === 404) {
+      const recovery = await recoverCheckoutAttempt();
+      if (recovery.kind === "missing") {
         setRecoveryStatus("done");
         return;
       }
-      const payload = (await response.json().catch(() => ({}))) as {
-        orderId?: string;
-        orderNumber?: string;
-        total?: number;
-        paymentStatus?: string;
-        paymentMethod?: "PayPal" | "BankTransfer";
-        paymentProofUploadedAt?: string | null;
-      };
-      if (!response.ok || !payload.orderId || !payload.orderNumber || typeof payload.total !== "number") {
-        throw new Error("The saved order could not be recovered");
-      }
-
-      const paid = payload.paymentStatus === "Paid";
-      const failed = payload.paymentStatus === "Failed" || payload.paymentStatus === "Refunded";
-      const recovered: StoredOrder = {
-        orderId: payload.orderId,
-        orderNumber: payload.orderNumber,
-        total: payload.total,
-        email: emailForLookup,
-        createdAt: new Date().toISOString(),
-        paymentStatus: paid ? "Paid" : "Pending",
-        paymentMethod: payload.paymentMethod ?? stored?.paymentMethod ?? "PayPal",
-        paymentProofUploadedAt: payload.paymentProofUploadedAt ?? stored?.paymentProofUploadedAt ?? null,
-      };
-      window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(recovered));
-      window.sessionStorage.removeItem(CHECKOUT_REQUEST_KEY);
-      window.sessionStorage.removeItem(CHECKOUT_REQUEST_EMAIL_KEY);
-      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
       clearCart();
+      const paid = recovery.paymentStatus === "Paid";
+      const failed = recovery.failed;
       setResult({
-        orderId: recovered.orderId,
-        orderNumber: recovered.orderNumber,
-        total: recovered.total,
+        orderId: recovery.order.orderId,
+        orderNumber: recovery.order.orderNumber,
+        total: recovery.order.total,
         paymentStatus: paid ? "Paid" : "Pending",
-        paymentMethod: recovered.paymentMethod,
-        paymentProofUploadedAt: recovered.paymentProofUploadedAt,
-        notice: paid ? undefined : failed ? "expired" : "recovered",
+        paymentMethod: recovery.paymentMethod,
+        paymentProofUploadedAt: recovery.order.paymentProofUploadedAt,
+        orderStatus: recovery.orderStatus,
+        retryAllowed: recovery.canRetry,
+        notice: paid ? undefined : failed ? "expired" : recovery.orderStatus === "Cancelled" || recovery.orderStatus === "Returned" ? "terminal" : "recovered",
       });
       setRecoveryStatus("done");
     } catch {
@@ -552,12 +321,7 @@ export function CheckoutView() {
       return;
     }
 
-    let hasAttempt = false;
-    try {
-      hasAttempt = Boolean(window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY));
-    } catch {
-      // The last-order record is checked below when available.
-    }
+    const hasAttempt = hasCheckoutAttempt();
     const stored = readLastOrder();
     if (hasAttempt || (!lines.length && stored?.paymentStatus !== "Paid" && stored?.orderId)) {
       void recoverCheckout();
@@ -588,7 +352,7 @@ export function CheckoutView() {
       const payload = (await response.json()) as Discount;
       if (!response.ok || !payload.valid) {
         setDiscount(null);
-        setDiscountError(payload?.message || t.checkout.discountInvalid);
+        setDiscountError(language === "id" ? t.checkout.discountInvalid : payload?.message || t.checkout.discountInvalid);
       } else {
         setDiscount(payload);
       }
@@ -600,51 +364,85 @@ export function CheckoutView() {
     }
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async (acceptedQuote?: CheckoutPriceQuote) => {
     if (paymentAvailability !== "available" || !selectedMethodAvailable || !totalIsKnown || !selectedOption) return;
+    if (selectedPaymentMethod === "PayPal" && !/^[A-Z]{2}$/.test(countryCode)) {
+      setOrderError(t.checkout.paypalAddressCountryRequired);
+      return;
+    }
     setPlacing(true);
     setOrderError(null);
     try {
-      const checkoutKey = checkoutRequest(email);
-      const response = await fetch("/api/orders", {
+      const input = {
+        checkoutKey: checkoutRequest(email),
+        paymentMethod: selectedPaymentMethod,
+        email,
+        customerName: fullName.trim(),
+        phone: phone || undefined,
+        shippingAddress: {
+          line1: address,
+          line2: addressLine2 || undefined,
+          city,
+          state: state || undefined,
+          postalCode: postalCode || undefined,
+          country: country === "Other" ? otherCountryName.trim() : country,
+          countryCode: countryCode || undefined,
+        },
+        customerNote: notes || undefined,
+        shippingRateId: selectedOption?.id || undefined,
+        discountCode: discount?.valid ? discount.code : undefined,
+        items: lines.map((line) => ({ productId: line.id, variantId: line.variantId, quantity: line.quantity })),
+      };
+      const postJson = async (path: string, body: unknown) => fetch(path, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          checkoutKey,
-          paymentMethod: selectedPaymentMethod,
-          email,
-          customerName: fullName.trim(),
-          phone: phone || undefined,
-          shippingAddress: {
-            line1: address,
-            line2: addressLine2 || undefined,
-            city,
-            state: state || undefined,
-            postalCode: postalCode || undefined,
-            country: country === "Other" ? otherCountryName.trim() : country,
-            countryCode: countryCode || undefined,
-          },
-          customerNote: notes || undefined,
-          shippingRateId: selectedOption?.id || undefined,
-          discountCode: discount?.valid ? discount.code : undefined,
-          items: lines.map((line) => ({ productId: line.id, variantId: line.variantId, quantity: line.quantity })),
-        }),
+        body: JSON.stringify(body),
       });
-      const payload = (await response.json()) as {
+      let serverQuote = acceptedQuote;
+      if (!serverQuote) {
+        const quoteResponse = await postJson("/api/orders/quote", input);
+        const quoted = (await quoteResponse.json().catch(() => ({}))) as CheckoutPriceQuote & { message?: string | string[] };
+        if (!quoteResponse.ok || !quoted.quoteToken || typeof quoted.total !== "number") {
+          const raw = quoted?.message;
+          setOrderError(language === "id" ? t.checkout.orderError : Array.isArray(raw) ? raw.join(", ") : (raw ?? t.checkout.orderError));
+          return;
+        }
+        serverQuote = quoted;
+        if (Math.round(serverQuote.total * 100) !== Math.round(total * 100)) {
+          setPriceReview(serverQuote);
+          return;
+        }
+      }
+
+      let response = await postJson("/api/orders", { ...input, quoteToken: serverQuote.quoteToken });
+      let payload = (await response.json().catch(() => ({}))) as {
         id?: string;
         orderNumber?: string;
         total?: number;
+        quoteChanged?: boolean;
+        quote?: CheckoutPriceQuote;
         message?: string | string[];
       };
+      if (response.ok && payload.quoteChanged && payload.quote?.quoteToken) {
+        if (Math.round(payload.quote.total * 100) !== Math.round(serverQuote.total * 100)) {
+          setPriceReview(payload.quote);
+          return;
+        }
+        serverQuote = payload.quote;
+        response = await postJson("/api/orders", { ...input, quoteToken: serverQuote.quoteToken });
+        payload = (await response.json().catch(() => ({}))) as typeof payload;
+      }
       if (!response.ok || !payload.id || !payload.orderNumber) {
         if (response.status === 409) {
           await recoverCheckout();
           return;
         }
         const raw = payload?.message;
-        setOrderError(Array.isArray(raw) ? raw.join(", ") : (raw ?? t.checkout.orderError));
+        setOrderError(language === "id" ? t.checkout.orderError : Array.isArray(raw) ? raw.join(", ") : (raw ?? t.checkout.orderError));
         return;
       }
+
+      setPriceReview(null);
 
       const orderTotal = Number(payload.total ?? total);
       const stored: StoredOrder = {
@@ -656,10 +454,8 @@ export function CheckoutView() {
         paymentStatus: "Pending",
         paymentMethod: selectedPaymentMethod,
       };
-      window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(stored));
-      window.sessionStorage.removeItem(CHECKOUT_REQUEST_KEY);
-      window.sessionStorage.removeItem(CHECKOUT_REQUEST_EMAIL_KEY);
-      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      writeLastOrder(stored);
+      clearCheckoutAttempt();
       clearCart();
       if (selectedPaymentMethod === "PayPal") {
         await startPayment(stored.orderId, stored.orderNumber, stored.total);
@@ -680,48 +476,6 @@ export function CheckoutView() {
     }
   };
 
-  const uploadBankTransferProof = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!result || result.paymentMethod !== "BankTransfer" || !paymentProof) return;
-    if (paymentProof.size > 8 * 1024 * 1024) {
-      setProofUploadError(t.checkout.proofTooLarge);
-      return;
-    }
-    const orderEmail = readLastOrder()?.email;
-    if (!orderEmail) {
-      setProofUploadError(t.checkout.proofUploadFailed);
-      return;
-    }
-    setUploadingProof(true);
-    setProofUploadError(null);
-    try {
-      const formData = new FormData();
-      formData.append("email", orderEmail);
-      formData.append("file", paymentProof);
-      const response = await fetch(`/api/payments/bank-transfer/${encodeURIComponent(result.orderId)}/proof`, {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await response.json().catch(() => ({}))) as { uploadedAt?: string; message?: string | string[] };
-      if (!response.ok || !payload.uploadedAt) {
-        const message = Array.isArray(payload.message) ? payload.message.join(", ") : payload.message;
-        throw new Error(message || t.checkout.proofUploadFailed);
-      }
-      const updated: PaymentResult = { ...result, paymentProofUploadedAt: payload.uploadedAt, notice: undefined };
-      setResult(updated);
-      const stored = readLastOrder();
-      if (stored?.orderId === result.orderId) {
-        window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ ...stored, paymentProofUploadedAt: payload.uploadedAt }));
-      }
-      setPaymentProof(null);
-      if (proofInputRef.current) proofInputRef.current.value = "";
-    } catch (caught) {
-      setProofUploadError(caught instanceof Error ? caught.message : t.checkout.proofUploadFailed);
-    } finally {
-      setUploadingProof(false);
-    }
-  };
-
   if (capturing || redirecting) {
     return (
       <div className="page-container content-page">
@@ -735,109 +489,16 @@ export function CheckoutView() {
   }
 
   if (result) {
-    const paid = result.paymentStatus === "Paid";
-    const isBankTransfer = result.paymentMethod === "BankTransfer";
-    const canRetry = !isBankTransfer && (result.notice === "cancelled" || result.notice === "failed" || result.notice === "unavailable" || result.notice === "recovered");
-    const pendingMessage =
-      isBankTransfer && result.notice === "expired"
-        ? t.checkout.paymentExpired
-        : isBankTransfer
-          ? result.paymentProofUploadedAt
-            ? t.checkout.bankTransferProofPending
-            : t.checkout.bankTransferPending
-        : result.notice === "unavailable"
-        ? t.checkout.paypalUnavailable
-        : result.notice === "cancelled"
-          ? t.checkout.paymentCancelled
-          : result.notice === "review"
-            ? t.checkout.paymentPendingReview
-            : result.notice === "expired"
-              ? t.checkout.paymentExpired
-            : result.notice === "failed"
-              ? t.checkout.paymentFailed
-              : t.checkout.successPending;
-
     return (
-      <div className="page-container content-page">
-        <div className="success-state">
-          <div className="eyebrow">{paid ? t.checkout.successEyebrow : t.checkout.pendingEyebrow}</div>
-          <h2>{result.orderNumber ? t.checkout.successOrder(result.orderNumber) : t.checkout.successTitle}</h2>
-          <p>{paid ? t.checkout.successPaid : pendingMessage}</p>
-          {paid ? <p style={{ marginTop: 8 }}>{t.checkout.ordersEmailNote}</p> : null}
-          {paymentError ? (
-            <p className="form-status form-status--error" role="alert">
-              {paymentError}
-            </p>
-          ) : null}
-          {result.total > 0 ? (
-            <p style={{ marginTop: 12 }}>
-              <strong>{formatUSD(result.total)}</strong>
-            </p>
-          ) : null}
-          {!paid && isBankTransfer && result.notice !== "expired" ? (
-            <section className="bank-transfer-panel" aria-labelledby="bank-transfer-title">
-              <h3 id="bank-transfer-title">{t.checkout.bankTransferTitle}</h3>
-              <p>{t.checkout.transferExactAmount}</p>
-              <dl className="bank-transfer-details">
-                <div><dt>{t.checkout.bankName}</dt><dd>{paymentMethods?.bankTransfer.bankName || "—"}</dd></div>
-                {paymentMethods?.bankTransfer.accountName ? (
-                  <div><dt>{t.checkout.accountName}</dt><dd>{paymentMethods.bankTransfer.accountName}</dd></div>
-                ) : null}
-                <div><dt>{t.checkout.accountNumber}</dt><dd>{paymentMethods?.bankTransfer.accountNumber || "—"}</dd></div>
-                <div><dt>{t.checkout.swiftCode}</dt><dd>{paymentMethods?.bankTransfer.swiftCode || "—"}</dd></div>
-                <div><dt>{t.checkout.transferAmount}</dt><dd><strong>{formatUSD(result.total)}</strong></dd></div>
-              </dl>
-              {result.paymentProofUploadedAt ? (
-                <p className="form-status form-status--success" role="status">
-                  {t.checkout.proofReceived(new Date(result.paymentProofUploadedAt).toLocaleString())}
-                </p>
-              ) : null}
-              <form className="bank-transfer-upload" onSubmit={(event) => void uploadBankTransferProof(event)}>
-                <label htmlFor="bank-transfer-proof">{t.checkout.uploadProof}</label>
-                <input
-                  ref={proofInputRef}
-                  id="bank-transfer-proof"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                  required
-                  onChange={(event) => {
-                    setPaymentProof(event.target.files?.[0] ?? null);
-                    setProofUploadError(null);
-                  }}
-                />
-                <span className="muted">{t.checkout.proofImageHint}</span>
-                {proofUploadError ? <span className="form-status form-status--error" role="alert">{proofUploadError}</span> : null}
-                <button className="button" type="submit" disabled={uploadingProof || !paymentProof}>
-                  {uploadingProof ? t.checkout.uploadingProof : result.paymentProofUploadedAt ? t.checkout.replaceProof : t.checkout.submitProof}
-                </button>
-              </form>
-            </section>
-          ) : null}
-          {!paid && canRetry && result.orderId ? (
-            <button
-              type="button"
-              className="button"
-              style={{ marginTop: 18 }}
-              onClick={() => void startPayment(result.orderId, result.orderNumber, result.total)}
-            >
-              {result.notice === "failed" ? t.checkout.retryPayment : t.checkout.payNow(formatUSD(result.total))}
-            </button>
-          ) : null}
-          {result.orderNumber ? (
-            <p style={{ marginTop: 14 }}>
-              <Link
-                href={`/track?order=${encodeURIComponent(result.orderNumber)}&email=${encodeURIComponent(readLastOrder()?.email ?? "")}`}
-                className="text-button"
-              >
-                {t.footer.track}
-              </Link>
-            </p>
-          ) : null}
-          <Link href="/shop" className="button" style={{ marginTop: 18 }}>
-            {t.checkout.continue}
-          </Link>
-        </div>
-      </div>
+      <CheckoutPaymentResult
+        result={result}
+        paymentMethods={paymentMethods}
+        paymentError={paymentError}
+        onStartPayment={(orderId, orderNumber, total) => void startPayment(orderId, orderNumber, total)}
+        onProofUploaded={(uploadedAt) => {
+          setResult((current) => current ? { ...current, paymentProofUploadedAt: uploadedAt, notice: undefined } : current);
+        }}
+      />
     );
   }
 
@@ -874,8 +535,19 @@ export function CheckoutView() {
           }}
         >
           <details className="checkout-summary-mobile">
-            <summary>{t.checkout.summary} · {totalIsKnown ? formatUSD(total) : t.checkout.totalAfterShipping}</summary>
-            {renderOrderSummary("checkout-summary-card")}
+            <summary>{t.checkout.summary} · {totalIsKnown ? formatUSD(total, language) : t.checkout.totalAfterShipping}</summary>
+            <CheckoutOrderSummary
+              className="checkout-summary-card"
+              lines={lines}
+              subtotal={subtotal}
+              totalWeight={totalWeight}
+              discount={discount}
+              discountTotal={discountTotal}
+              selectedOption={selectedOption}
+              shippingCost={shippingCost}
+              total={total}
+              totalIsKnown={totalIsKnown}
+            />
           </details>
           <div className="field">
             <label htmlFor="full-name">{t.checkout.fullName}</label>
@@ -917,7 +589,7 @@ export function CheckoutView() {
               <select id="country" name="country" value={country} onChange={(event) => setCountry(event.target.value)}>
                 {countries.map((item) => (
                   <option key={item.name} value={item.name}>
-                    {item.name}
+                    {item.code ? countryNames.of(item.code) ?? item.name : t.checkout.otherCountryOption}
                   </option>
                 ))}
               </select>
@@ -949,7 +621,7 @@ export function CheckoutView() {
                       {option.carrier ? <span className="muted">· {option.carrier}</span> : null}
                     </span>
                     <strong className="shipping-option__price">
-                      {option.price === 0 ? t.checkout.freeShipping : formatUSD(option.price)}
+                      {option.price === 0 ? t.checkout.freeShipping : formatUSD(option.price, language)}
                     </strong>
                   </label>
                 ))}
@@ -997,7 +669,7 @@ export function CheckoutView() {
             </div>
             {discount?.valid ? (
               <span className="form-status form-status--success">
-                {discount.freeShipping ? t.checkout.discountFreeShipping(discount.code) : t.checkout.discountApplied(discount.code, formatUSD(discount.discountAmount))}
+                      {discount.freeShipping ? t.checkout.discountFreeShipping(discount.code) : t.checkout.discountApplied(discount.code, formatUSD(discount.discountAmount, language))}
               </span>
             ) : null}
             {discountError ? <span className="form-status form-status--error">{discountError}</span> : null}
@@ -1038,6 +710,15 @@ export function CheckoutView() {
             </p>
           ) : null}
 
+          {priceReview ? (
+            <CheckoutPriceReview
+              quote={priceReview}
+              placing={placing}
+              onAccept={() => void placeOrder(priceReview)}
+              onCancel={() => setPriceReview(null)}
+            />
+          ) : null}
+
           <button className="button button--full" type="submit" disabled={placing || !selectedOption || !totalIsKnown || paymentAvailability !== "available" || !selectedMethodAvailable}>
             {placing
               ? t.checkout.placing
@@ -1047,11 +728,22 @@ export function CheckoutView() {
                   ? t.checkout.paypalUnavailableShort
                   : !totalIsKnown
                     ? t.checkout.waitingForShipping
-                    : t.checkout.placeOrder(formatUSD(total))}
+                    : t.checkout.placeOrder(formatUSD(total, language))}
           </button>
         </form>
 
-        {renderOrderSummary("checkout-summary-desktop")}
+        <CheckoutOrderSummary
+          className="checkout-summary-desktop"
+          lines={lines}
+          subtotal={subtotal}
+          totalWeight={totalWeight}
+          discount={discount}
+          discountTotal={discountTotal}
+          selectedOption={selectedOption}
+          shippingCost={shippingCost}
+          total={total}
+          totalIsKnown={totalIsKnown}
+        />
       </div>
     </div>
   );

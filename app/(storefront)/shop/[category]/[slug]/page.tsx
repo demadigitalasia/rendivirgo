@@ -4,6 +4,9 @@ import { ProductDetailClient } from "@/components/product-detail-client";
 import { formatDimensions } from "@/lib/catalog";
 import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
 import { getProductBySlug, getProductReviewSummary, getRelatedProducts, getAllPublishedProducts } from "@/lib/storefront";
+import { getRequestLanguage } from "@/lib/server-locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
+import { dictionaries } from "@/lib/i18n";
 
 export const revalidate = 60;
 
@@ -14,26 +17,34 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ category: string; slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const language = await getRequestLanguage();
+  const product = await getProductBySlug(slug, language);
   if (!product) return {};
-  const title = product.seo.metaTitle || `${product.name} — ${product.category} | RENDI VIRGO`;
-  const description =
-    product.seo.metaDescription ||
-    `${product.description} ${product.stoneType} from ${product.origin}. ${product.weightGram} g, ${formatDimensions(product.dimensionsMm)}.`;
+  const englishFallback = language === "id" && product.contentLocale === "en";
+  const title = englishFallback
+    ? `${product.name} | RENDI VIRGO`
+    : product.seo.metaTitle || `${product.name} — ${product.category} | RENDI VIRGO`;
+  const description = englishFallback
+    ? `${dictionaries.id.draft.fallback} ${product.name}. ${product.stoneType}${product.origin ? ` dari ${product.origin}` : ""}. Berat ${product.weightGram} g.`
+    : product.seo.metaDescription ||
+      [product.description, product.stoneType, product.origin ? `from ${product.origin}` : "", `${product.weightGram} g`, formatDimensions(product.dimensionsMm)]
+        .filter(Boolean)
+        .join(" ");
   return {
     title,
     description,
-    alternates: { canonical: `/shop/${product.categorySlug}/${product.slug}` },
+    alternates: localizedAlternates(`/shop/${product.categorySlug}/${product.slug}`, language),
     openGraph: { title, description, type: "website", images: product.images.slice(0, 1) },
   };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ category: string; slug: string }> }) {
   const { category, slug } = await params;
-  const product = await getProductBySlug(slug);
+  const language = await getRequestLanguage();
+  const product = await getProductBySlug(slug, language);
   if (!product || product.categorySlug !== category) notFound();
 
-  const related = await getRelatedProducts(slug, 4);
+  const related = await getRelatedProducts(slug, 4, language);
   const reviewSummary = await getProductReviewSummary(slug);
 
   const jsonLd = {
@@ -57,7 +68,7 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
       : {}),
     additionalProperty: [
       { "@type": "PropertyValue", name: "Stone type", value: product.stoneType },
-      { "@type": "PropertyValue", name: "Origin", value: product.origin },
+      ...(product.origin ? [{ "@type": "PropertyValue", name: "Origin", value: product.origin }] : []),
       { "@type": "PropertyValue", name: "Condition", value: product.condition },
       ...(product.mohsHardness ? [{ "@type": "PropertyValue", name: "Mohs hardness", value: product.mohsHardness }] : []),
     ],
@@ -66,12 +77,12 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
       priceCurrency: "USD",
       price: product.price,
       availability: product.status === "Available" ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      url: absoluteUrl(`/shop/${product.categorySlug}/${product.slug}`),
+      url: absoluteUrl(localizedPath(`/shop/${product.categorySlug}/${product.slug}`, language)),
     },
   };
   const breadcrumbs = breadcrumbJsonLd([
-    { name: "Home", path: "/" },
-    { name: "Shop", path: "/shop" },
+    { name: dictionaries[language].nav.home, path: "/" },
+    { name: dictionaries[language].nav.shop, path: "/shop" },
     { name: product.category, path: `/shop/${product.categorySlug}` },
     { name: product.name, path: `/shop/${product.categorySlug}/${product.slug}` },
   ]);

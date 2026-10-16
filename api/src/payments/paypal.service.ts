@@ -1,5 +1,16 @@
 import { BadGatewayException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { createHash } from "node:crypto";
+
+export type PayPalShippingAddress = {
+  fullName: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state?: string;
+  postalCode?: string;
+  countryCode: string;
+};
 
 export type PayPalOrder = {
   id: string;
@@ -8,6 +19,17 @@ export type PayPalOrder = {
     reference_id?: string;
     custom_id?: string;
     amount?: { currency_code: string; value: string };
+    shipping?: {
+      name?: { full_name?: string };
+      address?: {
+        address_line_1?: string;
+        address_line_2?: string;
+        admin_area_1?: string;
+        admin_area_2?: string;
+        postal_code?: string;
+        country_code?: string;
+      };
+    };
     payments?: {
       captures?: Array<{
         id: string;
@@ -109,13 +131,16 @@ export class PayPalService {
     amount: string;
     currency: string;
     referenceId: string;
+    shippingAddress: PayPalShippingAddress;
     returnUrl: string;
     cancelUrl: string;
     idempotencyKey?: string;
   }): Promise<{ id: string; approveUrl: string | null }> {
     const order = await this.request<PayPalOrder>("/v2/checkout/orders", {
       method: "POST",
-      idempotencyKey: input.idempotencyKey ?? `rv-${input.referenceId}`,
+      idempotencyKey:
+        input.idempotencyKey ??
+        `rv-${createHash("sha256").update(`${input.referenceId}:provided-shipping-v1`).digest("hex").slice(0, 32)}-s1`,
       body: JSON.stringify({
         intent: "CAPTURE",
         purchase_units: [
@@ -123,6 +148,17 @@ export class PayPalService {
             reference_id: input.referenceId,
             custom_id: input.referenceId,
             amount: { currency_code: input.currency, value: input.amount },
+            shipping: {
+              name: { full_name: input.shippingAddress.fullName },
+              address: {
+                address_line_1: input.shippingAddress.line1,
+                ...(input.shippingAddress.line2 ? { address_line_2: input.shippingAddress.line2 } : {}),
+                admin_area_2: input.shippingAddress.city,
+                ...(input.shippingAddress.state ? { admin_area_1: input.shippingAddress.state } : {}),
+                ...(input.shippingAddress.postalCode ? { postal_code: input.shippingAddress.postalCode } : {}),
+                country_code: input.shippingAddress.countryCode,
+              },
+            },
           },
         ],
         payment_source: {
@@ -130,7 +166,7 @@ export class PayPalService {
             experience_context: {
               brand_name: "RENDI VIRGO",
               user_action: "PAY_NOW",
-              shipping_preference: "NO_SHIPPING",
+              shipping_preference: "SET_PROVIDED_ADDRESS",
               return_url: input.returnUrl,
               cancel_url: input.cancelUrl,
             },

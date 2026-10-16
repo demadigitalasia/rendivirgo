@@ -14,7 +14,7 @@ import {
   Min,
   MinLength,
 } from "class-validator";
-import { BannerPlacement, ContentStatus } from "../../../generated/prisma";
+import { BannerPlacement, ContentStatus, TranslationStatus } from "../../../generated/prisma";
 import { PaginationQueryDto } from "../../common/dto/pagination.dto";
 
 const optionalBoolean = () =>
@@ -99,6 +99,40 @@ export class CreateBlogPostDto {
   @IsString()
   @MaxLength(400)
   metaDescription?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  titleId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(600)
+  excerptId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120000)
+  bodyId?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagsId?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  metaTitleId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  metaDescriptionId?: string | null;
+
+  @IsOptional()
+  @IsEnum(TranslationStatus)
+  idTranslationStatus?: TranslationStatus;
 }
 
 export class UpdateBlogPostDto extends PartialType(CreateBlogPostDto) {}
@@ -149,6 +183,30 @@ export class CreatePageDto {
   @IsString()
   @MaxLength(400)
   metaDescription?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  titleId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120000)
+  bodyId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  metaTitleId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  metaDescriptionId?: string | null;
+
+  @IsOptional()
+  @IsEnum(TranslationStatus)
+  idTranslationStatus?: TranslationStatus;
 }
 
 export class UpdatePageDto extends PartialType(CreatePageDto) {}
@@ -181,6 +239,15 @@ export class CreateTestimonialDto {
   @MinLength(2)
   @MaxLength(2000)
   quote: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  quoteId?: string | null;
+
+  @IsOptional()
+  @IsEnum(TranslationStatus)
+  idTranslationStatus?: TranslationStatus;
 
   @IsOptional()
   @IsInt()

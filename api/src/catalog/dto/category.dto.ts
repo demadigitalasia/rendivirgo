@@ -1,6 +1,6 @@
 import { Transform, Type } from "class-transformer";
-import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from "class-validator";
-import { ProductTone } from "../../../generated/prisma";
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from "class-validator";
+import { ProductTone, TranslationStatus } from "../../../generated/prisma";
 
 export class CreateCategoryDto {
   @IsString()
@@ -45,6 +45,30 @@ export class CreateCategoryDto {
   @IsString()
   @MaxLength(400)
   metaDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  nameId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(600)
+  descriptionId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  metaTitleId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  metaDescriptionId?: string | null;
+
+  @IsOptional()
+  @IsEnum(TranslationStatus)
+  idTranslationStatus?: TranslationStatus;
 }
 
 export class UpdateCategoryDto extends CreateCategoryDto {

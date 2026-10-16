@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -42,8 +43,12 @@ export function LoginForm() {
   return (
     <main className="rv-login">
       <section className="rv-login__card" aria-labelledby="admin-login-title">
-        <div className="rv-login__brand">RENDI VIRGO</div>
-        <h1 id="admin-login-title" className="rv-login__tagline">Admin workspace</h1>
+        <div className="rv-login__brand">
+          <Image src="/brand/rendi-virgo-logo.webp" alt="RENDI VIRGO" width={780} height={260} sizes="200px" priority />
+          <span className="rv-login__eyebrow">Admin workspace</span>
+        </div>
+        <h1 id="admin-login-title" className="rv-login__title">Welcome back</h1>
+        <p className="rv-login__tagline">Sign in to manage products, orders, and content.</p>
 
         <form
           className="rv-stack"

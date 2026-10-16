@@ -1,4 +1,12 @@
 export type ContentStatus = "Draft" | "Published" | "Scheduled" | "Archived";
+export type TranslationStatus = "Missing" | "Draft" | "Review" | "Ready";
+
+export const translationStatusOptions: Array<{ value: TranslationStatus; label: string }> = [
+  { value: "Missing", label: "Missing" },
+  { value: "Draft", label: "Draft" },
+  { value: "Review", label: "Ready for review" },
+  { value: "Ready", label: "Ready to publish" },
+];
 
 export const contentStatusOptions: Array<{ value: ContentStatus; label: string }> = [
   { value: "Draft", label: "Draft" },
@@ -21,6 +29,13 @@ export type BlogPost = {
   views: number;
   metaTitle: string | null;
   metaDescription: string | null;
+  titleId: string | null;
+  excerptId: string | null;
+  bodyId: string | null;
+  tagsId: string[];
+  metaTitleId: string | null;
+  metaDescriptionId: string | null;
+  idTranslationStatus: TranslationStatus;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +51,11 @@ export type ContentPage = {
   sortOrder: number;
   metaTitle: string | null;
   metaDescription: string | null;
+  titleId: string | null;
+  bodyId: string | null;
+  metaTitleId: string | null;
+  metaDescriptionId: string | null;
+  idTranslationStatus: TranslationStatus;
   createdAt: string;
   updatedAt: string;
 };
@@ -45,6 +65,8 @@ export type Testimonial = {
   customerName: string;
   location: string | null;
   quote: string;
+  quoteId: string | null;
+  idTranslationStatus: TranslationStatus;
   rating: number;
   productId: string | null;
   isPublished: boolean;

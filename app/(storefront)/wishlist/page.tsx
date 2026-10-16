@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { WishlistView } from "@/components/wishlist-view";
+import { storefrontMetadata } from "@/lib/storefront-metadata";
 
-export const metadata: Metadata = {
-  title: "Your Wishlist | RENDI VIRGO",
-  description: "Pieces you saved on this device — revisit one-of-a-kind Indonesian stones before they find a new home.",
-  alternates: { canonical: "/wishlist" },
-  robots: { index: false, follow: true },
-};
+export const generateMetadata = (): Promise<Metadata> => storefrontMetadata("wishlist", "/wishlist", { robots: { index: false, follow: true } });
 
 export default function WishlistPage() {
   return <WishlistView />;

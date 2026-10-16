@@ -1,36 +1,41 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { ArrowIcon, GlobeIcon, LeafIcon, SparkleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { HomeScrollMotion } from "@/components/home-scroll-motion";
 import { OwnerStory } from "@/components/owner-story";
-import { useCopy } from "@/components/providers";
+import { useCopy, useLanguage } from "@/components/providers";
 import { WhatsAppPopup } from "@/components/whatsapp-popup";
 import { formatUSD, type Product } from "@/lib/catalog";
 import type { ApiTestimonial, SiteContent } from "@/lib/storefront";
 
 export function HomeContent({ featured, categories, siteContent, testimonials, whatsapp, whatsappSecondary }: {
   featured: Product[];
-  categories: Array<{ slug: string; name: string; imageUrl?: string | null }>;
+  categories: Array<{ slug: string; name: string; imageUrl?: string | null; contentLocale: "en" | "id" }>;
   siteContent: SiteContent;
   testimonials: ApiTestimonial[];
   whatsapp: string;
   whatsappSecondary: string;
 }) {
   const t = useCopy();
+  const { language } = useLanguage();
   const heroImage = siteContent.heroImage || "/images/rendi-virgo-hero-stones.webp";
-  const heroTitle = !siteContent.heroTitle || ["Explore the Collection", "Jelajahi Koleksi"].includes(siteContent.heroTitle)
+  const dictionaryHeroTitle = !siteContent.heroTitle || ["Explore the Collection", "Jelajahi Koleksi"].includes(siteContent.heroTitle);
+  const dictionaryHeroSubtitle = !siteContent.heroSubtitle || siteContent.heroSubtitle === "Rare semi-precious stones from Indonesia, selected for collectors, makers, and quiet moments of wonder.";
+  const heroTitle = dictionaryHeroTitle
     ? t.home.heroTitle : siteContent.heroTitle;
-  const heroSubtitle = !siteContent.heroSubtitle || siteContent.heroSubtitle === "Rare semi-precious stones from Indonesia, selected for collectors, makers, and quiet moments of wonder."
+  const heroSubtitle = dictionaryHeroSubtitle
     ? t.home.heroBody : siteContent.heroSubtitle;
+  const heroTitleLanguage = dictionaryHeroTitle ? language : siteContent.contentLocale;
+  const heroSubtitleLanguage = dictionaryHeroSubtitle ? language : siteContent.contentLocale;
   const editorialForms: Record<string, string> = { cabochons: "cabochons", pair: "pair", rough: "rough", slab: "slab", specimen: "specimen" };
 
   return (
     <div className="home-page">
       <HomeScrollMotion />
-      <section className="hero">
+        <section className="hero">
         {heroImage.startsWith("/") ? (
           <Image className="hero__image" src={heroImage}
             alt="Polished green Indonesian stones resting on volcanic rock beside a calm river"
@@ -40,8 +45,10 @@ export function HomeContent({ featured, categories, siteContent, testimonials, w
         <div className="page-container hero__inner">
           <div className="hero__copy">
             <div className="eyebrow eyebrow--light hero__eyebrow"><span aria-hidden="true" />{t.home.eyebrow}</div>
-            <h1>{heroTitle.split("\n").map((line, index) => <span key={index}>{line}</span>)}</h1>
-            <p>{heroSubtitle}</p>
+            {language === "id" && siteContent.contentLocale === "en" && (!dictionaryHeroTitle || !dictionaryHeroSubtitle)
+              ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+            <h1 lang={heroTitleLanguage}>{heroTitle.split("\n").map((line, index) => <span key={index}>{line}</span>)}</h1>
+            <p lang={heroSubtitleLanguage}>{heroSubtitle}</p>
             <div className="hero__actions">
               <Link href="/shop" className="button button--light">{t.home.heroCta} <ArrowIcon /></Link>
               <Link href="/about-us" className="hero__story-link">{t.home.storyLink}<ArrowIcon /></Link>
@@ -51,8 +58,8 @@ export function HomeContent({ featured, categories, siteContent, testimonials, w
             <Link href={`/shop/${featured[0].categorySlug}/${featured[0].slug}`} className="hero__spec">
               <span className="eyebrow">{t.home.featuredPiece}</span>
               <strong>{featured[0].name}</strong>
-              <small>{featured[0].stoneType} · {featured[0].origin.split(",")[0]}</small>
-              <span className="hero__spec__row"><span>{formatUSD(featured[0].price)}</span><ArrowIcon /></span>
+              <small>{featured[0].stoneType}{featured[0].origin ? ` · ${featured[0].origin.split(",")[0]}` : ""}</small>
+              <span className="hero__spec__row"><span>{formatUSD(featured[0].price, language)}</span><ArrowIcon /></span>
             </Link>
           ) : null}
         </div>
@@ -88,13 +95,15 @@ export function HomeContent({ featured, categories, siteContent, testimonials, w
             <div><div className="eyebrow">{t.home.categoryEyebrow}</div><h2>{t.home.categoriesTitle}</h2><p>{t.home.categoryBody}</p></div>
             <Link href="/shop" className="text-button">{t.home.categoriesAll}<ArrowIcon /></Link>
           </div>
+          {language === "id" && categories.some((category) => category.contentLocale === "en")
+            ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
           <div className="category-grid" data-home-stagger>
             {categories.map((category, index) => {
               const categoryImage = category.imageUrl;
               const editorialForm = !categoryImage ? editorialForms[category.slug] : null;
               return (
                 <Link className={`category-tile ${categoryImage ? "category-tile--has-image" : editorialForm ? "category-tile--editorial" : ""}`}
-                  key={category.slug} href={`/shop/${category.slug}`}>
+                  key={category.slug} href={`/shop/${category.slug}`} lang={category.contentLocale}>
                   {categoryImage ? <Image className="category-tile__image" src={categoryImage} alt="" fill
                     sizes="(max-width: 720px) 45vw, 20vw" unoptimized /> : editorialForm ? (
                       <span className={`category-tile__stone category-tile__stone--${editorialForm}`} aria-hidden="true" />
@@ -130,7 +139,8 @@ export function HomeContent({ featured, categories, siteContent, testimonials, w
               {testimonials.slice(0, 3).map((testimonial) => (
                 <figure className="testimonial-card" key={testimonial.id}>
                   <span className="testimonial-card__quote" aria-hidden="true">“</span>
-                  <blockquote>{testimonial.quote}</blockquote>
+                  {language === "id" && testimonial.contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+                  <blockquote lang={testimonial.contentLocale}>{testimonial.quote}</blockquote>
                   <figcaption><strong>{testimonial.customerName}</strong>{testimonial.location ? <span>{testimonial.location}</span> : null}</figcaption>
                 </figure>
               ))}

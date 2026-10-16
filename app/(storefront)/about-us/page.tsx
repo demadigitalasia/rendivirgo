@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { AboutContent } from "@/components/about-content";
 import { getPage, getPublicSettings, getSiteContent } from "@/lib/storefront";
+import { getRequestLanguage } from "@/lib/server-locale";
+import { localizedAlternates } from "@/lib/locale";
+import { dictionaries } from "@/lib/i18n";
 
 export const revalidate = 60;
 
@@ -11,11 +14,14 @@ const fallback = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const page = await getPage("about-us");
+  const language = await getRequestLanguage();
+  const page = await getPage("about-us", language);
+  const copy = dictionaries[language].metadata;
+  const useLocalizedFallback = language === "id" && (!page || page.contentLocale === "en");
   return {
-    title: page?.metaTitle ?? fallback.title,
-    description: page?.metaDescription ?? fallback.description,
-    alternates: { canonical: "/about-us" },
+    title: useLocalizedFallback ? copy.aboutTitle : page?.metaTitle ?? page?.title ?? copy.aboutTitle,
+    description: useLocalizedFallback ? copy.aboutDescription : page?.metaDescription ?? copy.aboutDescription,
+    alternates: localizedAlternates("/about-us", language),
   };
 }
 
@@ -26,7 +32,8 @@ const fallbackStory = [
 ];
 
 export default async function AboutPage() {
-  const [siteContent, store, page] = await Promise.all([getSiteContent(), getPublicSettings(), getPage("about-us")]);
+  const language = await getRequestLanguage();
+  const [siteContent, store, page] = await Promise.all([getSiteContent(language), getPublicSettings(), getPage("about-us", language)]);
 
   const rawBody = page?.body?.trim() ? page.body : fallbackStory.join("\n\n");
   const storyParagraphs = rawBody
@@ -40,10 +47,12 @@ export default async function AboutPage() {
       ownerName={siteContent.ownerName || "RENDI VIRGO"}
       ownerRole={siteContent.ownerRole || "Founder & Curator"}
       ownerBio={siteContent.ownerBio}
+      ownerBioLanguage={siteContent.contentLocale}
       ownerImage={siteContent.ownerImage}
       heroImage={siteContent.heroImage}
       email={store.store.email || "cs@rendivirgo.com"}
       storyParagraphs={storyParagraphs.length ? storyParagraphs : fallbackStory}
+      contentLanguage={page?.contentLocale ?? "en"}
     />
   );
 }

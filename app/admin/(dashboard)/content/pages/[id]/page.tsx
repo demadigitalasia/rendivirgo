@@ -17,7 +17,7 @@ import {
   TextArea,
   TextInput,
 } from "@/components/admin/ui";
-import { contentStatusOptions, type ContentPage, type ContentStatus } from "../../types";
+import { contentStatusOptions, translationStatusOptions, type ContentPage, type ContentStatus, type TranslationStatus } from "../../types";
 
 type PageForm = {
   title: string;
@@ -28,6 +28,11 @@ type PageForm = {
   sortOrder: string;
   metaTitle: string;
   metaDescription: string;
+  titleId: string;
+  bodyId: string;
+  metaTitleId: string;
+  metaDescriptionId: string;
+  idTranslationStatus: TranslationStatus;
 };
 
 const emptyForm: PageForm = {
@@ -39,6 +44,11 @@ const emptyForm: PageForm = {
   sortOrder: "0",
   metaTitle: "",
   metaDescription: "",
+  titleId: "",
+  bodyId: "",
+  metaTitleId: "",
+  metaDescriptionId: "",
+  idTranslationStatus: "Missing",
 };
 
 function formFrom(page: ContentPage): PageForm {
@@ -51,6 +61,11 @@ function formFrom(page: ContentPage): PageForm {
     sortOrder: String(page.sortOrder),
     metaTitle: page.metaTitle ?? "",
     metaDescription: page.metaDescription ?? "",
+    titleId: page.titleId ?? "",
+    bodyId: page.bodyId ?? "",
+    metaTitleId: page.metaTitleId ?? "",
+    metaDescriptionId: page.metaDescriptionId ?? "",
+    idTranslationStatus: page.idTranslationStatus ?? "Missing",
   };
 }
 
@@ -89,6 +104,11 @@ export default function PageEditorPage() {
       sortOrder: Number.isInteger(sortOrder) ? sortOrder : 0,
       metaTitle: form.metaTitle.trim() || null,
       metaDescription: form.metaDescription.trim() || null,
+      titleId: form.titleId.trim() || null,
+      bodyId: form.bodyId,
+      metaTitleId: form.metaTitleId.trim() || null,
+      metaDescriptionId: form.metaDescriptionId.trim() || null,
+      idTranslationStatus: form.idTranslationStatus,
     };
 
     setBusy(true);
@@ -172,6 +192,28 @@ export default function PageEditorPage() {
                 <Field label="Body" hint="Plain text or Markdown">
                   <TextArea code rows={18} value={form.body} onChange={(value) => update("body", value)} />
                 </Field>
+              </div>
+            </Card>
+
+            <Card title="Bahasa Indonesia" description="The Indonesian version is shown when its status is Ready and required fields are filled in.">
+              <div className="rv-stack">
+                <Field label="Translation status">
+                  <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
+                </Field>
+                <Field label="Title">
+                  <TextInput value={form.titleId} onChange={(value) => update("titleId", value)} />
+                </Field>
+                <Field label="Body">
+                  <TextArea code rows={18} value={form.bodyId} onChange={(value) => update("bodyId", value)} />
+                </Field>
+                <div className="rv-form-grid">
+                  <Field label="Meta title">
+                    <TextInput value={form.metaTitleId} onChange={(value) => update("metaTitleId", value)} />
+                  </Field>
+                  <Field label="Meta description">
+                    <TextArea rows={3} value={form.metaDescriptionId} onChange={(value) => update("metaDescriptionId", value)} />
+                  </Field>
+                </div>
               </div>
             </Card>
 

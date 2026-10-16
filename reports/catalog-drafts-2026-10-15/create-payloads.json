@@ -1,0 +1,110 @@
+[
+  {
+    "name": "Blue Cloud Crescent",
+    "slug": "blue-cloud-crescent",
+    "sku": "RV-DRAFT-BC-001",
+    "categoryId": "cmue0yh450000jvvk88xtgqzs",
+    "stoneType": "Pending identification",
+    "origin": "Not provided",
+    "condition": "Unverified",
+    "price": 48,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "weightGram": 0,
+    "weightCarat": null,
+    "lengthMm": null,
+    "widthMm": null,
+    "heightMm": null,
+    "status": "Draft",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "featured": false,
+    "fragile": false,
+    "description": "A glossy crescent-shaped cabochon with saturated blue areas and cloud-like white markings. Its sculptural silhouette makes a distinctive focal point for a custom setting or display. Offered as one loose piece; no setting is included.\n\nDRAFT — NOT READY FOR SALE\nSuggested merchandising price only; final price requires confirmed material, dimensions, weight, condition, and cost. Mineral identity, natural/synthetic status, treatments, origin, hardness, availability, and measurements are unverified. Weight 0 g is a required-field placeholder, not a measured weight; confirm packed weight and shipping class before publishing. Image 1 is an AI background-edit preview and may differ in fine stone details; Image 2 is the original source. Verify shape, color, motifs, photograph rights, and actual stock before using the edited image for sale.",
+    "images": [
+      {
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsub5-24be670ccf99.webp",
+        "alt": "Blue Cloud Crescent — AI background-edit preview; compare original before publishing",
+        "sortOrder": 0
+      },
+      {
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsubc-a4a5c0556e7b.webp",
+        "alt": "Blue Cloud Crescent — original unedited source photograph",
+        "sortOrder": 1
+      }
+    ]
+  },
+  {
+    "name": "Tidal Reef Freeform",
+    "slug": "tidal-reef-freeform",
+    "sku": "RV-DRAFT-TR-001",
+    "categoryId": "cmue0yh450000jvvk88xtgqzs",
+    "stoneType": "Pending identification",
+    "origin": "Not provided",
+    "condition": "Unverified",
+    "price": 58,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "weightGram": 0,
+    "weightCarat": null,
+    "lengthMm": null,
+    "widthMm": null,
+    "heightMm": null,
+    "status": "Draft",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "featured": false,
+    "fragile": false,
+    "description": "A rounded triangular cabochon with teal-blue speckles across cream and earthy brown areas. The polished face reveals a varied, landscape-like pattern. Offered as one loose piece for a custom setting or collection; no setting is included.\n\nDRAFT — NOT READY FOR SALE\nSuggested merchandising price only; final price requires confirmed material, dimensions, weight, condition, and cost. Mineral identity, natural/synthetic status, treatments, origin, hardness, availability, and measurements are unverified. Weight 0 g is a required-field placeholder, not a measured weight; confirm packed weight and shipping class before publishing. Image 1 is an AI background-edit preview and may differ in fine stone details; Image 2 is the original source. Verify shape, color, motifs, photograph rights, and actual stock before using the edited image for sale.",
+    "images": [
+      {
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsubv-b67cee6ba039.webp",
+        "alt": "Tidal Reef Freeform — AI background-edit preview; compare original before publishing",
+        "sortOrder": 0
+      },
+      {
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsuby-9a514edf1689.webp",
+        "alt": "Tidal Reef Freeform — original unedited source photograph",
+        "sortOrder": 1
+      }
+    ]
+  },
+  {
+    "name": "Bloom Teardrop Pair",
+    "slug": "bloom-teardrop-pair",
+    "sku": "RV-DRAFT-BP-001",
+    "categoryId": "cmue0y9s300013lvkns70hlwk",
+    "stoneType": "Pending identification",
+    "origin": "Not provided",
+    "condition": "Unverified",
+    "price": 68,
+    "currency": "USD",
+    "unit": "pair",
+    "stockModel": "Unique",
+    "weightGram": 0,
+    "weightCarat": null,
+    "lengthMm": null,
+    "widthMm": null,
+    "heightMm": null,
+    "status": "Draft",
+    "tone": "earth",
+    "shippingClass": "Standard",
+    "featured": false,
+    "fragile": false,
+    "description": "Two pointed teardrop cabochons with pale, flower-like rosette motifs over a warm brown background. Their coordinated shapes create a balanced pair for a custom jewelry project or collection. Price is for both loose stones together; no findings or settings are included.\n\nDRAFT — NOT READY FOR SALE\nSuggested merchandising price only; final price requires confirmed material, dimensions, weight, condition, and cost. Mineral identity, natural/synthetic status, treatments, origin, hardness, availability, and measurements are unverified. Weight 0 g is a required-field placeholder, not a measured weight; confirm packed weight and shipping class before publishing. Image 1 is an AI background-edit preview and may differ in fine stone details; Image 2 is the original source. Verify shape, color, motifs, photograph rights, and actual stock before using the edited image for sale.",
+    "images": [
+      {
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsuc5-a8bafa7bc1f7.webp",
+        "alt": "Bloom Teardrop Pair — AI background-edit preview; compare original before publishing",
+        "sortOrder": 0
+      },
+      {
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsuc8-978b255dcf63.jpg",
+        "alt": "Bloom Teardrop Pair — original unedited source photograph",
+        "sortOrder": 1
+      }
+    ]
+  }
+]

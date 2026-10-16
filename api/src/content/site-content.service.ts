@@ -3,20 +3,27 @@ import { Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
 import { PrismaService } from "../prisma/prisma.service";
+import type { StorefrontLanguage } from "../common/utils/storefront-language";
 
 export const SITE_CONTENT_DEFAULTS: Record<string, unknown> = {
   "home.heroTitle": "",
   "home.heroSubtitle": "",
+  "home.heroTitleId": "",
+  "home.heroSubtitleId": "",
   "home.heroImage": "",
   "home.ownerName": "RENDI VIRGO",
   "home.ownerRole": "",
+  "home.ownerRoleId": "",
   "home.ownerBio": "",
+  "home.ownerBioId": "",
   "home.ownerImage": "",
   "home.ownerCtaLabel": "",
+  "home.ownerCtaLabelId": "",
   "home.ownerCtaHref": "",
   "shipping.overrideEnabled": false,
   "shipping.overrideAmount": 48,
   "shipping.freeShippingThreshold": 0,
+  "home.idTranslationStatus": "Missing",
 };
 
 const PUBLIC_PREFIXES = ["home.", "shipping."] as const;
@@ -47,12 +54,31 @@ export class SiteContentService {
     return this.merge(await this.readStored());
   }
 
-  async getPublic(): Promise<Record<string, unknown>> {
+  async getPublic(language: StorefrontLanguage = "en"): Promise<Record<string, unknown>> {
     const merged = await this.getAdmin();
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(merged)) {
-      if (PUBLIC_PREFIXES.some((prefix) => key.startsWith(prefix))) result[key] = value;
+      if (
+        PUBLIC_PREFIXES.some((prefix) => key.startsWith(prefix)) &&
+        !key.endsWith("Id") &&
+        key !== "home.idTranslationStatus"
+      ) result[key] = value;
     }
+    const translatedFields = ["home.heroTitle", "home.heroSubtitle", "home.ownerRole", "home.ownerBio", "home.ownerCtaLabel"];
+    const isIndonesianReady = language === "id" && merged["home.idTranslationStatus"] === "Ready" &&
+      Boolean(String(merged["home.heroTitleId"] ?? "").trim()) && Boolean(String(merged["home.heroSubtitleId"] ?? "").trim()) &&
+      translatedFields.every((key) => {
+        const baseValue = String(merged[key] ?? "").trim();
+        const translatedValue = String(merged[`${key}Id`] ?? "").trim();
+        return !baseValue || Boolean(translatedValue);
+      });
+    if (isIndonesianReady) {
+      for (const key of translatedFields) {
+        const translated = String(merged[`${key}Id`] ?? "");
+        if (translated.trim()) result[key] = translated;
+      }
+    }
+    result["home.contentLocale"] = isIndonesianReady ? "id" : "en";
     return result;
   }
 
@@ -84,6 +110,9 @@ export class SiteContentService {
     }
     if (key.startsWith("home.") && value !== null && typeof value !== "string") {
       throw new BadRequestException(`"${key}" must be a string`);
+    }
+    if (key === "home.idTranslationStatus" && !["Missing", "Draft", "Review", "Ready"].includes(String(value))) {
+      throw new BadRequestException(`"${key}" is not a supported translation status`);
     }
   }
 

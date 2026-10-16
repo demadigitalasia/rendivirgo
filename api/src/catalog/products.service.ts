@@ -14,6 +14,7 @@ import {
   UpdateProductDto,
 } from "./dto/product.dto";
 import { CatalogPdfService } from "./catalog-pdf.service";
+import type { StorefrontLanguage } from "../common/utils/storefront-language";
 
 export const productInclude = {
   category: true,
@@ -48,7 +49,7 @@ export class ProductsService {
 
   // ------------------------------------------------------------ mapping
 
-  toApiProduct(product: ProductWithRelations) {
+  toApiProduct(product: ProductWithRelations, language: StorefrontLanguage = "en", includeTranslations = false) {
     const dimensionsMm = {
       length: product.lengthMm ?? 0,
       width: product.widthMm ?? 0,
@@ -58,12 +59,21 @@ export class ProductsService {
     const stockQuantity = product.stockModel === "Unique" ? 1 : (product.stockQuantity ?? 0);
     const inStock = product.status === "Published" && stockQuantity > 0;
 
+    const idReady = language === "id" && product.idTranslationStatus === "Ready" && Boolean(product.nameId?.trim()) &&
+      (!product.description.trim() || Boolean(product.descriptionId?.trim()));
+    const categoryIdReady = language === "id" && product.category.idTranslationStatus === "Ready" && Boolean(product.category.nameId?.trim()) &&
+      (!product.category.description?.trim() || Boolean(product.category.descriptionId?.trim()));
     return {
       id: product.id,
       slug: product.slug,
       sku: product.sku,
-      name: product.name,
-      category: { id: product.category.id, slug: product.category.slug, name: product.category.name },
+      name: idReady ? product.nameId! : product.name,
+      category: {
+        id: product.category.id,
+        slug: product.category.slug,
+        name: categoryIdReady ? product.category.nameId! : product.category.name,
+        contentLocale: categoryIdReady ? "id" : "en",
+      },
       categoryId: product.categoryId,
       categorySlug: product.category.slug,
       stoneType: product.stoneType,
@@ -83,7 +93,7 @@ export class ProductsService {
       tone: product.tone,
       shippingClass: product.shippingClass,
       shippingProfileId: product.shippingProfileId,
-      description: product.description,
+      description: idReady ? product.descriptionId ?? product.description : product.description,
       videoUrl: product.videoUrl,
       featured: product.featured,
       fragile: product.fragile,
@@ -110,7 +120,25 @@ export class ProductsService {
         },
         shippingClass: variant.shippingClass,
       })),
-      seo: { metaTitle: product.metaTitle, metaDescription: product.metaDescription },
+      seo: {
+        metaTitle: idReady ? product.metaTitleId : product.metaTitle,
+        metaDescription: idReady ? product.metaDescriptionId : product.metaDescription,
+      },
+      contentLocale: idReady ? "id" : "en",
+      ...(includeTranslations ? {
+        nameId: product.nameId,
+        descriptionId: product.descriptionId,
+        metaTitleId: product.metaTitleId,
+        metaDescriptionId: product.metaDescriptionId,
+        idTranslationStatus: product.idTranslationStatus,
+        categoryTranslations: {
+          nameId: product.category.nameId,
+          descriptionId: product.category.descriptionId,
+          metaTitleId: product.category.metaTitleId,
+          metaDescriptionId: product.category.metaDescriptionId,
+          idTranslationStatus: product.category.idTranslationStatus,
+        },
+      } : {}),
       inStock,
       publishedAt: product.publishedAt,
       createdAt: product.createdAt,
@@ -120,7 +148,7 @@ export class ProductsService {
 
   // ------------------------------------------------------------ queries
 
-  private buildWhere(query: ProductQueryDto, publicOnly: boolean): Prisma.ProductWhereInput {
+  private buildWhere(query: ProductQueryDto, publicOnly: boolean, language: StorefrontLanguage = "en"): Prisma.ProductWhereInput {
     const where: Prisma.ProductWhereInput = {};
 
     if (publicOnly) {
@@ -170,10 +198,12 @@ export class ProductsService {
         {
           OR: [
             { name: { contains: search, mode: "insensitive" } },
+            ...(language === "id" ? [{ nameId: { contains: search, mode: "insensitive" as const } }] : []),
             { sku: { contains: search, mode: "insensitive" } },
             { stoneType: { contains: search, mode: "insensitive" } },
             { origin: { contains: search, mode: "insensitive" } },
             { description: { contains: search, mode: "insensitive" } },
+            ...(language === "id" ? [{ descriptionId: { contains: search, mode: "insensitive" as const } }] : []),
           ],
         },
       ];
@@ -182,8 +212,8 @@ export class ProductsService {
     return where;
   }
 
-  async listPublic(query: ProductQueryDto): Promise<Paginated<ReturnType<ProductsService["toApiProduct"]>>> {
-    const where = this.buildWhere(query, true);
+  async listPublic(query: ProductQueryDto, language: StorefrontLanguage = "en"): Promise<Paginated<ReturnType<ProductsService["toApiProduct"]>>> {
+    const where = this.buildWhere(query, true, language);
     const orderBy = sortMap[query.sort ?? "newest"] ?? sortMap.newest;
 
     const [total, products] = await this.prisma.$transaction([
@@ -191,7 +221,7 @@ export class ProductsService {
       this.prisma.product.findMany({ where, orderBy, include: productInclude, ...skipTake(query.page, query.pageSize) }),
     ]);
 
-    return paginated(products.map((product) => this.toApiProduct(product)), total, query.page, query.pageSize);
+    return paginated(products.map((product) => this.toApiProduct(product, language)), total, query.page, query.pageSize);
   }
 
   async listAdmin(query: ProductQueryDto) {
@@ -203,7 +233,7 @@ export class ProductsService {
       this.prisma.product.findMany({ where, orderBy, include: productInclude, ...skipTake(query.page, query.pageSize) }),
     ]);
 
-    return paginated(products.map((product) => this.toApiProduct(product)), total, query.page, query.pageSize);
+    return paginated(products.map((product) => this.toApiProduct(product, "en", true)), total, query.page, query.pageSize);
   }
 
   async exportCatalogPdf(query: CatalogPdfQueryDto) {
@@ -240,23 +270,31 @@ export class ProductsService {
     return this.catalogPdf.generate(products, { includePrice: query.includePrice !== false });
   }
 
-  async getPublicBySlug(slug: string) {
+  async getPublicBySlug(slug: string, language: StorefrontLanguage = "en") {
     const product = await this.prisma.product.findFirst({
       where: { slug, status: { in: ["Published", "Reserved", "Sold"] }, category: { isActive: true } },
       include: productInclude,
     });
     if (!product) throw new NotFoundException("Product not found");
-    const conditionOption = await this.prisma.conditionOption.findUnique({ where: { name: product.condition }, select: { note: true } });
-    return { ...this.toApiProduct(product), conditionNote: conditionOption?.note ?? null };
+    const conditionOption = await this.prisma.conditionOption.findUnique({
+      where: { name: product.condition },
+      select: { note: true, noteId: true, idTranslationStatus: true },
+    });
+    const translatedConditionNote = language === "id" && conditionOption?.idTranslationStatus === "Ready" && Boolean(conditionOption.noteId?.trim());
+    return {
+      ...this.toApiProduct(product, language),
+      conditionNote: translatedConditionNote ? conditionOption?.noteId ?? null : conditionOption?.note ?? null,
+      conditionNoteContentLocale: translatedConditionNote ? "id" : "en",
+    };
   }
 
   async getAdminById(id: string) {
     const product = await this.prisma.product.findUnique({ where: { id }, include: productInclude });
     if (!product) throw new NotFoundException("Product not found");
-    return this.toApiProduct(product);
+    return this.toApiProduct(product, "en", true);
   }
 
-  async related(slug: string, limit = 4) {
+  async related(slug: string, limit = 4, language: StorefrontLanguage = "en") {
     const product = await this.prisma.product.findUnique({ where: { slug }, select: { id: true, categoryId: true } });
     if (!product) return [];
     const products = await this.prisma.product.findMany({
@@ -265,7 +303,7 @@ export class ProductsService {
       take: limit,
       include: productInclude,
     });
-    return products.map((item) => this.toApiProduct(item));
+    return products.map((item) => this.toApiProduct(item, language));
   }
 
   async filters() {
@@ -362,6 +400,11 @@ export class ProductsService {
         shippingClass: dto.shippingClass ?? "Standard",
         shippingProfileId: dto.shippingProfileId ?? null,
         description: dto.description ?? "",
+        nameId: dto.nameId ?? null,
+        descriptionId: dto.descriptionId ?? null,
+        metaTitleId: dto.metaTitleId ?? null,
+        metaDescriptionId: dto.metaDescriptionId ?? null,
+        idTranslationStatus: dto.idTranslationStatus ?? "Missing",
         videoUrl: dto.videoUrl ?? null,
         featured: dto.featured ?? false,
         fragile: dto.fragile ?? false,
@@ -406,7 +449,7 @@ export class ProductsService {
       userAgent: context.userAgent,
     });
 
-    return this.toApiProduct(product);
+    return this.toApiProduct(product, "en", true);
   }
 
   // Variant SKUs are globally unique, so every write is scoped to this product
@@ -515,6 +558,11 @@ export class ProductsService {
           ...(dto.fragile !== undefined ? { fragile: dto.fragile } : {}),
           ...(dto.metaTitle !== undefined ? { metaTitle: dto.metaTitle } : {}),
           ...(dto.metaDescription !== undefined ? { metaDescription: dto.metaDescription } : {}),
+          ...(dto.nameId !== undefined ? { nameId: dto.nameId } : {}),
+          ...(dto.descriptionId !== undefined ? { descriptionId: dto.descriptionId } : {}),
+          ...(dto.metaTitleId !== undefined ? { metaTitleId: dto.metaTitleId } : {}),
+          ...(dto.metaDescriptionId !== undefined ? { metaDescriptionId: dto.metaDescriptionId } : {}),
+          ...(dto.idTranslationStatus !== undefined ? { idTranslationStatus: dto.idTranslationStatus } : {}),
           ...(dto.images
             ? {
                 images: {
@@ -580,7 +628,7 @@ export class ProductsService {
       userAgent: context.userAgent,
     });
 
-    return this.toApiProduct(product);
+    return this.toApiProduct(product, "en", true);
   }
 
   async bulk(dto: BulkProductActionDto, context: AuditContext) {
@@ -668,6 +716,11 @@ export class ProductsService {
         fragile: source.fragile,
         metaTitle: source.metaTitle,
         metaDescription: source.metaDescription,
+        nameId: source.nameId,
+        descriptionId: source.descriptionId,
+        metaTitleId: source.metaTitleId,
+        metaDescriptionId: source.metaDescriptionId,
+        idTranslationStatus: source.idTranslationStatus,
         images: { create: source.images.map((image, index) => ({ url: image.url, alt: image.alt, focalX: image.focalX, focalY: image.focalY, sortOrder: index })) },
       },
       include: productInclude,
@@ -683,7 +736,7 @@ export class ProductsService {
       userAgent: context.userAgent,
     });
 
-    return this.toApiProduct(copy);
+    return this.toApiProduct(copy, "en", true);
   }
 
   async priceHistory(id: string) {

@@ -25,7 +25,7 @@ import {
   TextArea,
   TextInput,
 } from "@/components/admin/ui";
-import { contentStatusOptions, parseTags, type BlogPost, type ContentStatus } from "../../types";
+import { contentStatusOptions, parseTags, translationStatusOptions, type BlogPost, type ContentStatus, type TranslationStatus } from "../../types";
 
 type BlogForm = {
   title: string;
@@ -40,6 +40,13 @@ type BlogForm = {
   metaTitle: string;
   metaDescription: string;
   coverImage: string;
+  titleId: string;
+  excerptId: string;
+  bodyId: string;
+  tagsId: string;
+  metaTitleId: string;
+  metaDescriptionId: string;
+  idTranslationStatus: TranslationStatus;
 };
 
 const emptyForm: BlogForm = {
@@ -55,6 +62,13 @@ const emptyForm: BlogForm = {
   metaTitle: "",
   metaDescription: "",
   coverImage: "",
+  titleId: "",
+  excerptId: "",
+  bodyId: "",
+  tagsId: "",
+  metaTitleId: "",
+  metaDescriptionId: "",
+  idTranslationStatus: "Missing",
 };
 
 function formFrom(post: BlogPost): BlogForm {
@@ -71,6 +85,13 @@ function formFrom(post: BlogPost): BlogForm {
     metaTitle: post.metaTitle ?? "",
     metaDescription: post.metaDescription ?? "",
     coverImage: post.coverImage ?? "",
+    titleId: post.titleId ?? "",
+    excerptId: post.excerptId ?? "",
+    bodyId: post.bodyId ?? "",
+    tagsId: post.tagsId.join(", "),
+    metaTitleId: post.metaTitleId ?? "",
+    metaDescriptionId: post.metaDescriptionId ?? "",
+    idTranslationStatus: post.idTranslationStatus ?? "Missing",
   };
 }
 
@@ -115,6 +136,13 @@ export default function BlogEditorPage() {
       author: form.author.trim() || "RENDI VIRGO",
       metaTitle: form.metaTitle.trim() || null,
       metaDescription: form.metaDescription.trim() || null,
+      titleId: form.titleId.trim() || null,
+      excerptId: form.excerptId.trim() || null,
+      bodyId: form.bodyId,
+      tagsId: parseTags(form.tagsId),
+      metaTitleId: form.metaTitleId.trim() || null,
+      metaDescriptionId: form.metaDescriptionId.trim() || null,
+      idTranslationStatus: form.idTranslationStatus,
     };
     if (Number.isInteger(readMinutes)) payload.readMinutes = readMinutes;
     if (form.publishedAt) payload.publishedAt = new Date(form.publishedAt).toISOString();
@@ -206,6 +234,34 @@ export default function BlogEditorPage() {
                 <Field label="Body" hint="Plain text or Markdown">
                   <TextArea code rows={18} value={form.body} onChange={(value) => update("body", value)} />
                 </Field>
+              </div>
+            </Card>
+
+            <Card title="Bahasa Indonesia" description="Add a reviewed Indonesian version. Set the status to Ready when all required fields are translated.">
+              <div className="rv-stack">
+                <Field label="Translation status">
+                  <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
+                </Field>
+                <Field label="Title">
+                  <TextInput value={form.titleId} onChange={(value) => update("titleId", value)} />
+                </Field>
+                <Field label="Tags" hint="Pisahkan dengan koma">
+                  <TextInput value={form.tagsId} onChange={(value) => update("tagsId", value)} />
+                </Field>
+                <Field label="Ringkasan">
+                  <TextArea rows={3} value={form.excerptId} onChange={(value) => update("excerptId", value)} />
+                </Field>
+                <Field label="Isi artikel">
+                  <TextArea code rows={18} value={form.bodyId} onChange={(value) => update("bodyId", value)} />
+                </Field>
+                <div className="rv-form-grid">
+                  <Field label="Judul meta">
+                    <TextInput value={form.metaTitleId} onChange={(value) => update("metaTitleId", value)} />
+                  </Field>
+                  <Field label="Deskripsi meta">
+                    <TextArea rows={3} value={form.metaDescriptionId} onChange={(value) => update("metaDescriptionId", value)} />
+                  </Field>
+                </div>
               </div>
             </Card>
 

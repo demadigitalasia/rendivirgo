@@ -2,11 +2,14 @@
 
 import Image from "next/image";
 import type { CSSProperties } from "react";
+import { useState } from "react";
 import { useProductWatermark } from "@/components/providers";
 
 export function ProductWatermark() {
   const watermark = useProductWatermark();
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
   if (!watermark.enabled || !watermark.logo) return null;
+  if (failedLogo === watermark.logo) return null;
 
   const size = Math.min(50, Math.max(8, Number.isFinite(watermark.size) ? watermark.size : 18));
   const opacity = Math.min(1, Math.max(0.1, Number.isFinite(watermark.opacity) ? watermark.opacity : 0.35));
@@ -25,7 +28,15 @@ export function ProductWatermark() {
       aria-hidden="true"
     >
       <span className="product-watermark__mark">
-        <Image className="product-watermark__logo" src={watermark.logo} alt="" width={600} height={200} unoptimized />
+        <Image
+          className="product-watermark__logo"
+          src={watermark.logo}
+          alt=""
+          width={600}
+          height={200}
+          unoptimized
+          onError={() => setFailedLogo(watermark.logo)}
+        />
       </span>
     </span>
   );

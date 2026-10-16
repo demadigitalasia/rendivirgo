@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Req } from "@nestjs/common";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { ConditionsService } from "./conditions.service";
 import { CreateConditionDto, UpdateConditionDto } from "./dto/condition.dto";
+import { storefrontLanguage } from "../common/utils/storefront-language";
 
 @Controller("conditions")
 export class ConditionsController {
@@ -11,8 +12,8 @@ export class ConditionsController {
 
   @Public()
   @Get()
-  list() {
-    return this.conditions.listPublic();
+  list(@Headers("x-rv-language") language?: string) {
+    return this.conditions.listPublic(storefrontLanguage(language));
   }
 }
 

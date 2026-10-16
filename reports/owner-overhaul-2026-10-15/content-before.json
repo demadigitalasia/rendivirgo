@@ -1,0 +1,14 @@
+{
+  "home.heroTitle": "Explore the Collection",
+  "home.heroSubtitle": "Rare semi-precious stones from Indonesia, selected for collectors, makers, and quiet moments of wonder.",
+  "home.heroImage": "/images/rendi-virgo-hero-stones.webp",
+  "home.ownerName": "RENDI VIRGO",
+  "home.ownerRole": "Founder & Curator",
+  "home.ownerBio": "A lifelong passion for Indonesia's natural treasures. RENDI VIRGO is dedicated to sharing the beauty and authenticity of our local stones with the world.",
+  "home.ownerImage": "/images/rendi-virgo-owner.webp",
+  "home.ownerCtaLabel": "About Us",
+  "home.ownerCtaHref": "/about-us",
+  "shipping.overrideEnabled": false,
+  "shipping.overrideAmount": 48,
+  "shipping.freeShippingThreshold": 350
+}

@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 import { Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
@@ -83,11 +85,35 @@ export type PaymentSettings = {
   currency: string;
 };
 
+export type OpenRouterSettingsStatus = {
+  configured: boolean;
+  source: "dashboard" | "environment" | "missing";
+  model: string;
+};
+
+export type OpenRouterModelOption = {
+  id: string;
+  name: string;
+  contextLength: number | null;
+};
+
+type EncryptedSecret = {
+  version: 1;
+  iv: string;
+  authTag: string;
+  ciphertext: string;
+};
+
+const OPENROUTER_KEY_SETTING = "ai.openrouter.apiKey";
+const OPENROUTER_MODEL_SETTING = "ai.openrouter.model";
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
+
 @Injectable()
 export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   // ------------------------------------------------------------ queries
@@ -203,6 +229,207 @@ export class SettingsService {
     }
 
     return groups;
+  }
+
+  async getOpenRouterSettingsStatus(): Promise<OpenRouterSettingsStatus> {
+    const [storedKey, storedModel] = await Promise.all([
+      this.prisma.siteSetting.findUnique({ where: { key: OPENROUTER_KEY_SETTING }, select: { key: true } }),
+      this.prisma.siteSetting.findUnique({ where: { key: OPENROUTER_MODEL_SETTING }, select: { value: true } }),
+    ]);
+    const environmentKey = this.config.get<string>("OPENROUTER_API_KEY")?.trim();
+    const source = storedKey ? "dashboard" : environmentKey ? "environment" : "missing";
+    const storedModelValue = storedModel?.value;
+    const model =
+      (typeof storedModelValue === "string" && storedModelValue.trim()) ||
+      this.config.get<string>("OPENROUTER_MODEL")?.trim() ||
+      DEFAULT_OPENROUTER_MODEL;
+
+    return { configured: source !== "missing", source, model };
+  }
+
+  async getOpenRouterCredentials(): Promise<{ apiKey: string | null; model: string }> {
+    const [storedKey, status] = await Promise.all([
+      this.prisma.siteSetting.findUnique({ where: { key: OPENROUTER_KEY_SETTING }, select: { value: true } }),
+      this.getOpenRouterSettingsStatus(),
+    ]);
+
+    if (storedKey) return { apiKey: this.decryptSecret(storedKey.value), model: status.model };
+
+    return {
+      apiKey: this.config.get<string>("OPENROUTER_API_KEY")?.trim() || null,
+      model: status.model,
+    };
+  }
+
+  async listOpenRouterModels(): Promise<{ models: OpenRouterModelOption[] }> {
+    const { apiKey } = await this.getOpenRouterCredentials();
+    if (!apiKey) {
+      throw new ServiceUnavailableException("Add an OpenRouter API key in Admin Settings before loading the model catalog.");
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(
+        "https://openrouter.ai/api/v1/models?output_modalities=text&supported_parameters=structured_outputs",
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(20_000),
+        },
+      );
+    } catch {
+      throw new ServiceUnavailableException("Could not reach the OpenRouter model catalog. Try again in a moment.");
+    }
+
+    if (response.status === 401) {
+      throw new ServiceUnavailableException("OpenRouter rejected the saved API key. Check it in Admin Settings.");
+    }
+    if (response.status === 403) {
+      throw new ServiceUnavailableException("OpenRouter denied access to the model catalog. Check the key permissions.");
+    }
+    if (response.status === 429) {
+      throw new ServiceUnavailableException("OpenRouter is limiting model catalog requests. Try again shortly.");
+    }
+    if (!response.ok) {
+      throw new ServiceUnavailableException(`OpenRouter model catalog request failed (HTTP ${response.status}).`);
+    }
+
+    let payload: { data?: Array<Record<string, unknown>> };
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      throw new ServiceUnavailableException("OpenRouter returned an invalid model catalog response.");
+    }
+    if (!Array.isArray(payload.data)) {
+      throw new ServiceUnavailableException("OpenRouter returned an invalid model catalog response.");
+    }
+
+    const models = payload.data
+      .filter((model) => {
+        const parameters = model.supported_parameters;
+        return Array.isArray(parameters) && parameters.includes("structured_outputs");
+      })
+      .flatMap((model): OpenRouterModelOption[] => {
+        if (typeof model.id !== "string" || !model.id.trim()) return [];
+        const id = model.id.trim();
+        const name = typeof model.name === "string" && model.name.trim() ? model.name.trim() : id;
+        const contextLength = typeof model.context_length === "number" ? model.context_length : null;
+        return [{ id, name, contextLength }];
+      })
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    return { models };
+  }
+
+  async updateOpenRouterSettings(
+    payload: { apiKey?: string; model?: string },
+    context: AuditContext,
+  ): Promise<OpenRouterSettingsStatus> {
+    const apiKey = payload.apiKey?.trim();
+    const model = payload.model?.trim();
+    if (payload.apiKey !== undefined && !apiKey) {
+      throw new BadRequestException("API key cannot be empty. Leave it blank to keep the current key.");
+    }
+    if (!apiKey && !model) throw new BadRequestException("Provide an API key or model to update.");
+    if (apiKey && (apiKey.length < 20 || apiKey.length > 500)) {
+      throw new BadRequestException("OpenRouter API key must be between 20 and 500 characters.");
+    }
+    if (model && (model.length > 160 || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,159}$/.test(model))) {
+      throw new BadRequestException("Enter a valid OpenRouter model ID, such as openai/gpt-4.1-mini.");
+    }
+
+    const updates = [];
+    if (apiKey) {
+      updates.push(
+        this.prisma.siteSetting.upsert({
+          where: { key: OPENROUTER_KEY_SETTING },
+          create: { key: OPENROUTER_KEY_SETTING, value: this.encryptSecret(apiKey) },
+          update: { value: this.encryptSecret(apiKey) },
+        }),
+      );
+    }
+    if (model) {
+      updates.push(
+        this.prisma.siteSetting.upsert({
+          where: { key: OPENROUTER_MODEL_SETTING },
+          create: { key: OPENROUTER_MODEL_SETTING, value: model },
+          update: { value: model },
+        }),
+      );
+    }
+
+    await this.prisma.$transaction(updates);
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "settings.openrouter.update",
+      entityType: "SiteSetting",
+      summary: "Updated OpenRouter configuration",
+      metadata: { apiKeyUpdated: Boolean(apiKey), modelUpdated: Boolean(model) },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+
+    return this.getOpenRouterSettingsStatus();
+  }
+
+  async clearOpenRouterApiKey(context: AuditContext): Promise<OpenRouterSettingsStatus> {
+    const removed = await this.prisma.siteSetting.deleteMany({ where: { key: OPENROUTER_KEY_SETTING } });
+    if (removed.count) {
+      await this.audit.log({
+        adminId: context.adminId,
+        action: "settings.openrouter.api_key.remove",
+        entityType: "SiteSetting",
+        summary: "Removed dashboard OpenRouter API key",
+        metadata: { key: OPENROUTER_KEY_SETTING },
+        ip: context.ip,
+        userAgent: context.userAgent,
+      });
+    }
+    return this.getOpenRouterSettingsStatus();
+  }
+
+  private encryptionKey(): Buffer {
+    const sessionSecret = this.config.get<string>("SESSION_SECRET")?.trim();
+    if (!sessionSecret || sessionSecret.length < 32) {
+      throw new ServiceUnavailableException(
+        "Set SESSION_SECRET to a stable value of at least 32 characters before storing provider API keys.",
+      );
+    }
+    return createHmac("sha256", sessionSecret).update("rendi-virgo:site-setting-encryption:v1").digest();
+  }
+
+  private encryptSecret(value: string): Prisma.InputJsonValue {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", this.encryptionKey(), iv);
+    const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+    const encrypted: EncryptedSecret = {
+      version: 1,
+      iv: iv.toString("base64url"),
+      authTag: cipher.getAuthTag().toString("base64url"),
+      ciphertext: ciphertext.toString("base64url"),
+    };
+    return encrypted;
+  }
+
+  private decryptSecret(value: unknown): string {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new ServiceUnavailableException("The saved OpenRouter API key is invalid. Re-enter it in Admin Settings.");
+    }
+    const secret = value as Partial<EncryptedSecret>;
+    if (secret.version !== 1 || !secret.iv || !secret.authTag || !secret.ciphertext) {
+      throw new ServiceUnavailableException("The saved OpenRouter API key is invalid. Re-enter it in Admin Settings.");
+    }
+    try {
+      const decipher = createDecipheriv("aes-256-gcm", this.encryptionKey(), Buffer.from(secret.iv, "base64url"));
+      decipher.setAuthTag(Buffer.from(secret.authTag, "base64url"));
+      return Buffer.concat([
+        decipher.update(Buffer.from(secret.ciphertext, "base64url")),
+        decipher.final(),
+      ]).toString("utf8");
+    } catch {
+      throw new ServiceUnavailableException(
+        "The saved OpenRouter API key could not be decrypted. Re-enter it in Admin Settings.",
+      );
+    }
   }
 
   async getShippingSettings(): Promise<ShippingSettings> {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useCopy } from "@/components/providers";
+import { useCopy, useLanguage } from "@/components/providers";
 
 type Review = {
   id: string;
@@ -33,6 +33,8 @@ const Stars = ({ rating, label }: { rating: number; label?: string }) => (
 
 export function ProductReviews({ slug }: { slug: string }) {
   const t = useCopy();
+  const { language } = useLanguage();
+  const dateLocale = language === "id" ? "id-ID" : "en-GB";
   const [payload, setPayload] = useState<ReviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -95,7 +97,7 @@ export function ProductReviews({ slug }: { slug: string }) {
       const data = (await response.json().catch(() => ({}))) as { message?: string | string[] };
       if (!response.ok) {
         const message = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-        setError(message ?? t.reviews.error);
+        setError(language === "id" ? t.reviews.error : message ?? t.reviews.error);
         return;
       }
       setSubmitted(true);
@@ -134,7 +136,7 @@ export function ProductReviews({ slug }: { slug: string }) {
               <div className="review-item__head">
                 <Stars rating={review.rating} label={t.reviews.stars(review.rating)} />
                 <strong>{review.title || review.name}</strong>
-                <span className="muted">{new Date(review.createdAt).toLocaleDateString()}</span>
+                <span className="muted">{new Date(review.createdAt).toLocaleDateString(dateLocale)}</span>
               </div>
               <p>{review.body}</p>
               <div className="review-item__meta">

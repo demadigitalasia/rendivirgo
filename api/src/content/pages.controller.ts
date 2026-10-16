@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { CreatePageDto, PageQueryDto, UpdatePageDto } from "./dto/content.dto";
 import { PagesService } from "./pages.service";
+import { storefrontLanguage } from "../common/utils/storefront-language";
 
 @Controller("pages")
 export class PagesController {
@@ -11,14 +12,14 @@ export class PagesController {
 
   @Public()
   @Get()
-  list() {
-    return this.pagesService.listPublic();
+  list(@Headers("x-rv-language") language?: string) {
+    return this.pagesService.listPublic(storefrontLanguage(language));
   }
 
   @Public()
   @Get(":slug")
-  detail(@Param("slug") slug: string) {
-    return this.pagesService.getPublicBySlug(slug);
+  detail(@Param("slug") slug: string, @Headers("x-rv-language") language?: string) {
+    return this.pagesService.getPublicBySlug(slug, storefrontLanguage(language));
   }
 }
 

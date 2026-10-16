@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/seo";
 import { getAllPublishedProducts, getBlogPosts, getCategories } from "@/lib/storefront";
+import { localizedPath } from "@/lib/locale";
 
 const baseUrl = siteUrl();
 
@@ -36,27 +37,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/privacy-policy", priority: 0.3, changeFrequency: "monthly" },
     { path: "/terms-conditions", priority: 0.3, changeFrequency: "monthly" },
   ];
+  const localizedEntry = <T extends { url: string }>(entry: T) => {
+    const path = entry.url.slice(baseUrl.length);
+    return {
+      ...entry,
+      alternates: {
+        languages: {
+          en: `${baseUrl}${localizedPath(path, "en")}`,
+          id: `${baseUrl}${localizedPath(path, "id")}`,
+        },
+      },
+    };
+  };
 
   return [
-    ...staticPaths.map((entry) => ({
+    ...staticPaths.map((entry) => localizedEntry({
       url: `${baseUrl}${entry.path}`,
       lastModified: now,
       changeFrequency: entry.changeFrequency,
       priority: entry.priority,
     })),
-    ...categories.map((category) => ({
+    ...categories.map((category) => localizedEntry({
       url: `${baseUrl}/shop/${category.slug}`,
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.8,
     })),
-    ...products.map((product) => ({
+    ...products.map((product) => localizedEntry({
       url: `${baseUrl}/shop/${product.categorySlug}/${product.slug}`,
       lastModified: toDate(product.updatedAt),
       changeFrequency: "weekly" as const,
       priority: 0.9,
     })),
-    ...posts.map((post) => ({
+    ...posts.map((post) => localizedEntry({
       url: `${baseUrl}/blog/${post.slug}`,
       lastModified: toDate(post.publishedAt),
       changeFrequency: "monthly" as const,

@@ -35,7 +35,9 @@ export type Product = {
   slug: string;
   sku: string;
   name: string;
+  contentLocale: "en" | "id";
   category: string;
+  categoryContentLocale: "en" | "id";
   categorySlug: string;
   stoneType: string;
   origin: string;
@@ -50,6 +52,7 @@ export type Product = {
   dimensionsMm: DimensionsMm;
   condition: string;
   conditionNote?: string | null;
+  conditionNoteContentLocale?: "en" | "id";
   status: ProductStatus;
   tone: ProductTone;
   description: string;
@@ -64,8 +67,8 @@ export type Product = {
   updatedAt: string;
 };
 
-export const formatUSD = (amount: number) =>
-  new Intl.NumberFormat("en-US", {
+export const formatUSD = (amount: number, language: "en" | "id" = "en") =>
+  new Intl.NumberFormat(language === "id" ? "id-ID" : "en-US", {
     style: "currency",
     currency: "USD",
   }).format(amount);

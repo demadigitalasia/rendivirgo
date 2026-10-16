@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import type { Product } from "@/lib/catalog";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
@@ -13,12 +13,14 @@ export function SearchResults({
   total,
   page,
   pageCount,
+  unavailable,
 }: {
   query: string;
   products: Product[];
   total: number;
   page: number;
   pageCount: number;
+  unavailable: boolean;
 }) {
   const t = useCopy();
 
@@ -40,22 +42,30 @@ export function SearchResults({
             <div className="section-heading">
               <h2>{t.search.query(query)}</h2>
             </div>
-            <p className="muted" aria-live="polite" style={{ marginBottom: 18 }}>
-              {t.search.count(total)}
-            </p>
-            {products.length ? (
-              <>
-                <div className="product-grid">
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-                <Pagination page={page} pageCount={pageCount} />
-              </>
-            ) : (
-              <div className="empty-state">
-                {t.search.empty} <Link href="/shop" className="text-button">{t.shop.browseFull}</Link>
+            {unavailable ? (
+              <div className="empty-state" role="status">
+                {t.search.unavailable} <a href={`/search?q=${encodeURIComponent(query)}&page=${page}`} className="text-button">{t.search.retry}</a>
               </div>
+            ) : (
+              <>
+                <p className="muted" aria-live="polite" style={{ marginBottom: 18 }}>
+                  {t.search.count(total)}
+                </p>
+                {products.length ? (
+                  <>
+                    <div className="product-grid">
+                      {products.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                      ))}
+                    </div>
+                    <Pagination page={page} pageCount={pageCount} />
+                  </>
+                ) : (
+                  <div className="empty-state">
+                    {t.search.empty} <Link href="/shop" className="text-button">{t.shop.browseFull}</Link>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

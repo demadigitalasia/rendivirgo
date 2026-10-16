@@ -1,11 +1,23 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import { Throttle } from "@nestjs/throttler";
 import { IsEmail } from "class-validator";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
-import { CreateOrderDto, CreateOrderEventDto, OrderQueryDto, RefundOrderDto, UpdateOrderDto } from "./dto/order.dto";
+import {
+  CreateOrderDto,
+  CreateReturnRequestDto,
+  CreateOrderEventDto,
+  OrderQueryDto,
+  RefundOrderDto,
+  ReviewReturnRequestDto,
+  UpdateFulfillmentDto,
+  UpdateOrderDto,
+} from "./dto/order.dto";
 import { OrdersService } from "./orders.service";
+import { OrderReturnRequestsService, type ReturnEvidenceFile } from "./order-return-requests.service";
 
 class RequestHistoryLinkDto {
   @IsEmail()
@@ -14,13 +26,40 @@ class RequestHistoryLinkDto {
 
 @Controller("orders")
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly returnRequests: OrderReturnRequestsService,
+  ) {}
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post("quote")
+  quote(@Body() dto: CreateOrderDto) {
+    return this.ordersService.quote(dto);
+  }
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
   create(@Body() dto: CreateOrderDto) {
     return this.ordersService.create(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Post("return-requests")
+  @UseInterceptors(FileInterceptor("evidence", {
+    limits: { fileSize: 8 * 1024 * 1024 },
+    fileFilter: (_request, file, callback) => {
+      if (!["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"].includes(file.mimetype)) {
+        callback(new BadRequestException("Upload a JPEG, PNG, WebP, GIF, or AVIF image"), false);
+        return;
+      }
+      callback(null, true);
+    },
+  }))
+  submitReturnRequest(@Body() dto: CreateReturnRequestDto, @UploadedFile() evidence?: ReturnEvidenceFile) {
+    return this.returnRequests.submit(dto, evidence);
   }
 
   @Public()
@@ -47,7 +86,10 @@ export class OrdersController {
 
 @Controller("admin/orders")
 export class AdminOrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly returnRequests: OrderReturnRequestsService,
+  ) {}
 
   @Get()
   list(@Query() query: OrderQueryDto) {
@@ -59,9 +101,59 @@ export class AdminOrdersController {
     return this.ordersService.getAdminById(id);
   }
 
+  @Patch(":id/return-requests/:requestId")
+  reviewReturnRequest(
+    @Param("id") orderId: string,
+    @Param("requestId") requestId: string,
+    @Body() dto: ReviewReturnRequestDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.returnRequests.review(orderId, requestId, dto, auditContextFrom(request));
+  }
+
+  @Get(":id/return-requests/:requestId/evidence")
+  async returnEvidence(
+    @Param("id") orderId: string,
+    @Param("requestId") requestId: string,
+    @Res() response: Response,
+  ) {
+    const image = await this.returnRequests.readEvidence(orderId, requestId);
+    response.setHeader("Content-Type", image.mimeType);
+    response.setHeader("Content-Length", image.buffer.length);
+    response.setHeader("Content-Disposition", `inline; filename="${image.filename}"`);
+    response.setHeader("Cache-Control", "private, no-store");
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+    response.send(image.buffer);
+  }
+
   @Patch(":id")
   update(@Param("id") id: string, @Body() dto: UpdateOrderDto, @Req() request: AuthenticatedRequest) {
     return this.ordersService.update(id, dto, auditContextFrom(request));
+  }
+
+  @Patch(":id/fulfillment")
+  advanceFulfillment(
+    @Param("id") id: string,
+    @Body() dto: UpdateFulfillmentDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.ordersService.advanceFulfillment(id, dto.status, auditContextFrom(request));
+  }
+
+  @Post(":id/cancel")
+  cancel(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.cancelOrder(id, auditContextFrom(request));
+  }
+
+  @Post(":id/return")
+  returnOrder(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.returnOrder(id, auditContextFrom(request));
+  }
+
+  @Post(":id/confirm-payment")
+  confirmPayment(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.confirmPayment(id, auditContextFrom(request));
   }
 
   @Post(":id/events")

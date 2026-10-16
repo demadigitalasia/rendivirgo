@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
@@ -6,6 +7,7 @@ import { auditContextFrom } from "../common/utils/audit-context";
 import { BulkProductActionDto, CatalogPdfQueryDto, CreateProductDto, GenerateProductCopyDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
 import { ProductCopyService } from "./product-copy.service";
 import { ProductsService } from "./products.service";
+import { storefrontLanguage } from "../common/utils/storefront-language";
 
 @Controller("products")
 export class ProductsController {
@@ -13,8 +15,8 @@ export class ProductsController {
 
   @Public()
   @Get()
-  list(@Query() query: ProductQueryDto) {
-    return this.productsService.listPublic(query);
+  list(@Query() query: ProductQueryDto, @Headers("x-rv-language") language?: string) {
+    return this.productsService.listPublic(query, storefrontLanguage(language));
   }
 
   @Public()
@@ -25,14 +27,14 @@ export class ProductsController {
 
   @Public()
   @Get(":slug")
-  detail(@Param("slug") slug: string) {
-    return this.productsService.getPublicBySlug(slug);
+  detail(@Param("slug") slug: string, @Headers("x-rv-language") language?: string) {
+    return this.productsService.getPublicBySlug(slug, storefrontLanguage(language));
   }
 
   @Public()
   @Get(":slug/related")
-  related(@Param("slug") slug: string, @Query("limit") limit: string | undefined) {
-    return this.productsService.related(slug, Math.min(12, Math.max(1, Number(limit) || 4)));
+  related(@Param("slug") slug: string, @Query("limit") limit: string | undefined, @Headers("x-rv-language") language?: string) {
+    return this.productsService.related(slug, Math.min(12, Math.max(1, Number(limit) || 4)), storefrontLanguage(language));
   }
 }
 
@@ -70,6 +72,7 @@ export class AdminProductsController {
   }
 
   @Post("generate-copy")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   generateCopy(@Body() dto: GenerateProductCopyDto) {
     return this.productCopyService.generate(dto);
   }

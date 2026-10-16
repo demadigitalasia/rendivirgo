@@ -1,0 +1,214 @@
+{
+  "checkedAt": "2026-10-15T14:52:37.443Z",
+  "installed": [
+    {
+      "slug": "emerald-garden-cabochon",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 88976,
+      "status": "Published"
+    },
+    {
+      "slug": "volcanic-garden-rough",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 164884,
+      "status": "Published"
+    },
+    {
+      "slug": "jade-twin-pair",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 32780,
+      "status": "Published"
+    },
+    {
+      "slug": "coastal-agate-slab",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 83354,
+      "status": "Reserved"
+    },
+    {
+      "slug": "quiet-mountain-specimen",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 145732,
+      "status": "Published"
+    },
+    {
+      "slug": "moss-tumbled-selection",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 99610,
+      "status": "Published"
+    },
+    {
+      "slug": "forest-strand",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 33776,
+      "status": "Published"
+    },
+    {
+      "slug": "misty-ridge-oval-cut",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 39304,
+      "status": "Published"
+    },
+    {
+      "slug": "clear-water-round-brilliant",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 43856,
+      "status": "Published"
+    },
+    {
+      "slug": "forest-sphere",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 90130,
+      "status": "Published"
+    },
+    {
+      "slug": "ivory-obelisk",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 18690,
+      "status": "Published"
+    },
+    {
+      "slug": "veil-point-cluster",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 104142,
+      "status": "Published"
+    },
+    {
+      "slug": "dusk-amethyst-point",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 72664,
+      "status": "Published"
+    },
+    {
+      "slug": "leaf-carved-pendant",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 39452,
+      "status": "Published"
+    },
+    {
+      "slug": "sitting-frog-figurine",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 94566,
+      "status": "Published"
+    },
+    {
+      "slug": "drilled-dewdrop",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 28050,
+      "status": "Published"
+    },
+    {
+      "slug": "briolette-earring-pair",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 79328,
+      "status": "Published"
+    },
+    {
+      "slug": "forest-chip-pouch",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 91616,
+      "status": "Published"
+    },
+    {
+      "slug": "jasper-crushed-pouch",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 95596,
+      "status": "Published"
+    },
+    {
+      "slug": "ocean-tumbled-selection",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 48268,
+      "status": "Published"
+    },
+    {
+      "slug": "amber-nugget-strand",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 43926,
+      "status": "Published"
+    },
+    {
+      "slug": "harvest-oval-cabochon",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 110072,
+      "status": "Published"
+    },
+    {
+      "slug": "druzy-river-geode",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 103826,
+      "status": "Sold"
+    },
+    {
+      "slug": "moss-garden-rough-lot",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 149974,
+      "status": "Published"
+    },
+    {
+      "slug": "pattern-window-slab",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 124942,
+      "status": "Published"
+    },
+    {
+      "slug": "ocean-twin-cabochons",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 26358,
+      "status": "Published"
+    },
+    {
+      "slug": "moonlit-rose-cut",
+      "imageStatus": 200,
+      "publicStatus": 200,
+      "bytes": 30478,
+      "status": "Published"
+    }
+  ],
+  "untouchedProducts": [
+    "bloom-teardrop-pair",
+    "tidal-reef-freeform",
+    "blue-cloud-crescent",
+    "forest-river-cabochon"
+  ],
+  "pages": [
+    {
+      "route": "/",
+      "status": 200
+    },
+    {
+      "route": "/shop",
+      "status": 200
+    },
+    {
+      "route": "/shop/cabochons/emerald-garden-cabochon",
+      "status": 200
+    }
+  ]
+}

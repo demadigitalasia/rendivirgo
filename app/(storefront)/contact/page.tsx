@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
 import { ContactContent } from "@/components/contact-content";
 import { getPublicSettings } from "@/lib/storefront";
+import { storefrontMetadata } from "@/lib/storefront-metadata";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "Contact | RENDI VIRGO",
-  description:
-    "Questions about a stone, a parcel, or a sourcing request? Contact the RENDI VIRGO team by email, WhatsApp, or the contact form.",
-  alternates: { canonical: "/contact" },
-};
+export const generateMetadata = (): Promise<Metadata> => storefrontMetadata("contact", "/contact");
 
 export default async function ContactPage() {
   const { store } = await getPublicSettings();

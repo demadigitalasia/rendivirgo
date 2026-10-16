@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -159,7 +160,16 @@ export function AdminShell({
         aria-label="Admin navigation"
       >
         <div className="rv-sidebar__brand">
-          <strong>RENDI VIRGO</strong>
+          <Link href="/admin" aria-label="RENDI VIRGO admin dashboard">
+            <Image
+              src="/brand/rendi-virgo-logo-footer.png"
+              alt="RENDI VIRGO"
+              width={780}
+              height={260}
+              sizes="184px"
+              priority
+            />
+          </Link>
           <span>Admin workspace</span>
         </div>
         <nav className="rv-sidebar__nav" aria-label="Admin sections">
@@ -196,17 +206,19 @@ export function AdminShell({
       </aside>
 
       <main className="rv-main">
-        <button
-          ref={navToggleRef}
-          className="rv-btn rv-btn--sm rv-mobile-nav-toggle"
-          type="button"
-          aria-expanded={navOpen}
-          aria-controls="admin-navigation"
-          style={{ position: "fixed", bottom: 18, left: 18, zIndex: 75 }}
-          onClick={() => setNavOpen((value) => !value)}
-        >
-          {navOpen ? "Close menu" : "Menu"}
-        </button>
+        <div className="rv-mobile-admin-bar">
+          <button
+            ref={navToggleRef}
+            className="rv-btn rv-btn--sm rv-mobile-nav-toggle"
+            type="button"
+            aria-expanded={navOpen}
+            aria-controls="admin-navigation"
+            onClick={() => setNavOpen((value) => !value)}
+          >
+            {navOpen ? "Close menu" : "Menu"}
+          </button>
+          <span className="rv-mobile-admin-bar__label">RENDI VIRGO · Admin workspace</span>
+        </div>
         {children}
       </main>
       <Toaster />

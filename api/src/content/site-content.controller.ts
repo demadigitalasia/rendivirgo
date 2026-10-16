@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Patch, Req } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Patch, Req } from "@nestjs/common";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { SiteContentService } from "./site-content.service";
+import { storefrontLanguage } from "../common/utils/storefront-language";
 
 @Controller()
 export class SiteContentController {
@@ -10,8 +11,8 @@ export class SiteContentController {
 
   @Public()
   @Get("site-content")
-  getPublic() {
-    return this.siteContentService.getPublic();
+  getPublic(@Headers("x-rv-language") language?: string) {
+    return this.siteContentService.getPublic(storefrontLanguage(language));
   }
 }
 

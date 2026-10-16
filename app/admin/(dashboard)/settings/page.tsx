@@ -5,10 +5,16 @@ import { apiFetch, errorMessage, useApi, type ApiState } from "@/components/admi
 import { toast } from "@/components/admin/toast";
 import { MediaPicker } from "@/components/admin/media";
 import { WatermarkPositionEditor } from "@/components/admin/watermark-position-editor";
-import { Badge, Button, Card, Field, Loading, PageHeader, Switch, Tabs, TextArea, TextInput } from "@/components/admin/ui";
+import { Badge, Button, Card, Field, Loading, PageHeader, Select, Switch, Tabs, TextArea, TextInput } from "@/components/admin/ui";
 import { defaultProductWatermark } from "@/lib/product-watermark";
 
 type GroupedSettings = Record<"general" | "seo" | "notifications" | "payments", Record<string, unknown>>;
+type OpenRouterSettings = {
+  configured: boolean;
+  source: "dashboard" | "environment" | "missing";
+  model: string;
+};
+type OpenRouterModel = { id: string; name: string; contextLength: number | null };
 
 type SettingsForm = {
   storeName: string;
@@ -18,7 +24,6 @@ type SettingsForm = {
   whatsapp: string;
   whatsappSecondary: string;
   currency: string;
-  languages: string;
   address: string;
   hours: string;
   instagram: string;
@@ -54,7 +59,6 @@ const emptyForm: SettingsForm = {
   whatsapp: "",
   whatsappSecondary: "",
   currency: "USD",
-  languages: "",
   address: "",
   hours: "",
   instagram: "",
@@ -90,9 +94,6 @@ const asText = (value: unknown): string => {
 
 const asBool = (value: unknown, fallback: boolean): boolean => (typeof value === "boolean" ? value : fallback);
 
-const asStringList = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
-
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 
@@ -111,7 +112,6 @@ function formFrom(data: GroupedSettings): SettingsForm {
     whatsapp: asText(general["store.whatsapp"]),
     whatsappSecondary: asText(general["store.whatsappSecondary"]),
     currency: asText(general["store.currency"]) || "USD",
-    languages: asStringList(general["store.languages"]).join(", "),
     address: asText(general["store.address"]),
     hours: asText(general["store.hours"]),
     instagram: asText(socials.instagram),
@@ -142,10 +142,21 @@ function formFrom(data: GroupedSettings): SettingsForm {
 
 export default function AdminSettingsPage() {
   const state: ApiState<GroupedSettings> = useApi<GroupedSettings>("/api/admin/settings");
+  const aiState: ApiState<OpenRouterSettings> = useApi<OpenRouterSettings>("/api/admin/settings/ai/openrouter");
   const [tab, setTab] = useState("general");
+  const modelsState: ApiState<{ models: OpenRouterModel[] }> = useApi(
+    tab === "ai" ? "/api/admin/settings/ai/openrouter/models" : null,
+    { enabled: tab === "ai" },
+  );
   const [form, setForm] = useState<SettingsForm>(emptyForm);
   const [saved, setSaved] = useState<SettingsForm>(emptyForm);
   const [busy, setBusy] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [aiModel, setAiModel] = useState("openai/gpt-4.1-mini");
+  const [modelSearch, setModelSearch] = useState("");
+  const [savedAiModel, setSavedAiModel] = useState("openai/gpt-4.1-mini");
+  const [aiBusy, setAiBusy] = useState(false);
+  const aiDirty = Boolean(apiKey.trim()) || aiModel.trim() !== savedAiModel;
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
 
   useEffect(() => {
@@ -155,18 +166,75 @@ export default function AdminSettingsPage() {
     setSaved(next);
   }, [state.data]);
 
+  useEffect(() => {
+    if (!aiState.data) return;
+    setAiModel(aiState.data.model);
+    setSavedAiModel(aiState.data.model);
+  }, [aiState.data]);
+
   const update = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !aiDirty) return;
     const warnBeforeLeave = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warnBeforeLeave);
     return () => window.removeEventListener("beforeunload", warnBeforeLeave);
-  }, [dirty]);
+  }, [dirty, aiDirty]);
+
+  const saveAiSettings = async () => {
+    if (!aiDirty) {
+      toast.info("No AI settings to save");
+      return;
+    }
+
+    const nextModel = aiModel.trim();
+    if (!nextModel) {
+      toast.error("Model ID is required");
+      return;
+    }
+
+    setAiBusy(true);
+    try {
+      const result = await apiFetch<OpenRouterSettings>("/api/admin/settings/ai/openrouter", {
+        method: "PUT",
+        json: {
+          ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+          ...(nextModel !== savedAiModel ? { model: nextModel } : {}),
+        },
+      });
+      setApiKey("");
+      setAiModel(result.model);
+      setSavedAiModel(result.model);
+      aiState.setData(result);
+      modelsState.refresh();
+      toast.success("OpenRouter settings saved");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const removeAiKey = async () => {
+    if (!window.confirm("Remove the OpenRouter API key saved in the dashboard?")) return;
+    setAiBusy(true);
+    try {
+      const result = await apiFetch<OpenRouterSettings>("/api/admin/settings/ai/openrouter/api-key", {
+        method: "DELETE",
+      });
+      aiState.setData(result);
+      modelsState.refresh();
+      toast.success(result.configured ? "Dashboard key removed; environment key is still active" : "OpenRouter API key removed");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   const save = async () => {
     const payload: Record<string, unknown> = {};
@@ -180,12 +248,6 @@ export default function AdminSettingsPage() {
       payload["store.whatsappSecondary"] = form.whatsappSecondary.trim();
     }
     if (form.currency !== saved.currency) payload["store.currency"] = form.currency.trim();
-    if (form.languages !== saved.languages) {
-      payload["store.languages"] = form.languages
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter(Boolean);
-    }
     if (form.address !== saved.address) payload["store.address"] = form.address.trim();
     if (form.hours !== saved.hours) payload["store.hours"] = form.hours.trim();
 
@@ -260,6 +322,12 @@ export default function AdminSettingsPage() {
   };
 
   const data = state.data;
+  const modelSearchNormalized = modelSearch.trim().toLowerCase();
+  const availableModels = modelsState.data?.models ?? [];
+  const visibleModels = modelSearchNormalized
+    ? availableModels.filter((model) => `${model.name} ${model.id}`.toLowerCase().includes(modelSearchNormalized))
+    : availableModels;
+  const selectedCatalogModel = visibleModels.some((model) => model.id === aiModel) ? aiModel : "";
   const watermarkSize = Math.min(50, Math.max(8, Number(form.watermarkSize) || 26));
   const watermarkMaxX = Math.floor(100 - watermarkSize);
   const watermarkMaxY = Math.floor(100 - watermarkSize / 3);
@@ -272,7 +340,7 @@ export default function AdminSettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        subtitle="Store, SEO, notification and payment preferences"
+        subtitle="Store, SEO, notification, payment and AI preferences"
         actions={
           <div className="rv-inline">
             <Button onClick={state.refresh} disabled={state.loading}>
@@ -308,6 +376,7 @@ export default function AdminSettingsPage() {
                   { value: "seo", label: "SEO" },
                   { value: "notifications", label: "Notifications" },
                   { value: "payments", label: "Payments" },
+                  { value: "ai", label: "AI & API" },
                 ]}
                 value={tab}
                 onChange={setTab}
@@ -343,8 +412,8 @@ export default function AdminSettingsPage() {
                     <Field label="Currency" hint="ISO code, e.g. USD">
                       <TextInput value={form.currency} onChange={(value) => update("currency", value)} />
                     </Field>
-                    <Field label="Languages" hint="Comma separated, e.g. en, id">
-                      <TextInput value={form.languages} onChange={(value) => update("languages", value)} />
+                    <Field label="Storefront languages" hint="Supported languages are managed by the storefront release.">
+                      <TextInput value="English (default), Bahasa Indonesia" readOnly />
                     </Field>
                     <Field label="Opening hours">
                       <TextInput
@@ -526,6 +595,100 @@ export default function AdminSettingsPage() {
                         disabled={!form.bankTransferEnabled}
                       />
                     </Field>
+                  </div>
+                </div>
+              </Card>
+            ) : null}
+
+            {tab === "ai" ? (
+              <Card
+                title="OpenRouter AI"
+                description="Configure API access and choose a model for Generate with AI on the product form."
+                actions={
+                  aiState.data ? (
+                    <Badge tone={aiState.data.configured ? "green" : "gray"}>
+                      {aiState.data.configured
+                        ? aiState.data.source === "dashboard"
+                          ? "Dashboard key active"
+                          : "Environment key active"
+                        : "Not configured"}
+                    </Badge>
+                  ) : null
+                }
+              >
+                {aiState.loading && !aiState.data ? <Loading label="Loading AI settings…" /> : null}
+                {aiState.error ? <p className="rv-error-text">{aiState.error}</p> : null}
+                <div className="rv-stack">
+                  <Field
+                    label="OpenRouter API key"
+                    hint={
+                      aiState.data?.source === "dashboard"
+                        ? "A key is saved securely and will never be shown here. Enter a new key to replace it, or leave blank to keep it."
+                        : aiState.data?.source === "environment"
+                          ? "The API currently uses the server environment key. Enter a dashboard key to override it."
+                          : "The key is encrypted before it is stored. It is only sent to OpenRouter by the server."
+                    }
+                  >
+                    <TextInput
+                      type="password"
+                      autoComplete="new-password"
+                      value={apiKey}
+                      onChange={setApiKey}
+                      placeholder={aiState.data?.source === "dashboard" ? "Saved key — enter a replacement" : "sk-or-v1-…"}
+                      disabled={aiBusy || !aiState.data}
+                    />
+                  </Field>
+                  <div className="rv-stack">
+                    <div className="rv-inline" style={{ justifyContent: "space-between" }}>
+                      <span className="rv-hint">
+                        {modelsState.data ? `${availableModels.length} compatible models from OpenRouter` : "Load the OpenRouter model catalog"}
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={modelsState.refresh}
+                        loading={modelsState.loading}
+                        disabled={modelsState.loading || aiBusy || !aiState.data?.configured}
+                      >
+                        Refresh catalog
+                      </Button>
+                    </div>
+                    {modelsState.error ? <p className="rv-error-text">{modelsState.error}</p> : null}
+                    <Field label="Search models">
+                      <TextInput
+                        value={modelSearch}
+                        onChange={setModelSearch}
+                        placeholder="Search by model name or ID"
+                        disabled={aiBusy || !aiState.data?.configured}
+                      />
+                    </Field>
+                    <Field
+                      label="Available models"
+                      hint="The generator requires structured output, so only compatible text models are listed."
+                    >
+                      <Select
+                        value={selectedCatalogModel}
+                        onChange={setAiModel}
+                        options={visibleModels.map((model) => ({ value: model.id, label: `${model.name} · ${model.id}` }))}
+                        placeholder={modelsState.loading ? "Loading models…" : "Select an OpenRouter model"}
+                        disabled={aiBusy || modelsState.loading || !visibleModels.length}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Model ID" hint="Selected catalog models fill this value. You can also enter an ID manually.">
+                    <TextInput value={aiModel} onChange={setAiModel} placeholder="openai/gpt-4.1-mini" disabled={aiBusy || !aiState.data} />
+                  </Field>
+                  {aiState.data?.source === "dashboard" ? (
+                    <p className="rv-hint">The saved key is encrypted with SESSION_SECRET. Keep that secret stable so the server can decrypt it.</p>
+                  ) : null}
+                  <div className="rv-inline" style={{ justifyContent: "flex-end" }}>
+                    {aiState.data?.source === "dashboard" ? (
+                      <Button variant="danger" loading={aiBusy} disabled={aiBusy || !aiState.data} onClick={removeAiKey}>
+                        Remove saved key
+                      </Button>
+                    ) : null}
+                    <Button variant="primary" loading={aiBusy} disabled={aiBusy || !aiDirty || !aiState.data} onClick={saveAiSettings}>
+                      Save AI settings
+                    </Button>
                   </div>
                 </div>
               </Card>

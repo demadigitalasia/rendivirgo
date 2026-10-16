@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { ArrowIcon, GlobeIcon, LeafIcon, SparkleIcon } from "@/components/icons";
 import { useLanguage } from "@/components/providers";
@@ -11,9 +11,11 @@ import "./owner-story.css";
 const portrait = "/images/rendi-virgo-owner-cutout.png";
 const copy = {
   en: {
-    eyebrow: "The person behind the pieces",
-    title: "A personal eye.", titleAccent: "A world of stones.",
-    role: "Founder & curator", portrait: "Portrait of Rendi Virgo, owner of RENDI VIRGO",
+    eyebrow: "The people behind the pieces",
+    title: "Two perspectives.", titleAccent: "A world of stones.",
+    role: "Founder & curator",
+    portraitRendi: "Portrait of Rendi Virgo, founder and curator of RENDI VIRGO",
+    portraitPajar: "Portrait of Pajar Agung, founder and curator of RENDI VIRGO",
     location: "Rooted in Indonesia", destination: "Shared with the world",
     story: "A few words from our world", previous: "Previous chapter", next: "Next chapter",
     cta: "Get to know us", collection: "Explore the collection",
@@ -25,9 +27,11 @@ const copy = {
     ],
   },
   id: {
-    eyebrow: "Sosok di balik setiap pilihan",
-    title: "Satu sudut pandang.", titleAccent: "Sejuta cerita batu.",
-    role: "Pendiri & kurator", portrait: "Potret Rendi Virgo, pemilik RENDI VIRGO",
+    eyebrow: "Dua sosok di balik setiap pilihan",
+    title: "Dua sudut pandang.", titleAccent: "Sejuta cerita batu.",
+    role: "Pendiri & kurator",
+    portraitRendi: "Potret Rendi Virgo, pendiri dan kurator RENDI VIRGO",
+    portraitPajar: "Potret Pajar Agung, pendiri dan kurator RENDI VIRGO",
     location: "Berakar di Indonesia", destination: "Dibagikan kepada dunia",
     story: "Sepenggal cerita kami", previous: "Bab sebelumnya", next: "Bab berikutnya",
     cta: "Kenali kami lebih dekat", collection: "Jelajahi koleksi",
@@ -50,6 +54,10 @@ export function OwnerStory({ content }: { content: SiteContent }) {
   const [visible, setVisible] = useState(false);
   const [source, setSource] = useState(content.ownerImage?.endsWith(".png")
     && content.ownerImage.includes("owner-cutout") ? content.ownerImage : portrait);
+  const owners = [
+    { key: "rendi", name: content.ownerName || "RENDI VIRGO", src: source, alt: t.portraitRendi },
+    { key: "pajar", name: "PAJAR AGUNG", src: "/images/pajar-agung-owner-cutout.png", alt: t.portraitPajar },
+  ];
 
   useEffect(() => {
     const element = section.current;
@@ -81,23 +89,31 @@ export function OwnerStory({ content }: { content: SiteContent }) {
       data-visible={visible}>
       <div className="page-container owner-story__inner">
         <div className="owner-story__visual" data-home-reveal="visual">
-          <div className="owner-story__stage">
+          <div className="owner-story__profiles">
             <span className="owner-story__atmosphere" aria-hidden="true">
               <span className="owner-story__wash owner-story__wash--sage" />
               <span className="owner-story__wash owner-story__wash--sand" />
               <span className="owner-story__wash owner-story__wash--light" />
             </span>
-            <span className="owner-story__cutout">
-              <span className="owner-story__sprite">
-                <Image src={source} alt={t.portrait} fill unoptimized
-                  sizes="(max-width: 720px) 85vw, 450px"
-                  onError={() => { if (source !== portrait) setSource(portrait); }} />
-              </span>
-            </span>
-          </div>
-          <div className="owner-story__identity">
-            <span className="owner-story__name">{content.ownerName || "RENDI VIRGO"}</span>
-            <span className="owner-story__role">{t.role}</span>
+            <div className="owner-story__profile-grid">
+              {owners.map((owner, index) => (
+                <article className="owner-story__profile" data-owner={owner.key} key={owner.key}>
+                  <div className="owner-story__stage">
+                    <span className="owner-story__cutout">
+                      <span className="owner-story__sprite">
+                        <Image src={owner.src} alt={owner.alt} fill unoptimized
+                          sizes="(max-width: 720px) 42vw, 230px"
+                          onError={index === 0 ? () => { if (source !== portrait) setSource(portrait); } : undefined} />
+                      </span>
+                    </span>
+                  </div>
+                  <div className="owner-story__identity">
+                    <span className="owner-story__name">{owner.name}</span>
+                    <span className="owner-story__role">{t.role}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
 

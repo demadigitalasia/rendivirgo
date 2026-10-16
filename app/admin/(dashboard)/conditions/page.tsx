@@ -4,21 +4,24 @@ import { useState } from "react";
 import { apiFetch, errorMessage, formatNumber, useApi } from "@/components/admin/api";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { toast } from "@/components/admin/toast";
-import { Badge, Button, Card, ConfirmButton, Field, Modal, PageHeader, Switch, TextArea, TextInput } from "@/components/admin/ui";
+import { Badge, Button, Card, ConfirmButton, Field, Modal, PageHeader, Select, Switch, TextArea, TextInput } from "@/components/admin/ui";
+import { translationStatusOptions, type TranslationStatus } from "../content/types";
 
 type ConditionOption = {
   id: string;
   slug: string;
   name: string;
   note: string | null;
+  noteId: string | null;
+  idTranslationStatus: TranslationStatus;
   sortOrder: number;
   isActive: boolean;
   productCount: number;
 };
 
-type FormValues = { name: string; slug: string; note: string; sortOrder: string; isActive: boolean };
+type FormValues = { name: string; slug: string; note: string; noteId: string; idTranslationStatus: TranslationStatus; sortOrder: string; isActive: boolean };
 
-const emptyForm: FormValues = { name: "", slug: "", note: "", sortOrder: "0", isActive: true };
+const emptyForm: FormValues = { name: "", slug: "", note: "", noteId: "", idTranslationStatus: "Missing", sortOrder: "0", isActive: true };
 const slugify = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 export default function AdminConditionsPage() {
@@ -44,6 +47,8 @@ export default function AdminConditionsPage() {
       name: condition.name,
       slug: condition.slug,
       note: condition.note ?? "",
+      noteId: condition.noteId ?? "",
+      idTranslationStatus: condition.idTranslationStatus ?? "Missing",
       sortOrder: String(condition.sortOrder),
       isActive: condition.isActive,
     });
@@ -60,6 +65,8 @@ export default function AdminConditionsPage() {
       name: form.name.trim(),
       slug: form.slug.trim() || undefined,
       note: form.note.trim() || null,
+      noteId: form.noteId.trim() || null,
+      idTranslationStatus: form.idTranslationStatus,
       sortOrder: Math.max(0, Math.trunc(Number(form.sortOrder) || 0)),
       isActive: form.isActive,
     };
@@ -100,6 +107,7 @@ export default function AdminConditionsPage() {
         <div className="rv-product-cell">
           <strong>{condition.name}</strong>
           <span className="rv-hint">{condition.note ?? "—"}</span>
+          {condition.noteId ? <span className="rv-hint" lang="id">ID: {condition.noteId}</span> : null}
         </div>
       ),
     },
@@ -161,6 +169,8 @@ export default function AdminConditionsPage() {
             <Field label="Sort order"><TextInput value={form.sortOrder} onChange={(value) => setField("sortOrder", value)} type="number" min={0} step="1" /></Field>
             <Field label="Active"><Switch checked={form.isActive} onChange={(checked) => setField("isActive", checked)} label="Available when editing products" /></Field>
             <Field label="Note" hint="Shown on the product page" className="rv-span-2"><TextArea value={form.note} onChange={(value) => setField("note", value)} rows={3} /></Field>
+            <Field label="Note in Bahasa Indonesia" hint="Leave empty until the translation has been reviewed." className="rv-span-2"><TextArea value={form.noteId} onChange={(value) => setField("noteId", value)} rows={3} /></Field>
+            <Field label="Indonesian translation status" className="rv-span-2"><Select value={form.idTranslationStatus} onChange={(value) => setField("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} /></Field>
           </div>
         </div>
       </Modal>

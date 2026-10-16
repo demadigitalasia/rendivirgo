@@ -1,19 +1,23 @@
 /* The same cream, sage, typography and spacing used by the rest of the storefront. */
 .storefront .owner-story { position: relative; overflow: hidden; scroll-margin-top: 100px; background: var(--paper); color: var(--ink); }
 .storefront .owner-story__inner { display: grid; grid-template-columns: 1fr 1.1fr; align-items: center; gap: clamp(45px, 7vw, 100px); padding-block: 90px 85px; }
-.storefront .owner-story__visual { min-width: 0; width: 100%; max-width: 480px; justify-self: center; }
-.storefront .owner-story__stage { position: relative; display: block; isolation: isolate; width: 100%; height: clamp(390px, 34vw, 510px); }
-.storefront .owner-story__atmosphere { position: absolute; pointer-events: none; z-index: -1; inset: 2% -14% -9%; }
+.storefront .owner-story__visual { min-width: 0; width: 100%; max-width: 510px; justify-self: center; }
+.storefront .owner-story__profiles { position: relative; isolation: isolate; }
+.storefront .owner-story__profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: clamp(10px, 1.6vw, 22px); }
+.storefront .owner-story__profile { display: grid; min-width: 0; align-self: end; }
+.storefront .owner-story__stage { position: relative; display: block; isolation: isolate; width: 100%; aspect-ratio: 3 / 4; max-height: 420px; }
+.storefront .owner-story__atmosphere { position: absolute; pointer-events: none; z-index: -1; inset: 2% -10% 8%; }
 .storefront .owner-story__wash { position: absolute; display: block; border-radius: 50%; filter: blur(18px); animation: owner-wash-drift 14s ease-in-out infinite alternate; animation-play-state: paused; }
 .storefront .owner-story__wash--sage { inset: 3% 4% 6% 0; background: radial-gradient(ellipse at 40% 46%, #a5b89275 0%, #c6d0b854 36%, #dce3d421 56%, transparent 73%); }
 .storefront .owner-story__wash--sand { inset: 27% -3% -3% 23%; background: radial-gradient(ellipse at 50% 55%, #d8c49a60 0%, #e5dac433 42%, transparent 70%); animation-delay: -7s; animation-duration: 17s; }
 .storefront .owner-story__wash--light { inset: 16% 14% 26% -5%; background: radial-gradient(ellipse at 35% 30%, #f9f6e9b3 0%, #edf0e23b 42%, transparent 70%); animation-delay: -3s; animation-duration: 12s; }
 .storefront .owner-story__cutout { position: absolute; inset: 0 -3% 0; animation: owner-portrait-float 8s ease-in-out infinite; animation-play-state: paused; mask-image: linear-gradient(to bottom, #000 0%, #000 67%, #000e 77%, #0006 89%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 67%, #000e 77%, #0006 89%, transparent 100%); }
-.storefront .owner-story__sprite { display: block; position: absolute; left: 50%; top: 0; height: 100%; aspect-ratio: 1151 / 1367; max-width: 100%; transform: translateX(-50%); }
+.storefront .owner-story__sprite { display: block; position: absolute; left: 50%; top: 0; height: 100%; aspect-ratio: 3 / 4; max-width: 100%; transform: translateX(-50%); }
 .storefront .owner-story__sprite img { object-fit: contain; object-position: center bottom; }
-.storefront .owner-story__identity { position: relative; display: grid; justify-items: center; gap: 8px; padding-top: 18px; }
-.storefront .owner-story__name { font: 400 1.7rem/1.1 var(--font-display); letter-spacing: -.025em; color: var(--forest); }
-.storefront .owner-story__role { color: var(--muted); font: .62rem/1.5 var(--font-ui); letter-spacing: .13em; text-transform: uppercase; }
+.storefront .owner-story__profile[data-owner="rendi"] .owner-story__sprite { transform: translateX(-50%) scale(1.14); transform-origin: center bottom; }
+.storefront .owner-story__identity { position: relative; display: grid; justify-items: center; gap: 7px; padding-top: 14px; text-align: center; }
+.storefront .owner-story__name { font: 400 clamp(1rem, 1.35vw, 1.35rem)/1.1 var(--font-display); letter-spacing: -.025em; color: var(--forest); }
+.storefront .owner-story__role { color: var(--muted); font: .55rem/1.5 var(--font-ui); letter-spacing: .1em; text-transform: uppercase; }
 .storefront .owner-story__copy { min-width: 0; }
 .storefront .owner-story__copy h2 { margin: 17px 0 26px; font: 400 clamp(2.2rem, 3.7vw, 3.5rem)/1.13 var(--font-display); letter-spacing: -.035em; text-wrap: initial; }
 .storefront .owner-story__copy h2 em { display: block; color: var(--jade); font-weight: 400; }
@@ -43,17 +47,17 @@
 @keyframes owner-wash-drift { from { transform: translate(-9px, 7px) scale(.97); } to { transform: translate(13px, -12px) scale(1.06); } }
 @keyframes owner-chapter-in { from { opacity: 0; transform: translateX(calc(var(--chapter-direction) * 20px)); } to { opacity: 1; transform: translateX(0); } }
 @media (max-width: 980px) {
-  .storefront .owner-story__inner { gap: 38px; padding-block: 72px; }
-  .storefront .owner-story__stage { height: 410px; }
+  .storefront .owner-story__inner { gap: 32px; padding-block: 72px; }
   .storefront .owner-story__chapter-viewport { min-height: 195px; }
 }
 @media (max-width: 720px) {
   .storefront .owner-story__inner { grid-template-columns: 1fr; gap: 40px; padding-block: 58px; }
-  .storefront .owner-story__visual { width: min(100%, 390px); }
-  .storefront .owner-story__stage { height: clamp(350px, 95vw, 430px); }
+  .storefront .owner-story__visual { width: min(100%, 500px); }
+  .storefront .owner-story__profile-grid { gap: clamp(12px, 4vw, 22px); }
   .storefront .owner-story__identity { padding-top: 15px; }
   .storefront .owner-story__atmosphere { inset-inline: -8%; }
-  .storefront .owner-story__name { font-size: 1.6rem; }
+  .storefront .owner-story__name { font-size: clamp(.95rem, 4vw, 1.25rem); }
+  .storefront .owner-story__role { font-size: .5rem; }
   .storefront .owner-story__copy h2 { font-size: clamp(2.15rem, 8vw, 3rem); margin-bottom: 23px; }
   .storefront .owner-story__chapter-viewport { min-height: 180px; max-width: none; }
   .storefront .owner-story__chapter p { font-size: .85rem; }
@@ -61,7 +65,9 @@
   .storefront .owner-story__values { margin-top: 23px; gap: 13px 20px; }
 }
 @media (max-width: 370px) {
-  .storefront .owner-story__stage { height: 335px; }
+  .storefront .owner-story__profile-grid { gap: 8px; }
+  .storefront .owner-story__identity { padding-top: 12px; }
+  .storefront .owner-story__role { font-size: .45rem; letter-spacing: .08em; }
   .storefront .owner-story__chapter-viewport { min-height: 205px; }
 }
 @media (prefers-reduced-motion: reduce) {

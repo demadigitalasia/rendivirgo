@@ -1,4 +1,5 @@
 import type { Product, ProductStatus, ProductTone, ShippingClass, StockModel, Unit } from "@/lib/catalog";
+import type { Language } from "@/lib/i18n";
 import { defaultProductWatermark, type ProductWatermarkSettings } from "@/lib/product-watermark";
 
 const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:4000";
@@ -28,13 +29,15 @@ export type ApiProduct = {
   slug: string;
   sku: string;
   name: string;
-  category: { id: string; slug: string; name: string };
+  contentLocale: Language;
+  category: { id: string; slug: string; name: string; contentLocale: Language };
   categorySlug: string;
   stoneType: string;
   origin: string;
   mohsHardness: number | null;
   condition: string;
   conditionNote?: string | null;
+  conditionNoteContentLocale?: Language;
   price: number;
   compareAtPrice: number | null;
   currency: string;
@@ -65,6 +68,7 @@ export type ApiCategory = {
   id: string;
   slug: string;
   name: string;
+  contentLocale: Language;
   description: string | null;
   imageUrl: string | null;
   tone: ProductTone;
@@ -79,6 +83,7 @@ export type ApiBlogPost = {
   id: string;
   slug: string;
   title: string;
+  contentLocale: Language;
   excerpt: string;
   body?: string;
   coverImage: string | null;
@@ -97,6 +102,7 @@ export type ApiPage = {
   id: string;
   slug: string;
   title: string;
+  contentLocale: Language;
   body: string;
   status: "Draft" | "Published" | "Scheduled" | "Archived";
   showInFooter: boolean;
@@ -111,6 +117,7 @@ export type ApiTestimonial = {
   customerName: string;
   location: string | null;
   quote: string;
+  contentLocale: Language;
   rating: number;
   sortOrder: number;
 };
@@ -136,6 +143,7 @@ export type SiteContent = {
   ownerImage: string;
   ownerCtaLabel: string;
   ownerCtaHref: string;
+  contentLocale: Language;
   shippingOverrideEnabled: boolean;
   shippingOverrideAmount: number;
   freeShippingThreshold: number;
@@ -181,15 +189,19 @@ const statusMap: Record<ApiProduct["status"], ProductStatus> = {
 };
 
 export function mapProduct(item: ApiProduct): Product {
+  const origin = item.origin?.trim() ?? "";
+  const displayOrigin = /^(?:not provided|not specified|unknown|n\/?a|none)$/i.test(origin) ? "" : origin;
   return {
     id: item.id,
     slug: item.slug,
     sku: item.sku,
     name: item.name,
+    contentLocale: item.contentLocale ?? "en",
     category: item.category.name,
+    categoryContentLocale: item.category.contentLocale ?? "en",
     categorySlug: item.categorySlug,
     stoneType: item.stoneType,
-    origin: item.origin,
+    origin: displayOrigin,
     mohsHardness: item.mohsHardness,
     price: item.price,
     currency: "USD",
@@ -201,6 +213,7 @@ export function mapProduct(item: ApiProduct): Product {
     dimensionsMm: item.dimensionsMm,
     condition: item.condition,
     conditionNote: item.conditionNote,
+    conditionNoteContentLocale: item.conditionNoteContentLocale,
     status: statusMap[item.status] ?? "Available",
     tone: item.tone,
     description: item.description,
@@ -239,22 +252,30 @@ export function mapProduct(item: ApiProduct): Product {
   };
 }
 
-async function apiGet<T>(path: string, options?: { revalidate?: number; strictError?: boolean }): Promise<T | null> {
+type ApiReadResult<T> =
+  | { status: "ok"; data: T }
+  | { status: "not-found" }
+  | { status: "unavailable"; error: Error };
+
+async function apiGetWithStatus<T>(path: string, options?: { revalidate?: number; language?: Language }): Promise<ApiReadResult<T>> {
   try {
     const response = await fetch(`${apiOrigin}${path}`, {
-      headers: { accept: "application/json" },
+      headers: { accept: "application/json", "x-rv-language": options?.language ?? "en" },
       next: { revalidate: options?.revalidate ?? 60 },
     });
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      if (options?.strictError) throw new Error("The store API could not load this product");
-      return null;
-    }
-    return (await response.json()) as T;
+    if (response.status === 404) return { status: "not-found" };
+    if (!response.ok) return { status: "unavailable", error: new Error(`The store API returned ${response.status}`) };
+    return { status: "ok", data: (await response.json()) as T };
   } catch (error) {
-    if (options?.strictError) throw error instanceof Error ? error : new Error("The store API is unavailable");
-    return null;
+    return { status: "unavailable", error: error instanceof Error ? error : new Error("The store API is unavailable") };
   }
+}
+
+async function apiGet<T>(path: string, options?: { revalidate?: number; strictError?: boolean; language?: Language }): Promise<T | null> {
+  const result = await apiGetWithStatus<T>(path, options);
+  if (result.status === "ok") return result.data;
+  if (result.status === "unavailable" && options?.strictError) throw result.error;
+  return null;
 }
 
 async function apiSend<T>(path: string, method: "POST" | "PATCH", body: unknown): Promise<{ ok: true; data: T } | { ok: false; message: string }> {
@@ -294,25 +315,44 @@ export type ProductQuery = {
   sort?: "featured" | "newest" | "oldest" | "price-asc" | "price-desc" | "name" | "weight-desc";
 };
 
-export async function getProducts(query: ProductQuery = {}) {
+export async function getProductsWithStatus(query: ProductQuery = {}, options?: { revalidate?: number; language?: Language }) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined || value === null || value === "") continue;
     params.set(key, Array.isArray(value) ? value.join(",") : String(value));
   }
-  const result = await apiGet<{ items: ApiProduct[]; total: number; pageCount: number }>(`/api/products?${params.toString()}`);
+  const result = await apiGetWithStatus<{ items: ApiProduct[]; total: number; pageCount: number }>(
+    `/api/products?${params.toString()}`,
+    options,
+  );
+  if (result.status === "not-found") {
+    return { status: "unavailable" as const, error: new Error("The product search endpoint was not found") };
+  }
+  if (result.status === "unavailable") return result;
+  if (!result.data || !Array.isArray(result.data.items)) {
+    return { status: "unavailable" as const, error: new Error("The product search response was incomplete") };
+  }
   return {
-    products: (result?.items ?? []).map(mapProduct),
-    total: result?.total ?? 0,
-    pageCount: result?.pageCount ?? 1,
+    status: "ok" as const,
+    products: (result.data.items ?? []).map(mapProduct),
+    total: result.data.total ?? 0,
+    pageCount: result.data.pageCount ?? 1,
   };
 }
 
-export async function getAllPublishedProducts() {
-  const first = await getProducts({ pageSize: 100, sort: "newest" });
+export async function getProducts(query: ProductQuery = {}, language: Language = "en") {
+  const result = await getProductsWithStatus(query, { language });
+  if (result.status === "ok") {
+    return { products: result.products, total: result.total, pageCount: result.pageCount };
+  }
+  return { products: [], total: 0, pageCount: 1 };
+}
+
+export async function getAllPublishedProducts(language: Language = "en") {
+  const first = await getProducts({ pageSize: 100, sort: "newest" }, language);
   const products = [...first.products];
   for (let page = 2; page <= first.pageCount; page += 1) {
-    const next = await getProducts({ pageSize: 100, sort: "newest", page });
+    const next = await getProducts({ pageSize: 100, sort: "newest", page }, language);
     if (!next.products.length) break;
     products.push(...next.products);
   }
@@ -334,48 +374,52 @@ export async function getProductReviewSummary(slug: string) {
   return result?.summary ?? { rating: 0, count: 0 };
 }
 
-export async function getProductBySlug(slug: string) {
-  const item = await apiGet<ApiProduct>(`/api/products/${encodeURIComponent(slug)}`, { strictError: true });
+export async function getProductBySlug(slug: string, language: Language = "en") {
+  const item = await apiGet<ApiProduct>(`/api/products/${encodeURIComponent(slug)}`, { strictError: true, language });
   return item ? mapProduct(item) : null;
 }
 
-export async function getRelatedProducts(slug: string, limit = 4) {
-  const items = await apiGet<ApiProduct[]>(`/api/products/${encodeURIComponent(slug)}/related?limit=${limit}`);
+export async function getRelatedProducts(slug: string, limit = 4, language: Language = "en") {
+  const items = await apiGet<ApiProduct[]>(`/api/products/${encodeURIComponent(slug)}/related?limit=${limit}`, { language });
   return (items ?? []).map(mapProduct);
 }
 
-export async function getCategories() {
-  return (await apiGet<ApiCategory[]>("/api/categories")) ?? [];
+export async function getCategories(language: Language = "en") {
+  return (await apiGet<ApiCategory[]>("/api/categories", { language })) ?? [];
 }
 
-export async function getCategory(slug: string) {
-  return apiGet<ApiCategory>(`/api/categories/${encodeURIComponent(slug)}`);
+export async function getCategory(slug: string, language: Language = "en") {
+  return apiGet<ApiCategory>(`/api/categories/${encodeURIComponent(slug)}`, { language });
 }
 
-export async function getBlogPosts(params: { page?: number; pageSize?: number; tag?: string; search?: string } = {}) {
+export async function getBlogPosts(params: { page?: number; pageSize?: number; tag?: string; search?: string } = {}, language: Language = "en") {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
     search.set(key, String(value));
   }
-  const result = await apiGet<{ items: ApiBlogPost[]; total: number; pageCount: number }>(`/api/blog?${search.toString()}`);
+  const result = await apiGet<{ items: ApiBlogPost[]; total: number; pageCount: number }>(`/api/blog?${search.toString()}`, { language });
   return { posts: result?.items ?? [], total: result?.total ?? 0, pageCount: result?.pageCount ?? 1 };
 }
 
-export async function getBlogPost(slug: string) {
-  return apiGet<ApiBlogPost>(`/api/blog/${encodeURIComponent(slug)}`);
+export async function getBlogPost(slug: string, language: Language = "en") {
+  return apiGet<ApiBlogPost>(`/api/blog/${encodeURIComponent(slug)}`, { language });
 }
 
-export async function getPages() {
-  return (await apiGet<ApiPage[]>("/api/pages")) ?? [];
+export async function getPages(language: Language = "en") {
+  return (await apiGet<ApiPage[]>("/api/pages", { language })) ?? [];
 }
 
-export async function getPage(slug: string) {
-  return apiGet<ApiPage>(`/api/pages/${encodeURIComponent(slug)}`);
+export async function getPage(slug: string, language: Language = "en") {
+  return apiGet<ApiPage>(`/api/pages/${encodeURIComponent(slug)}`, { language });
 }
 
-export async function getTestimonials() {
-  return (await apiGet<ApiTestimonial[]>("/api/testimonials")) ?? [];
+export async function getPageWithStatus(slug: string, language: Language = "en") {
+  return apiGetWithStatus<ApiPage>(`/api/pages/${encodeURIComponent(slug)}`, { language });
+}
+
+export async function getTestimonials(language: Language = "en") {
+  return (await apiGet<ApiTestimonial[]>("/api/testimonials", { language })) ?? [];
 }
 
 export async function getBanners(placement?: ApiBanner["placement"]) {
@@ -394,13 +438,14 @@ const defaultSiteContent: SiteContent = {
   ownerImage: "/images/rendi-virgo-owner-cutout.png",
   ownerCtaLabel: "About Us",
   ownerCtaHref: "/about-us",
+  contentLocale: "en",
   shippingOverrideEnabled: false,
   shippingOverrideAmount: 48,
   freeShippingThreshold: 0,
 };
 
-export async function getSiteContent(): Promise<SiteContent> {
-  const stored = await apiGet<Record<string, unknown>>("/api/site-content");
+export async function getSiteContent(language: Language = "en"): Promise<SiteContent> {
+  const stored = await apiGet<Record<string, unknown>>("/api/site-content", { language });
   const value = <T,>(key: string, fallback: T): T => {
     const entry = stored?.[key];
     if (entry === undefined || entry === null) return fallback;
@@ -416,6 +461,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     ownerImage: value("home.ownerImage", defaultSiteContent.ownerImage) || defaultSiteContent.ownerImage,
     ownerCtaLabel: value("home.ownerCtaLabel", defaultSiteContent.ownerCtaLabel),
     ownerCtaHref: value("home.ownerCtaHref", defaultSiteContent.ownerCtaHref) || defaultSiteContent.ownerCtaHref,
+    contentLocale: value("home.contentLocale", "en"),
     shippingOverrideEnabled: Boolean(value("shipping.overrideEnabled", defaultSiteContent.shippingOverrideEnabled)),
     shippingOverrideAmount: Number(value("shipping.overrideAmount", defaultSiteContent.shippingOverrideAmount)),
     freeShippingThreshold: Number(value("shipping.freeShippingThreshold", defaultSiteContent.freeShippingThreshold)),

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { formatPageBody } from "@/lib/storefront";
+import type { Language } from "@/lib/i18n";
 
 type ListBlock = { kind: "list"; ordered: boolean; items: string[] };
 type TextBlock = { kind: "heading" | "subheading" | "paragraph"; text: string };
@@ -46,11 +47,11 @@ function parseBlocks(body: string): Block[] {
   return blocks;
 }
 
-export function formatContentDate(value: string | null | undefined) {
+export function formatContentDate(value: string | null | undefined, language: Language = "en") {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-GB", { day: "numeric", month: "long", year: "numeric" }).format(date);
 }
 
 export function slugifyHeading(text: string): string {

@@ -63,6 +63,11 @@ export type ApiProduct = {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  nameId: string | null;
+  descriptionId: string | null;
+  metaTitleId: string | null;
+  metaDescriptionId: string | null;
+  idTranslationStatus: "Missing" | "Draft" | "Review" | "Ready";
 };
 
 type ApiCategory = { id: string; slug: string; name: string; isActive: boolean };
@@ -116,6 +121,11 @@ type FormValues = {
   fragile: boolean;
   metaTitle: string;
   metaDescription: string;
+  nameId: string;
+  descriptionId: string;
+  metaTitleId: string;
+  metaDescriptionId: string;
+  idTranslationStatus: "Missing" | "Draft" | "Review" | "Ready";
 };
 
 const toNumber = (value: string) => {
@@ -185,6 +195,11 @@ function valuesFromProduct(product?: ApiProduct | null): FormValues {
     fragile: product?.fragile ?? false,
     metaTitle: product?.seo?.metaTitle ?? "",
     metaDescription: product?.seo?.metaDescription ?? "",
+    nameId: product?.nameId ?? "",
+    descriptionId: product?.descriptionId ?? "",
+    metaTitleId: product?.metaTitleId ?? "",
+    metaDescriptionId: product?.metaDescriptionId ?? "",
+    idTranslationStatus: product?.idTranslationStatus ?? "Missing",
   };
 }
 
@@ -244,7 +259,15 @@ export function ProductForm({
     setAiNotice(null);
     setGeneratingCopy(true);
     try {
-      const copy = await apiFetch<{ description: string; metaTitle: string; metaDescription: string }>(
+      const copy = await apiFetch<{
+        description: string;
+        metaTitle: string;
+        metaDescription: string;
+        nameId: string;
+        descriptionId: string;
+        metaTitleId: string;
+        metaDescriptionId: string;
+      }>(
         "/api/admin/products/generate-copy",
         {
           json: {
@@ -265,8 +288,13 @@ export function ProductForm({
         description: copy.description,
         metaTitle: copy.metaTitle,
         metaDescription: copy.metaDescription,
+        nameId: copy.nameId,
+        descriptionId: copy.descriptionId,
+        metaTitleId: copy.metaTitleId,
+        metaDescriptionId: copy.metaDescriptionId,
+        idTranslationStatus: "Draft",
       }));
-      setAiNotice("Draft generated. Review the details and edit them before saving.");
+      setAiNotice("English copy and Indonesian translation generated as drafts. Review both languages before saving or publishing.");
     } catch (caught) {
       setAiError(errorMessage(caught));
     } finally {
@@ -354,6 +382,11 @@ export function ProductForm({
       fragile: values.fragile,
       metaTitle: values.metaTitle.trim() || null,
       metaDescription: values.metaDescription.trim() || null,
+      nameId: values.nameId.trim() || null,
+      descriptionId: values.descriptionId,
+      metaTitleId: values.metaTitleId.trim() || null,
+      metaDescriptionId: values.metaDescriptionId.trim() || null,
+      idTranslationStatus: values.idTranslationStatus,
       images: imageUrls.map((url, index) => ({ url, alt: values.name.trim(), sortOrder: index })),
       videoUrl,
       variants: variants
@@ -507,7 +540,7 @@ export function ProductForm({
 
       <Card
         title="Description & SEO"
-        description="Create product copy and search metadata from your title and notes."
+        description="Generate English product copy and SEO, with Indonesian name, description, and metadata drafts."
         actions={
           <Button
             size="sm"
@@ -545,6 +578,31 @@ export function ProductForm({
           <Field label="Meta description">
             <TextArea value={values.metaDescription} onChange={(value) => update("metaDescription", value)} rows={3} />
           </Field>
+        </div>
+      </Card>
+
+      <Card title="Bahasa Indonesia" description="The product appears in Indonesian only after its translation status is Ready and required text is complete.">
+        <div className="rv-stack">
+          <Field label="Translation status">
+            <Select value={values.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as FormValues["idTranslationStatus"])} options={[
+              { value: "Missing", label: "Missing" }, { value: "Draft", label: "Draft" },
+              { value: "Review", label: "Ready for review" }, { value: "Ready", label: "Ready to publish" },
+            ]} />
+          </Field>
+          <Field label="Product name">
+            <TextInput value={values.nameId} onChange={(value) => update("nameId", value)} />
+          </Field>
+          <Field label="Description">
+            <TextArea value={values.descriptionId} onChange={(value) => update("descriptionId", value)} rows={6} />
+          </Field>
+          <div className="rv-form-grid">
+            <Field label="Meta title">
+              <TextInput value={values.metaTitleId} onChange={(value) => update("metaTitleId", value)} />
+            </Field>
+            <Field label="Meta description">
+              <TextArea value={values.metaDescriptionId} onChange={(value) => update("metaDescriptionId", value)} rows={3} />
+            </Field>
+          </div>
         </div>
       </Card>
 

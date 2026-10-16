@@ -79,6 +79,11 @@ export class CreateOrderDto {
   checkoutKey?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  quoteToken?: string;
+
+  @IsOptional()
   @IsIn(["PayPal", "BankTransfer"])
   paymentMethod?: PaymentMethod;
 
@@ -121,6 +126,35 @@ export class CreateOrderDto {
   discountCode?: string;
 }
 
+export class CreateReturnRequestDto {
+  @IsString()
+  @MinLength(4)
+  @MaxLength(40)
+  orderNumber: string;
+
+  @IsEmail()
+  @MaxLength(200)
+  email: string;
+
+  @IsIn(["Damaged", "NotAsDescribed", "Other"])
+  reason: string;
+
+  @IsString()
+  @MinLength(10)
+  @MaxLength(3000)
+  details: string;
+}
+
+export class ReviewReturnRequestDto {
+  @IsIn(["Approved", "Rejected"])
+  status: "Approved" | "Rejected";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  adminResponse?: string;
+}
+
 export class OrderQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(OrderStatus)
@@ -129,6 +163,10 @@ export class OrderQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(PaymentStatus)
   paymentStatus?: PaymentStatus;
+
+  @IsOptional()
+  @IsIn(["true"])
+  proofQueue?: string;
 
   @IsOptional()
   @IsString()
@@ -140,14 +178,6 @@ export class OrderQueryDto extends PaginationQueryDto {
 }
 
 export class UpdateOrderDto {
-  @IsOptional()
-  @IsEnum(OrderStatus)
-  status?: OrderStatus;
-
-  @IsOptional()
-  @IsEnum(PaymentStatus)
-  paymentStatus?: PaymentStatus;
-
   @IsOptional()
   @IsString()
   @MaxLength(120)
@@ -174,6 +204,11 @@ export class UpdateOrderDto {
   customerNote?: string | null;
 }
 
+export class UpdateFulfillmentDto {
+  @IsIn(["Processing", "Packed", "Shipped", "Completed"])
+  status: "Processing" | "Packed" | "Shipped" | "Completed";
+}
+
 export class CreateOrderEventDto {
   @IsString()
   @MinLength(1)
@@ -196,4 +231,9 @@ export class RefundOrderDto {
   @IsString()
   @MaxLength(1000)
   reason?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  externalReference?: string;
 }

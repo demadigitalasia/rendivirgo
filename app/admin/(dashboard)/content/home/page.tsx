@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi, type ApiState } from "@/components/admin/api";
 import { MediaPicker } from "@/components/admin/media";
 import { toast } from "@/components/admin/toast";
-import { Button, Card, Field, Loading, PageHeader, Switch, TextArea, TextInput } from "@/components/admin/ui";
+import { Button, Card, Field, Loading, PageHeader, Select, Switch, TextArea, TextInput } from "@/components/admin/ui";
+import { translationStatusOptions, type TranslationStatus } from "../types";
 import "../content.css";
 
 type SiteContent = Record<string, unknown>;
@@ -12,12 +13,18 @@ type SiteContent = Record<string, unknown>;
 type HomeForm = {
   heroTitle: string;
   heroSubtitle: string;
+  heroTitleId: string;
+  heroSubtitleId: string;
   heroImage: string;
   ownerName: string;
   ownerRole: string;
+  ownerRoleId: string;
   ownerBio: string;
+  ownerBioId: string;
   ownerCtaLabel: string;
+  ownerCtaLabelId: string;
   ownerCtaHref: string;
+  idTranslationStatus: TranslationStatus;
   overrideEnabled: boolean;
   overrideAmount: string;
   freeShippingThreshold: string;
@@ -26,12 +33,18 @@ type HomeForm = {
 const emptyForm: HomeForm = {
   heroTitle: "",
   heroSubtitle: "",
+  heroTitleId: "",
+  heroSubtitleId: "",
   heroImage: "",
   ownerName: "RENDI VIRGO",
   ownerRole: "",
+  ownerRoleId: "",
   ownerBio: "",
+  ownerBioId: "",
   ownerCtaLabel: "",
+  ownerCtaLabelId: "",
   ownerCtaHref: "",
+  idTranslationStatus: "Missing",
   overrideEnabled: false,
   overrideAmount: "48",
   freeShippingThreshold: "0",
@@ -51,12 +64,18 @@ function formFrom(data: SiteContent): HomeForm {
   return {
     heroTitle: asText(data["home.heroTitle"]),
     heroSubtitle: asText(data["home.heroSubtitle"]),
+    heroTitleId: asText(data["home.heroTitleId"]),
+    heroSubtitleId: asText(data["home.heroSubtitleId"]),
     heroImage: asText(data["home.heroImage"]),
     ownerName: asText(data["home.ownerName"]),
     ownerRole: asText(data["home.ownerRole"]),
+    ownerRoleId: asText(data["home.ownerRoleId"]),
     ownerBio: asText(data["home.ownerBio"]),
+    ownerBioId: asText(data["home.ownerBioId"]),
     ownerCtaLabel: asText(data["home.ownerCtaLabel"]),
+    ownerCtaLabelId: asText(data["home.ownerCtaLabelId"]),
     ownerCtaHref: asText(data["home.ownerCtaHref"]),
+    idTranslationStatus: (asText(data["home.idTranslationStatus"]) || "Missing") as TranslationStatus,
     overrideEnabled: asBool(data["shipping.overrideEnabled"]),
     overrideAmount: asText(data["shipping.overrideAmount"]),
     freeShippingThreshold: asText(data["shipping.freeShippingThreshold"]),
@@ -95,11 +114,17 @@ export default function ContentHomePage() {
     const payload: Record<string, unknown> = {};
     if (form.heroTitle !== saved.heroTitle) payload["home.heroTitle"] = form.heroTitle;
     if (form.heroSubtitle !== saved.heroSubtitle) payload["home.heroSubtitle"] = form.heroSubtitle;
+    if (form.heroTitleId !== saved.heroTitleId) payload["home.heroTitleId"] = form.heroTitleId;
+    if (form.heroSubtitleId !== saved.heroSubtitleId) payload["home.heroSubtitleId"] = form.heroSubtitleId;
     if (form.heroImage !== saved.heroImage) payload["home.heroImage"] = form.heroImage;
     if (form.ownerName !== saved.ownerName) payload["home.ownerName"] = form.ownerName;
     if (form.ownerRole !== saved.ownerRole) payload["home.ownerRole"] = form.ownerRole;
+    if (form.ownerRoleId !== saved.ownerRoleId) payload["home.ownerRoleId"] = form.ownerRoleId;
     if (form.ownerBio !== saved.ownerBio) payload["home.ownerBio"] = form.ownerBio;
+    if (form.ownerBioId !== saved.ownerBioId) payload["home.ownerBioId"] = form.ownerBioId;
     if (form.ownerCtaLabel !== saved.ownerCtaLabel) payload["home.ownerCtaLabel"] = form.ownerCtaLabel;
+    if (form.ownerCtaLabelId !== saved.ownerCtaLabelId) payload["home.ownerCtaLabelId"] = form.ownerCtaLabelId;
+    if (form.idTranslationStatus !== saved.idTranslationStatus) payload["home.idTranslationStatus"] = form.idTranslationStatus;
     if (form.ownerCtaHref !== saved.ownerCtaHref) payload["home.ownerCtaHref"] = form.ownerCtaHref;
     if (form.overrideEnabled !== saved.overrideEnabled) payload["shipping.overrideEnabled"] = form.overrideEnabled;
     if (form.overrideAmount !== saved.overrideAmount) payload["shipping.overrideAmount"] = amount;
@@ -171,6 +196,14 @@ export default function ContentHomePage() {
                     <TextInput value={form.heroSubtitle} onChange={(value) => update("heroSubtitle", value)} />
                   </Field>
                 </div>
+                <div className="rv-form-grid">
+                  <Field label="Hero title in Bahasa Indonesia">
+                    <TextInput value={form.heroTitleId} onChange={(value) => update("heroTitleId", value)} />
+                  </Field>
+                  <Field label="Hero subtitle in Bahasa Indonesia">
+                    <TextArea rows={2} value={form.heroSubtitleId} onChange={(value) => update("heroSubtitleId", value)} />
+                  </Field>
+                </div>
                 <MediaPicker
                   label="Hero image"
                   folder="banners"
@@ -195,13 +228,27 @@ export default function ContentHomePage() {
                   <TextArea rows={5} value={form.ownerBio} onChange={(value) => update("ownerBio", value)} />
                 </Field>
                 <div className="rv-form-grid">
+                  <Field label="Owner role in Bahasa Indonesia">
+                    <TextInput value={form.ownerRoleId} onChange={(value) => update("ownerRoleId", value)} />
+                  </Field>
+                  <Field label="Owner bio in Bahasa Indonesia">
+                    <TextArea rows={5} value={form.ownerBioId} onChange={(value) => update("ownerBioId", value)} />
+                  </Field>
+                </div>
+                <div className="rv-form-grid">
                   <Field label="CTA label">
                     <TextInput value={form.ownerCtaLabel} onChange={(value) => update("ownerCtaLabel", value)} />
+                  </Field>
+                  <Field label="CTA label in Bahasa Indonesia">
+                    <TextInput value={form.ownerCtaLabelId} onChange={(value) => update("ownerCtaLabelId", value)} />
                   </Field>
                   <Field label="CTA link">
                     <TextInput value={form.ownerCtaHref} onChange={(value) => update("ownerCtaHref", value)} />
                   </Field>
                 </div>
+                <Field label="Indonesian translation status" hint="Only set to ready after every Indonesian field has been reviewed.">
+                  <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
+                </Field>
               </div>
             </Card>
 

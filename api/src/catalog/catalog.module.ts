@@ -7,8 +7,10 @@ import { CatalogPdfService } from "./catalog-pdf.service";
 import { ConditionsService } from "./conditions.service";
 import { ProductCopyService } from "./product-copy.service";
 import { AdminConditionsController, ConditionsController } from "./conditions.controller";
+import { SettingsModule } from "../settings/settings.module";
 
 @Module({
+  imports: [SettingsModule],
   controllers: [CategoriesController, AdminCategoriesController, ConditionsController, AdminConditionsController, ProductsController, AdminProductsController],
   providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService, ProductCopyService],
   exports: [CategoriesService, ProductsService],

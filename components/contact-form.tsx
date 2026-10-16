@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useCopy } from "@/components/providers";
 
 type FormValues = { name: string; email: string; phone: string; subject: string; body: string };
 type Status = { state: "idle" | "sending" | "success" } | { state: "error"; message: string };
@@ -9,6 +10,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const emptyForm: FormValues = { name: "", email: "", phone: "", subject: "", body: "" };
 
 export function ContactForm() {
+  const t = useCopy().contact.form;
   const [values, setValues] = useState<FormValues>(emptyForm);
   const [validationError, setValidationError] = useState("");
   const [status, setStatus] = useState<Status>({ state: "idle" });
@@ -25,11 +27,11 @@ export function ContactForm() {
     const body = values.body.trim();
 
     if (!name || !email || !subject || !body) {
-      setValidationError("Please complete your name, email, subject, and message.");
+      setValidationError(t.required);
       return;
     }
     if (!emailPattern.test(email)) {
-      setValidationError("Please enter a valid email address.");
+      setValidationError(t.invalidEmail);
       return;
     }
 
@@ -42,16 +44,14 @@ export function ContactForm() {
         headers: { "content-type": "application/json", accept: "application/json" },
         body: JSON.stringify({ name, email, phone: values.phone.trim() || undefined, subject, body }),
       });
-      const payload = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
       if (!response.ok) {
-        const raw = payload?.message;
-        setStatus({ state: "error", message: Array.isArray(raw) ? raw.join(", ") : (raw ?? "Your message could not be sent. Please try again.") });
+        setStatus({ state: "error", message: t.sendError });
         return;
       }
       setValues(emptyForm);
       setStatus({ state: "success" });
     } catch {
-      setStatus({ state: "error", message: "Could not reach the store API. Please try again." });
+      setStatus({ state: "error", message: t.connectionError });
     }
   };
 
@@ -59,30 +59,30 @@ export function ContactForm() {
     <form className="checkout-form" onSubmit={handleSubmit} noValidate>
       <div className="field-grid">
         <div className="field">
-          <label htmlFor="contact-name">Name</label>
+          <label htmlFor="contact-name">{t.name}</label>
           <input id="contact-name" name="name" value={values.name} onChange={update("name")} autoComplete="name" required />
         </div>
         <div className="field">
-          <label htmlFor="contact-email">Email</label>
+          <label htmlFor="contact-email">{t.email}</label>
           <input id="contact-email" name="email" type="email" value={values.email} onChange={update("email")} autoComplete="email" required />
         </div>
       </div>
       <div className="field-grid">
         <div className="field">
-          <label htmlFor="contact-phone">Phone (optional)</label>
+          <label htmlFor="contact-phone">{t.phone}</label>
           <input id="contact-phone" name="phone" value={values.phone} onChange={update("phone")} autoComplete="tel" />
         </div>
         <div className="field">
-          <label htmlFor="contact-subject">Subject</label>
+          <label htmlFor="contact-subject">{t.subject}</label>
           <input id="contact-subject" name="subject" value={values.subject} onChange={update("subject")} required />
         </div>
       </div>
       <div className="field">
-        <label htmlFor="contact-body">Message</label>
+        <label htmlFor="contact-body">{t.message}</label>
         <textarea id="contact-body" name="body" value={values.body} onChange={update("body")} required />
       </div>
       <button className="button button--full" type="submit" disabled={status.state === "sending"}>
-        {status.state === "sending" ? "Sending…" : "Send message"}
+        {status.state === "sending" ? t.sending : t.send}
       </button>
       {validationError && (
         <p className="form-status form-status--error" role="alert">
@@ -96,7 +96,7 @@ export function ContactForm() {
       )}
       {status.state === "success" && (
         <p className="form-status form-status--success" role="status">
-          Thank you — your message has been received. We will reply by email shortly.
+          {t.success}
         </p>
       )}
     </form>

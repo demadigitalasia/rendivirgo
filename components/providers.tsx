@@ -3,9 +3,10 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Product } from "@/lib/catalog";
 import type { Copy, Language } from "@/lib/i18n";
-import { defaultLanguage, dictionaries } from "@/lib/i18n";
+import { dictionaries } from "@/lib/i18n";
 import { maxQuantityFor } from "@/lib/catalog";
 import type { ProductWatermarkSettings } from "@/lib/product-watermark";
+import { localizedPath } from "@/lib/locale";
 
 export type CartLine = Product & {
   quantity: number;
@@ -50,14 +51,18 @@ const readJson = <T,>(key: string): T | null => {
 export function Providers({
   children,
   productWatermark,
+  initialLanguage,
+  hasLanguagePreferenceCookie,
 }: {
   children: React.ReactNode;
   productWatermark: ProductWatermarkSettings;
+  initialLanguage: Language;
+  hasLanguagePreferenceCookie: boolean;
 }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [storageReady, setStorageReady] = useState(false);
   const [activeProductWatermark, setActiveProductWatermark] = useState(productWatermark);
-  const [language, setLanguage] = useState<Language>(defaultLanguage);
+  const [language, setLanguage] = useState<Language>(initialLanguage);
   const [cartAnnouncement, setCartAnnouncement] = useState("");
   const previousItemCount = useRef<number | null>(null);
 
@@ -75,9 +80,18 @@ export function Providers({
       );
     }
     const savedLanguage = window.localStorage.getItem(languageStorageKey);
-    if (savedLanguage === "en" || savedLanguage === "id") setLanguage(savedLanguage);
+    const hasExplicitLanguagePath = window.location.pathname === "/id" || window.location.pathname.startsWith("/id/");
+    if (!hasLanguagePreferenceCookie && (savedLanguage === "en" || savedLanguage === "id") && savedLanguage !== initialLanguage && !hasExplicitLanguagePath) {
+      void fetch("/api/language", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ language: savedLanguage }),
+      }).then((response) => {
+        if (response.ok) window.location.replace(`${localizedPath(window.location.pathname, savedLanguage)}${window.location.search}`);
+      });
+    }
     setStorageReady(true);
-  }, []);
+  }, [hasLanguagePreferenceCookie, initialLanguage]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,7 +133,7 @@ export function Providers({
   useEffect(() => {
     if (!storageReady) return;
     window.localStorage.setItem(languageStorageKey, language);
-    document.documentElement.lang = language;
+    document.documentElement.lang = language === "id" ? "id-ID" : "en-GB";
   }, [language, storageReady]);
 
   const cartValue = useMemo<CartContextValue>(() => {
@@ -210,6 +224,10 @@ export function useLanguage() {
   const context = useContext(LanguageContext);
   if (!context) throw new Error("useLanguage must be used inside Providers");
   return context;
+}
+
+export function useOptionalLanguage(): Language | null {
+  return useContext(LanguageContext)?.language ?? null;
 }
 
 export function useProductWatermark() {

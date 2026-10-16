@@ -17,13 +17,15 @@ import {
   TextArea,
   TextInput,
 } from "@/components/admin/ui";
-import { truncate, type Testimonial } from "../types";
+import { translationStatusOptions, truncate, type Testimonial, type TranslationStatus } from "../types";
 import "../content.css";
 
 type TestimonialForm = {
   customerName: string;
   location: string;
   quote: string;
+  quoteId: string;
+  idTranslationStatus: TranslationStatus;
   rating: string;
   isPublished: boolean;
   sortOrder: string;
@@ -33,6 +35,8 @@ const emptyForm: TestimonialForm = {
   customerName: "",
   location: "",
   quote: "",
+  quoteId: "",
+  idTranslationStatus: "Missing",
   rating: "5",
   isPublished: true,
   sortOrder: "0",
@@ -65,6 +69,8 @@ export default function TestimonialsPage() {
       customerName: item.customerName,
       location: item.location ?? "",
       quote: item.quote,
+      quoteId: item.quoteId ?? "",
+      idTranslationStatus: item.idTranslationStatus ?? "Missing",
       rating: String(item.rating),
       isPublished: item.isPublished,
       sortOrder: String(item.sortOrder),
@@ -87,6 +93,8 @@ export default function TestimonialsPage() {
       customerName: form.customerName.trim(),
       location: form.location.trim() || null,
       quote: form.quote,
+      quoteId: form.quoteId.trim() || null,
+      idTranslationStatus: form.idTranslationStatus,
       rating: Number(form.rating),
       isPublished: form.isPublished,
       sortOrder: Number.isInteger(sortOrder) ? sortOrder : 0,
@@ -136,6 +144,11 @@ export default function TestimonialsPage() {
       key: "quote",
       header: "Quote",
       render: (item) => <span className="rv-hint">{truncate(item.quote, 90)}</span>,
+    },
+    {
+      key: "translation",
+      header: "Bahasa Indonesia",
+      render: (item) => <StatusBadge status={item.idTranslationStatus ?? "Missing"} />,
     },
     {
       key: "rating",
@@ -256,7 +269,13 @@ export default function TestimonialsPage() {
           <Field label="Quote">
             <TextArea rows={5} value={form.quote} onChange={(value) => update("quote", value)} />
           </Field>
+          <Field label="Quote in Bahasa Indonesia" hint="Leave empty until a reviewed translation is available.">
+            <TextArea rows={5} value={form.quoteId} onChange={(value) => update("quoteId", value)} />
+          </Field>
           <div className="rv-form-grid">
+            <Field label="Indonesian translation status">
+              <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
+            </Field>
             <Field label="Rating">
               <Select value={form.rating} onChange={(value) => update("rating", value)} options={ratingOptions} />
             </Field>

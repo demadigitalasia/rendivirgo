@@ -106,20 +106,30 @@ export default function AdminDashboardPage() {
         title="Dashboard"
         subtitle="Store performance at a glance"
         actions={
-          <div className="rv-inline">
-            {ranges.map((item) => (
-              <Button
-                key={item.value}
-                size="sm"
-                variant={range === item.value ? "primary" : "default"}
-                onClick={() => setRange(item.value)}
-              >
-                {item.label}
+          <div className="rv-dashboard-toolbar">
+            <div className="rv-dashboard-toolbar__controls">
+              <div className="rv-range-control" role="group" aria-label="Dashboard date range">
+                {ranges.map((item) => (
+                  <Button
+                    key={item.value}
+                    size="sm"
+                    variant={range === item.value ? "primary" : "default"}
+                    ariaPressed={range === item.value}
+                    onClick={() => setRange(item.value)}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+              <Button size="sm" onClick={state.refresh}>
+                Refresh
               </Button>
-            ))}
-            <Button size="sm" onClick={state.refresh}>
-              Refresh
-            </Button>
+            </div>
+            {data ? (
+              <span className="rv-dashboard-toolbar__date">
+                Period: {formatDate(data.from)} – {formatDate(data.to)}
+              </span>
+            ) : null}
           </div>
         }
       />
@@ -144,8 +154,9 @@ export default function AdminDashboardPage() {
             <section className="rv-dashboard-section" aria-labelledby="core-performance-heading">
               <div className="rv-dashboard-section__heading">
                 <div>
+                  <span className="rv-dashboard-section__eyebrow">Selected period</span>
                   <h2 id="core-performance-heading" className="rv-dashboard-section__title">Core performance</h2>
-                  <p className="rv-dashboard-section__hint">Selected period · revenue, paid orders, and new customers.</p>
+                  <p className="rv-dashboard-section__hint">Revenue, paid orders, and new customers.</p>
                 </div>
               </div>
               <div className="rv-stat-grid rv-stat-grid--primary">
@@ -173,6 +184,7 @@ export default function AdminDashboardPage() {
             <section className="rv-dashboard-section rv-dashboard-section--attention" aria-labelledby="needs-attention-heading">
               <div className="rv-dashboard-section__heading">
                 <div>
+                  <span className="rv-dashboard-section__eyebrow">Live snapshot</span>
                   <h2 id="needs-attention-heading" className="rv-dashboard-section__title">Needs attention</h2>
                   <p className="rv-dashboard-section__hint">Current operating state · independent of the selected period.</p>
                 </div>
@@ -187,9 +199,7 @@ export default function AdminDashboardPage() {
             <Card className="rv-card--priority" title="Quick actions" description="Common tasks for the current operating day">
               <div className="rv-inline">
                 <Button variant="primary" href="/admin/products/new">New product</Button>
-                <Button href="/admin/orders">Review orders ({formatNumber(data.kpis.pendingOrders)})</Button>
-                <Button href="/admin/messages">Open inbox ({formatNumber(data.kpis.unreadMessages)})</Button>
-                <Button href="/admin/products">Review stock ({formatNumber(data.kpis.lowStockCount)})</Button>
+                <Button href="/admin/discounts">Manage discounts</Button>
               </div>
             </Card>
 
@@ -233,7 +243,7 @@ export default function AdminDashboardPage() {
               >
                 <div className="rv-list">
                   {data.recentOrders.length ? (
-                    data.recentOrders.map((order) => (
+                    data.recentOrders.slice(0, 5).map((order) => (
                       <Link className="rv-list__row" key={order.id} href={`/admin/orders/${order.id}`}>
                         <div>
                           <strong>{order.orderNumber}</strong>
@@ -268,10 +278,15 @@ export default function AdminDashboardPage() {
                   </div>
                 </Card>
 
-                <Card title="Low stock & aged unique pieces" description="Current inventory snapshot" flush>
+                <Card
+                  title="Low stock & aged unique pieces"
+                  description="Current inventory snapshot"
+                  flush
+                  actions={<Link className="rv-btn rv-btn--sm" href="/admin/products">View all</Link>}
+                >
                   <div className="rv-list">
                     {data.lowStock.length ? (
-                      data.lowStock.map((product) => (
+                      data.lowStock.slice(0, 5).map((product) => (
                         <Link className="rv-list__row" key={product.id} href={`/admin/products/${product.id}`}>
                           <div>
                             <strong>{product.name}</strong>
@@ -351,7 +366,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <p className="rv-hint">
-              Selected period: {formatDate(data.from)} – {formatDate(data.to)} · previous period: {formatDate(data.comparison.from)} – {formatDate(data.comparison.to)}. Current operations are live snapshot data. {data.kpis.soldUniqueCount} unique piece(s) sold in the selected
+              Previous period: {formatDate(data.comparison.from)} – {formatDate(data.comparison.to)}. Current operations are live snapshot data. {data.kpis.soldUniqueCount} unique piece(s) sold in the selected
               period. Last updated: {formatDateTime(state.lastUpdated ?? data.generatedAt)}.
             </p>
           </>

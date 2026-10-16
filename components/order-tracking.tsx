@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useCopy } from "@/components/providers";
+import { useCopy, useLanguage } from "@/components/providers";
 import { formatUSD } from "@/lib/catalog";
 
 type TrackedItem = {
@@ -41,6 +41,8 @@ const labelize = (value: string) => value.replace(/([a-z])([A-Z])/g, "$1 $2");
 
 export function OrderTracking() {
   const t = useCopy();
+  const { language } = useLanguage();
+  const dateLocale = language === "id" ? "id-ID" : "en-GB";
   const searchParams = useSearchParams();
   const [orderNumber, setOrderNumber] = useState("");
   const [email, setEmail] = useState("");
@@ -157,13 +159,13 @@ export function OrderTracking() {
                 <div className="eyebrow">{t.track.eyebrow}</div>
                 <h2>{order.orderNumber}</h2>
                 <p className="muted">
-                  {order.customerName} · {new Date(order.placedAt).toLocaleDateString()}
+                  {order.customerName} · {new Date(order.placedAt).toLocaleDateString(dateLocale)}
                 </p>
               </div>
               <div className="track-badges">
-                <span className={`track-status track-status--${order.status.toLowerCase()}`}>{labelize(order.status)}</span>
+                <span className={`track-status track-status--${order.status.toLowerCase()}`}>{t.orderStatus[order.status as keyof typeof t.orderStatus] ?? labelize(order.status)}</span>
                 <span className={`track-status track-status--${order.paymentStatus.toLowerCase()}`}>
-                  {labelize(order.paymentStatus)}
+                  {t.orderStatus[order.paymentStatus as keyof typeof t.orderStatus] ?? labelize(order.paymentStatus)}
                 </span>
               </div>
             </div>
@@ -192,24 +194,24 @@ export function OrderTracking() {
                       <span>
                         {item.name} × {item.quantity}
                       </span>
-                      <strong>{formatUSD(item.lineTotal)}</strong>
+                      <strong>{formatUSD(item.lineTotal, language)}</strong>
                     </li>
                   ))}
                 </ul>
                 <div className="track-totals">
                   <span>
-                    {t.track.subtotal} <strong>{formatUSD(order.subtotal)}</strong>
+                    {t.track.subtotal} <strong>{formatUSD(order.subtotal, language)}</strong>
                   </span>
                   {order.discountTotal > 0 ? (
                     <span>
-                      {t.track.discount} <strong>−{formatUSD(order.discountTotal)}</strong>
+                      {t.track.discount} <strong>−{formatUSD(order.discountTotal, language)}</strong>
                     </span>
                   ) : null}
                   <span>
-                    {t.track.shipping} <strong>{order.shippingCost === 0 ? "—" : formatUSD(order.shippingCost)}</strong>
+                    {t.track.shipping} <strong>{order.shippingCost === 0 ? "—" : formatUSD(order.shippingCost, language)}</strong>
                   </span>
                   <span className="track-totals__total">
-                    {t.track.total} <strong>{formatUSD(order.total)}</strong>
+                    {t.track.total} <strong>{formatUSD(order.total, language)}</strong>
                   </span>
                 </div>
               </div>
@@ -220,7 +222,7 @@ export function OrderTracking() {
                   {timeline.map(([label, date]) => (
                     <li key={label}>
                       <span>{label}</span>
-                      <span>{new Date(date).toLocaleString()}</span>
+                      <span>{new Date(date).toLocaleString(dateLocale)}</span>
                     </li>
                   ))}
                 </ol>

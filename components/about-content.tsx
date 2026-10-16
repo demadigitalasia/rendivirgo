@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowIcon, BagIcon, GlobeIcon, HeartIcon, LeafIcon, SearchIcon, SparkleIcon } from "@/components/icons";
+import Link from "@/components/localized-link";
+import { ArrowIcon, BagIcon, GlobeIcon, HeartIcon, LeafIcon, SparkleIcon } from "@/components/icons";
+import { useCopy, useLanguage } from "@/components/providers";
+import type { Language } from "@/lib/i18n";
 
 export type AboutContentProps = {
   ownerName: string;
@@ -12,56 +14,26 @@ export type AboutContentProps = {
   heroImage: string;
   email: string;
   storyParagraphs: string[];
+  contentLanguage?: Language;
+  ownerBioLanguage?: Language;
 };
 
-const values = [
-  {
-    icon: LeafIcon,
-    title: "Authentic Indonesian material",
-    body: "Sourced from miners, cutters, and small workshops across the archipelago — never mass produced.",
-  },
-  {
-    icon: SearchIcon,
-    title: "Photographed as it is",
-    body: "Natural light, true scale, and close-ups of every crack, inclusion, and character mark.",
-  },
-  {
-    icon: HeartIcon,
-    title: "One of a kind, truly",
-    body: "Most pieces exist exactly once. When a unique stone finds a home, it is gone forever.",
-  },
-  {
-    icon: BagIcon,
-    title: "Packed by hand",
-    body: "Every order is wrapped with care in Indonesia and shipped worldwide with tracking.",
-  },
-];
-
-const steps = [
-  {
-    index: "01",
-    title: "Source",
-    body: "We travel and trade directly with trusted cutters and workshops from West Java to Kalimantan.",
-  },
-  {
-    index: "02",
-    title: "Select",
-    body: "Only stones with honest colour, stable structure, and a story worth telling make the collection.",
-  },
-  {
-    index: "03",
-    title: "Document",
-    body: "Weight, dimensions, origin, and condition are measured and disclosed — including the flaws.",
-  },
-  {
-    index: "04",
-    title: "Deliver",
-    body: "Hand-packed in 1–3 business days, shipped worldwide as one parcel calculated by total weight.",
-  },
-];
-
-export function AboutContent({ ownerName, ownerRole, ownerBio, ownerImage, heroImage, email, storyParagraphs }: AboutContentProps) {
-
+export function AboutContent({
+  ownerName,
+  ownerRole,
+  ownerBio,
+  ownerImage,
+  heroImage,
+  email,
+  storyParagraphs,
+  contentLanguage = "en",
+  ownerBioLanguage = "en",
+}: AboutContentProps) {
+  const t = useCopy();
+  const { language } = useLanguage();
+  const copy = t.about;
+  const valueIcons = [LeafIcon, SparkleIcon, HeartIcon, BagIcon];
+  const promiseIcons = [GlobeIcon, SparkleIcon, LeafIcon];
   return (
     <div>
       <section className="about-hero">
@@ -73,37 +45,30 @@ export function AboutContent({ ownerName, ownerRole, ownerBio, ownerImage, heroI
         <div className="about-hero__overlay" aria-hidden="true" />
         <div className="page-container about-hero__inner">
           <div className="about-hero__copy">
-            <div className="eyebrow eyebrow--light">The story behind the stones</div>
-            <h1>
-              Indonesia&apos;s stones,
-              <br />
-              on the world stage.
-            </h1>
-            <p>
-              RENDI VIRGO is an independent collection built around curiosity, provenance, and respect for
-              natural material — from rough and slab to finished cabochons for collectors and makers.
-            </p>
+            <div className="eyebrow eyebrow--light">{copy.heroEyebrow}</div>
+            <h1>{copy.title.split("\n").map((line, index) => <span key={line}>{index ? <br /> : null}{line}</span>)}</h1>
+            <p>{copy.intro}</p>
             <div className="about-hero__actions">
               <Link href="/shop" className="button button--light">
-                Explore the collection <ArrowIcon />
+                {copy.explore} <ArrowIcon />
               </Link>
               <Link href="/contact" className="button about-hero__ghost">
-                Talk to us
+                {copy.talk}
               </Link>
             </div>
           </div>
           <dl className="about-hero__facts">
             <div>
-              <dt>Pieces</dt>
-              <dd>One of a kind</dd>
+              <dt>{copy.pieces}</dt>
+              <dd>{copy.oneOfAKind}</dd>
             </div>
             <div>
-              <dt>Origin</dt>
-              <dd>Indonesian archipelago</dd>
+              <dt>{copy.origin}</dt>
+              <dd>{copy.archipelago}</dd>
             </div>
             <div>
-              <dt>Shipping</dt>
-              <dd>Worldwide, tracked</dd>
+              <dt>{copy.shipping}</dt>
+              <dd>{copy.worldwideTracked}</dd>
             </div>
           </dl>
         </div>
@@ -111,15 +76,16 @@ export function AboutContent({ ownerName, ownerRole, ownerBio, ownerImage, heroI
 
       <section className="page-container about-story">
         <div className="about-story__head reveal">
-          <div className="eyebrow">Our story</div>
-          <h2>A simple conviction, kept honestly.</h2>
-          <div className="about-chips" aria-label="Sourcing regions">
+          <div className="eyebrow">{copy.story}</div>
+          <h2>{copy.storyTitle}</h2>
+          <div className="about-chips" aria-label={copy.sourcingRegions}>
             <span>West Java</span>
             <span>Kalimantan</span>
-            <span>Archipelago workshops</span>
+            <span>Indonesia</span>
           </div>
         </div>
-        <div className="about-story__body">
+        <div className="about-story__body" lang={contentLanguage}>
+          {language === "id" && contentLanguage === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
           {storyParagraphs.map((paragraph, index) => (
             <p key={index} className={index === 0 ? "about-lede reveal" : "reveal"}>
               {paragraph}
@@ -130,30 +96,33 @@ export function AboutContent({ ownerName, ownerRole, ownerBio, ownerImage, heroI
 
       <section className="page-container about-values">
         <div className="section-heading reveal">
-          <h2>What we stand by</h2>
+          <h2>{copy.valuesTitle}</h2>
         </div>
         <div className="about-values__grid">
-          {values.map((value) => (
+          {copy.values.map((value, index) => {
+            const Icon = valueIcons[index];
+            return (
             <article key={value.title} className="about-value reveal">
               <span className="about-value__icon" aria-hidden="true">
-                <value.icon />
+                <Icon />
               </span>
               <h3>{value.title}</h3>
               <p>{value.body}</p>
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       <section className="about-process">
         <div className="page-container">
-          <div className="eyebrow eyebrow--light reveal">How a stone reaches you</div>
-          <h2 className="reveal">From the ground to your door.</h2>
+          <div className="eyebrow eyebrow--light reveal">{copy.processEyebrow}</div>
+          <h2 className="reveal">{copy.processTitle}</h2>
           <ol className="about-steps">
-            {steps.map((step) => (
-              <li key={step.index} className="reveal">
+            {copy.steps.map((step, index) => (
+              <li key={step.title} className="reveal">
                 <span className="about-steps__index" aria-hidden="true">
-                  {step.index}
+                  0{index + 1}
                 </span>
                 <h3>{step.title}</h3>
                 <p>{step.body}</p>
@@ -173,13 +142,14 @@ export function AboutContent({ ownerName, ownerRole, ownerBio, ownerImage, heroI
             )}
           </div>
           <div className="about-owner__copy">
-            <div className="eyebrow">The curator</div>
+            <div className="eyebrow">{copy.curator}</div>
             <h2>{ownerName}</h2>
-            {ownerRole ? <p className="about-owner__role">{ownerRole}</p> : null}
-            <p>{ownerBio}</p>
+            {ownerRole ? <p className="about-owner__role">{language === "id" && ownerRole === "Founder & Curator" ? "Pendiri & kurator" : ownerRole}</p> : null}
+            {language === "id" && ownerBioLanguage === "en" && ownerBio ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+            <p lang={ownerBioLanguage}>{ownerBio}</p>
             <div className="about-owner__actions">
               <Link href="/shop" className="button">
-                Shop the collection <ArrowIcon />
+                {copy.browse} <ArrowIcon />
               </Link>
               <a href={`mailto:${email}`} className="text-button">
                 {email}
@@ -191,44 +161,31 @@ export function AboutContent({ ownerName, ownerRole, ownerBio, ownerImage, heroI
 
       <section className="page-container about-promise">
         <div className="about-promise__grid">
-          <article className="reveal">
-            <GlobeIcon />
-            <h3>Worldwide shipping</h3>
-            <p>One parcel, calculated by total weight at checkout. Tracked from our hands to yours.</p>
-            <Link href="/shipping-returns" className="text-button">
-              Shipping &amp; returns
-            </Link>
-          </article>
-          <article className="reveal">
-            <SparkleIcon />
-            <h3>Honest listings</h3>
-            <p>Treatments disclosed, flaws photographed, scale always shown. What you see is what travels.</p>
-            <Link href="/shop" className="text-button">
-              Browse unique pieces
-            </Link>
-          </article>
-          <article className="reveal">
-            <LeafIcon />
-            <h3>Natural character</h3>
-            <p>Inclusions and colour variation are nature&apos;s signature — never a defect to hide.</p>
-            <Link href="/blog" className="text-button">
-              Read the journal
-            </Link>
-          </article>
+          {copy.promises.map((promise, index) => {
+            const Icon = promiseIcons[index];
+            const href = index === 0 ? "/shipping-returns" : index === 1 ? "/shop" : "/blog";
+            const linkLabel = index === 0 ? t.footer.shipping : index === 1 ? copy.browse : t.nav.blog;
+            return <article className="reveal" key={promise.title}>
+              <Icon />
+              <h3>{promise.title}</h3>
+              <p>{promise.body}</p>
+              <Link href={href} className="text-button">{linkLabel}</Link>
+            </article>;
+          })}
         </div>
       </section>
 
       <section className="page-container about-cta">
         <div className="about-cta__panel reveal">
-          <div className="eyebrow eyebrow--light">Begin anywhere</div>
-          <h2>Find the stone that finds you.</h2>
-          <p>New pieces land regularly — and one-of-a-kind stones move fast.</p>
+          <div className="eyebrow eyebrow--light">{copy.begin}</div>
+          <h2>{copy.closingTitle}</h2>
+          <p>{copy.closingBody}</p>
           <div className="about-cta__actions">
             <Link href="/shop" className="button button--light">
-              Explore the collection <ArrowIcon />
+              {copy.explore} <ArrowIcon />
             </Link>
             <Link href="/contact" className="button about-hero__ghost">
-              Ask about a stone
+              {copy.talk}
             </Link>
           </div>
         </div>

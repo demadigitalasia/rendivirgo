@@ -1,0 +1,1930 @@
+[
+  {
+    "id": "cmv9lsucf000o6evkcf1kuy2r",
+    "slug": "bloom-teardrop-pair",
+    "sku": "RV-DRAFT-BP-001",
+    "name": "Bloom Teardrop Pair",
+    "category": {
+      "id": "cmue0y9s300013lvkns70hlwk",
+      "slug": "pair",
+      "name": "Pair"
+    },
+    "categoryId": "cmue0y9s300013lvkns70hlwk",
+    "categorySlug": "pair",
+    "stoneType": "Pending identification",
+    "origin": "Not provided",
+    "mohsHardness": null,
+    "condition": "Unverified",
+    "price": 68,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "pair",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 0,
+    "weightCarat": null,
+    "dimensionsMm": {
+      "length": 0,
+      "width": 0,
+      "height": 0
+    },
+    "status": "Published",
+    "tone": "earth",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "Two pointed teardrop cabochons with pale, flower-like rosette motifs over a warm brown background. Their coordinated shapes create a balanced pair for a custom jewelry project or collection. Price is for both loose stones together; no findings or settings are included.\n\nDRAFT — NOT READY FOR SALE\nSuggested merchandising price only; final price requires confirmed material, dimensions, weight, condition, and cost. Mineral identity, natural/synthetic status, treatments, origin, hardness, availability, and measurements are unverified. Weight 0 g is a required-field placeholder, not a measured weight; confirm packed weight and shipping class before publishing. Image 1 is an AI background-edit preview and may differ in fine stone details; Image 2 is the original source. Verify shape, color, motifs, photograph rights, and actual stock before using the edited image for sale.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmv9mfd7x000dv9vka9io6bjv",
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsuc5-a8bafa7bc1f7.webp",
+        "alt": "Bloom Teardrop Pair",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "http://localhost:4000/uploads/products/202610/mv9lsuc5-a8bafa7bc1f7.webp"
+    ],
+    "variants": [
+      {
+        "id": "cmv9mfd7s000cv9vk9r0bc6ry",
+        "sku": "A",
+        "name": "Cabs",
+        "price": 68,
+        "stockQuantity": 1,
+        "weightGram": 0,
+        "dimensionsMm": {
+          "length": 23,
+          "width": 11,
+          "height": 11
+        },
+        "shippingClass": "Standard"
+      }
+    ],
+    "seo": {
+      "metaTitle": null,
+      "metaDescription": null
+    },
+    "inStock": true,
+    "publishedAt": "2026-10-15T14:15:26.634Z",
+    "createdAt": "2026-10-15T13:57:55.743Z",
+    "updatedAt": "2026-10-15T14:15:26.636Z"
+  },
+  {
+    "id": "cmv9lsuc1000g6evkg6um1y0p",
+    "slug": "tidal-reef-freeform",
+    "sku": "RV-DRAFT-TR-001",
+    "name": "Tidal Reef Freeform",
+    "category": {
+      "id": "cmue0yh450000jvvk88xtgqzs",
+      "slug": "cabochons",
+      "name": "Cabochons"
+    },
+    "categoryId": "cmue0yh450000jvvk88xtgqzs",
+    "categorySlug": "cabochons",
+    "stoneType": "Pending identification",
+    "origin": "Not provided",
+    "mohsHardness": null,
+    "condition": "Unverified",
+    "price": 58,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 0,
+    "weightCarat": null,
+    "dimensionsMm": {
+      "length": 0,
+      "width": 0,
+      "height": 0
+    },
+    "status": "Published",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A rounded triangular cabochon with teal-blue speckles across cream and earthy brown areas. The polished face reveals a varied, landscape-like pattern. Offered as one loose piece for a custom setting or collection; no setting is included.\n\nDRAFT — NOT READY FOR SALE\nSuggested merchandising price only; final price requires confirmed material, dimensions, weight, condition, and cost. Mineral identity, natural/synthetic status, treatments, origin, hardness, availability, and measurements are unverified. Weight 0 g is a required-field placeholder, not a measured weight; confirm packed weight and shipping class before publishing. Image 1 is an AI background-edit preview and may differ in fine stone details; Image 2 is the original source. Verify shape, color, motifs, photograph rights, and actual stock before using the edited image for sale.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmv9msvaj000fv9vk2exygjw0",
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsubv-b67cee6ba039.webp",
+        "alt": "Tidal Reef Freeform",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      },
+      {
+        "id": "cmv9msvaj000gv9vkvp46gfx8",
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsuby-9a514edf1689.webp",
+        "alt": "Tidal Reef Freeform",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 1
+      }
+    ],
+    "imageUrls": [
+      "http://localhost:4000/uploads/products/202610/mv9lsubv-b67cee6ba039.webp",
+      "http://localhost:4000/uploads/products/202610/mv9lsuby-9a514edf1689.webp"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": null,
+      "metaDescription": null
+    },
+    "inStock": true,
+    "publishedAt": "2026-10-15T14:25:56.581Z",
+    "createdAt": "2026-10-15T13:57:55.729Z",
+    "updatedAt": "2026-10-15T14:25:56.585Z"
+  },
+  {
+    "id": "cmv9lsubo00086evkit1jcdjw",
+    "slug": "blue-cloud-crescent",
+    "sku": "RV-DRAFT-BC-001",
+    "name": "Blue Cloud Crescent",
+    "category": {
+      "id": "cmue0yh450000jvvk88xtgqzs",
+      "slug": "cabochons",
+      "name": "Cabochons"
+    },
+    "categoryId": "cmue0yh450000jvvk88xtgqzs",
+    "categorySlug": "cabochons",
+    "stoneType": "Pending identification",
+    "origin": "Not provided",
+    "mohsHardness": null,
+    "condition": "Unverified",
+    "price": 48,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 0,
+    "weightCarat": null,
+    "dimensionsMm": {
+      "length": 0,
+      "width": 0,
+      "height": 0
+    },
+    "status": "Published",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A glossy crescent-shaped cabochon with saturated blue areas and cloud-like white markings. Its sculptural silhouette makes a distinctive focal point for a custom setting or display. Offered as one loose piece; no setting is included.\n\nDRAFT — NOT READY FOR SALE\nSuggested merchandising price only; final price requires confirmed material, dimensions, weight, condition, and cost. Mineral identity, natural/synthetic status, treatments, origin, hardness, availability, and measurements are unverified. Weight 0 g is a required-field placeholder, not a measured weight; confirm packed weight and shipping class before publishing. Image 1 is an AI background-edit preview and may differ in fine stone details; Image 2 is the original source. Verify shape, color, motifs, photograph rights, and actual stock before using the edited image for sale.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmv9mt5aj000kv9vk5gzm3err",
+        "url": "http://localhost:4000/uploads/products/202610/mv9lsub5-24be670ccf99.webp",
+        "alt": "Blue Cloud Crescent",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "http://localhost:4000/uploads/products/202610/mv9lsub5-24be670ccf99.webp"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": null,
+      "metaDescription": null
+    },
+    "inStock": true,
+    "publishedAt": "2026-10-15T14:26:09.543Z",
+    "createdAt": "2026-10-15T13:57:55.716Z",
+    "updatedAt": "2026-10-15T14:26:09.545Z"
+  },
+  {
+    "id": "cmue0yh50000djvvkvm73auwi",
+    "slug": "forest-river-cabochon",
+    "sku": "RV-CAB-001",
+    "name": "Forest River Cabochon",
+    "category": {
+      "id": "cmue0yh450000jvvk88xtgqzs",
+      "slug": "cabochons",
+      "name": "Cabochons"
+    },
+    "categoryId": "cmue0yh450000jvvk88xtgqzs",
+    "categorySlug": "cabochons",
+    "stoneType": "Moss Agate",
+    "origin": "West Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 148,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 18,
+    "weightCarat": 90,
+    "dimensionsMm": {
+      "length": 32,
+      "width": 24,
+      "height": 8
+    },
+    "status": "Reserved",
+    "tone": "moss",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A polished, high-dome cabochon with deep forest inclusions and a calm river-like banding.",
+    "videoUrl": null,
+    "featured": true,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue2m1bm001fb7vk3wlnkklg",
+        "url": "http://localhost:4000/uploads/products/202609/mue2ly2m-5fc471085191.png",
+        "alt": "Forest River Cabochon",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "http://localhost:4000/uploads/products/202609/mue2ly2m-5fc471085191.png"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Forest River Cabochon — Cabochons | RENDI VIRGO",
+      "metaDescription": "A polished, high-dome cabochon with deep forest inclusions and a calm river-like banding. Moss Agate from West Java, Indonesia. 18 g."
+    },
+    "inStock": false,
+    "publishedAt": "2026-09-18T00:00:00.000Z",
+    "createdAt": "2026-09-18T00:00:00.000Z",
+    "updatedAt": "2026-10-15T11:53:14.506Z"
+  },
+  {
+    "id": "cmue0yh54000fjvvkvy8ped19",
+    "slug": "emerald-garden-cabochon",
+    "sku": "RV-CAB-002",
+    "name": "Emerald Garden Cabochon",
+    "category": {
+      "id": "cmue0yh450000jvvk88xtgqzs",
+      "slug": "cabochons",
+      "name": "Cabochons"
+    },
+    "categoryId": "cmue0yh450000jvvk88xtgqzs",
+    "categorySlug": "cabochons",
+    "stoneType": "Chalcedony",
+    "origin": "Banten, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 196,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 22,
+    "weightCarat": 110,
+    "dimensionsMm": {
+      "length": 36,
+      "width": 25,
+      "height": 9
+    },
+    "status": "Published",
+    "tone": "jade",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A rich green cabochon with botanical moss-like detail and a softly polished dome.",
+    "videoUrl": null,
+    "featured": true,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh55000gjvvkl77asnci",
+        "url": "/images/products/stone-jade.svg",
+        "alt": "Emerald Garden Cabochon",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-jade.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Emerald Garden Cabochon — Cabochons | RENDI VIRGO",
+      "metaDescription": "A rich green cabochon with botanical moss-like detail and a softly polished dome. Chalcedony from Banten, Indonesia. 22 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-09-15T00:00:00.000Z",
+    "createdAt": "2026-09-15T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.176Z"
+  },
+  {
+    "id": "cmue0yh58000hjvvkqlx7ywoa",
+    "slug": "volcanic-garden-rough",
+    "sku": "RV-RGH-003",
+    "name": "Volcanic Garden Rough",
+    "category": {
+      "id": "cmue0y9s400023lvkwiml4bos",
+      "slug": "rough",
+      "name": "Rough"
+    },
+    "categoryId": "cmue0y9s400023lvkwiml4bos",
+    "categorySlug": "rough",
+    "stoneType": "Jasper",
+    "origin": "East Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 84,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Quantity",
+    "stockQuantity": 4,
+    "weightGram": 112,
+    "weightCarat": 560,
+    "dimensionsMm": {
+      "length": 58,
+      "width": 42,
+      "height": 31
+    },
+    "status": "Published",
+    "tone": "earth",
+    "shippingClass": "Fragile",
+    "shippingProfileId": null,
+    "description": "A characterful rough piece with promising color windows for a future lapidary cut.",
+    "videoUrl": null,
+    "featured": true,
+    "fragile": true,
+    "images": [
+      {
+        "id": "cmue0yh59000ijvvkdvcxfsnv",
+        "url": "/images/products/stone-earth.svg",
+        "alt": "Volcanic Garden Rough",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-earth.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Volcanic Garden Rough — Rough | RENDI VIRGO",
+      "metaDescription": "A characterful rough piece with promising color windows for a future lapidary cut. Jasper from East Java, Indonesia. 112 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-09-12T00:00:00.000Z",
+    "createdAt": "2026-09-12T00:00:00.000Z",
+    "updatedAt": "2026-09-28T09:03:59.776Z"
+  },
+  {
+    "id": "cmue0yh5c000jjvvkxi16wejk",
+    "slug": "jade-twin-pair",
+    "sku": "RV-PAIR-004",
+    "name": "Jade Twin Pair",
+    "category": {
+      "id": "cmue0y9s300013lvkns70hlwk",
+      "slug": "pair",
+      "name": "Pair"
+    },
+    "categoryId": "cmue0y9s300013lvkns70hlwk",
+    "categorySlug": "pair",
+    "stoneType": "Jade",
+    "origin": "Sulawesi, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 220,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "pair",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 16,
+    "weightCarat": 80,
+    "dimensionsMm": {
+      "length": 24,
+      "width": 16,
+      "height": 6
+    },
+    "status": "Published",
+    "tone": "jade",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A carefully matched pair with similar color, size, and soft translucent character.",
+    "videoUrl": null,
+    "featured": true,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh5d000kjvvkbkj6ci7o",
+        "url": "/images/products/stone-jade.svg",
+        "alt": "Jade Twin Pair",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-jade.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Jade Twin Pair — Pair | RENDI VIRGO",
+      "metaDescription": "A carefully matched pair with similar color, size, and soft translucent character. Jade from Sulawesi, Indonesia. 16 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-09-10T00:00:00.000Z",
+    "createdAt": "2026-09-10T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.184Z"
+  },
+  {
+    "id": "cmue0yh5k000ljvvkm4tffnsz",
+    "slug": "coastal-agate-slab",
+    "sku": "RV-SLB-005",
+    "name": "Coastal Agate Slab",
+    "category": {
+      "id": "cmue0y9s600033lvk7uqlfolz",
+      "slug": "slab",
+      "name": "Slab"
+    },
+    "categoryId": "cmue0y9s600033lvk7uqlfolz",
+    "categorySlug": "slab",
+    "stoneType": "Agate",
+    "origin": "Pacitan, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 128,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Quantity",
+    "stockQuantity": 1,
+    "weightGram": 240,
+    "weightCarat": 1200,
+    "dimensionsMm": {
+      "length": 96,
+      "width": 68,
+      "height": 7
+    },
+    "status": "Reserved",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A broad patterned slab with a polished face that reveals layered coastal blue-green movement.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh5l000mjvvk2jplgs27",
+        "url": "/images/products/stone-ocean.svg",
+        "alt": "Coastal Agate Slab",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-ocean.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Coastal Agate Slab — Slab | RENDI VIRGO",
+      "metaDescription": "A broad patterned slab with a polished face that reveals layered coastal blue-green movement. Agate from Pacitan, Indonesia. 240 g."
+    },
+    "inStock": false,
+    "publishedAt": null,
+    "createdAt": "2026-09-08T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.192Z"
+  },
+  {
+    "id": "cmue0yh5o000njvvkfv2praki",
+    "slug": "quiet-mountain-specimen",
+    "sku": "RV-SPC-006",
+    "name": "Quiet Mountain Specimen",
+    "category": {
+      "id": "cmue0y9s700043lvkzspgmwkt",
+      "slug": "specimen",
+      "name": "Specimen"
+    },
+    "categoryId": "cmue0y9s700043lvkzspgmwkt",
+    "categorySlug": "specimen",
+    "stoneType": "Jasper",
+    "origin": "Central Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 310,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 680,
+    "weightCarat": 3400,
+    "dimensionsMm": {
+      "length": 112,
+      "width": 84,
+      "height": 62
+    },
+    "status": "Published",
+    "tone": "earth",
+    "shippingClass": "Fragile",
+    "shippingProfileId": null,
+    "description": "A one-of-a-kind display piece with a sculptural silhouette and natural mineral texture.",
+    "videoUrl": null,
+    "featured": true,
+    "fragile": true,
+    "images": [
+      {
+        "id": "cmue0yh5o000ojvvkgfgpoa9a",
+        "url": "/images/products/stone-earth.svg",
+        "alt": "Quiet Mountain Specimen",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-earth.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Quiet Mountain Specimen — Specimen | RENDI VIRGO",
+      "metaDescription": "A one-of-a-kind display piece with a sculptural silhouette and natural mineral texture. Jasper from Central Java, Indonesia. 680 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-09-05T00:00:00.000Z",
+    "createdAt": "2026-09-05T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.196Z"
+  },
+  {
+    "id": "cmue0yh5s000pjvvkfp5klusc",
+    "slug": "moss-tumbled-selection",
+    "sku": "RV-TMB-007",
+    "name": "Moss Tumbled Selection",
+    "category": {
+      "id": "cmue0y9s700053lvkr9q6yscn",
+      "slug": "tumbled-stones",
+      "name": "Tumbled Stones"
+    },
+    "categoryId": "cmue0y9s700053lvkr9q6yscn",
+    "categorySlug": "tumbled-stones",
+    "stoneType": "Moss Agate",
+    "origin": "West Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 42,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "gram",
+    "stockModel": "Quantity",
+    "stockQuantity": 8,
+    "weightGram": 250,
+    "weightCarat": 1250,
+    "dimensionsMm": {
+      "length": 120,
+      "width": 90,
+      "height": 40
+    },
+    "status": "Published",
+    "tone": "moss",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "Smooth, naturally varied tumbled stones selected for green inclusions and gentle polish.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh5t000qjvvk70a6caky",
+        "url": "/images/products/stone-moss.svg",
+        "alt": "Moss Tumbled Selection",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-moss.svg"
+    ],
+    "variants": [
+      {
+        "id": "cmue0yh5t000rjvvk477wwsvt",
+        "sku": "RV-TMB-007-250G",
+        "name": "250 g pouch",
+        "price": 42,
+        "stockQuantity": 8,
+        "weightGram": 250,
+        "dimensionsMm": {
+          "length": 120,
+          "width": 90,
+          "height": 40
+        },
+        "shippingClass": "Standard"
+      },
+      {
+        "id": "cmue0yh5t000sjvvks2c05jdu",
+        "sku": "RV-TMB-007-500G",
+        "name": "500 g pouch",
+        "price": 72,
+        "stockQuantity": 4,
+        "weightGram": 500,
+        "dimensionsMm": {
+          "length": 160,
+          "width": 120,
+          "height": 60
+        },
+        "shippingClass": "Standard"
+      }
+    ],
+    "seo": {
+      "metaTitle": "Moss Tumbled Selection — Tumbled Stones | RENDI VIRGO",
+      "metaDescription": "Smooth, naturally varied tumbled stones selected for green inclusions and gentle polish. Moss Agate from West Java, Indonesia. 250 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-09-02T00:00:00.000Z",
+    "createdAt": "2026-09-02T00:00:00.000Z",
+    "updatedAt": "2026-09-28T09:32:08.938Z"
+  },
+  {
+    "id": "cmue0yh5y000tjvvk7cydvezg",
+    "slug": "forest-strand",
+    "sku": "RV-BEA-008",
+    "name": "Forest Bead Strand",
+    "category": {
+      "id": "cmue0y9s800063lvkrtxkk2ko",
+      "slug": "beads",
+      "name": "Beads & Strands"
+    },
+    "categoryId": "cmue0y9s800063lvkrtxkk2ko",
+    "categorySlug": "beads",
+    "stoneType": "Agate",
+    "origin": "Banten, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 118,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "strand",
+    "stockModel": "Quantity",
+    "stockQuantity": 5,
+    "weightGram": 36,
+    "weightCarat": 180,
+    "dimensionsMm": {
+      "length": 400,
+      "width": 10,
+      "height": 10
+    },
+    "status": "Published",
+    "tone": "moss",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A softly variegated strand for jewelry makers, drilled and ready to string.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh5z000ujvvkf6560uu9",
+        "url": "/images/products/stone-moss.svg",
+        "alt": "Forest Bead Strand",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-moss.svg"
+    ],
+    "variants": [
+      {
+        "id": "cmue0yh5z000vjvvkj4ce5ete",
+        "sku": "RV-BEA-008-8MM",
+        "name": "8 mm strand",
+        "price": 118,
+        "stockQuantity": 5,
+        "weightGram": 36,
+        "dimensionsMm": {
+          "length": 0,
+          "width": 0,
+          "height": 0
+        },
+        "shippingClass": "Standard"
+      }
+    ],
+    "seo": {
+      "metaTitle": "Forest Bead Strand — Beads & Strands | RENDI VIRGO",
+      "metaDescription": "A softly variegated strand for jewelry makers, drilled and ready to string. Agate from Banten, Indonesia. 36 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-30T00:00:00.000Z",
+    "createdAt": "2026-08-30T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.206Z"
+  },
+  {
+    "id": "cmul0awkz000dwfvk5j869co5",
+    "slug": "misty-ridge-oval-cut",
+    "sku": "RV-FAC-009",
+    "name": "Misty Ridge Oval Cut",
+    "category": {
+      "id": "cmue0y9s900073lvkcr7p5uhe",
+      "slug": "faceted",
+      "name": "Faceted Gemstones"
+    },
+    "categoryId": "cmue0y9s900073lvkcr7p5uhe",
+    "categorySlug": "faceted",
+    "stoneType": "Quartz",
+    "origin": "Bangka Belitung, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 265,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 6,
+    "weightCarat": 32,
+    "dimensionsMm": {
+      "length": 14,
+      "width": 10,
+      "height": 6
+    },
+    "status": "Published",
+    "tone": "earth",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A precision oval cut with soft smoky tone and clean faceting for a fine jewelry setting.",
+    "videoUrl": null,
+    "featured": true,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmul0awl3000ewfvkpzbo0m9e",
+        "url": "/images/products/stone-earth.svg",
+        "alt": "Misty Ridge Oval Cut",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-earth.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Misty Ridge Oval Cut — Faceted Gemstones | RENDI VIRGO",
+      "metaDescription": "A precision oval cut with soft smoky tone and clean faceting for a fine jewelry setting. Quartz from Bangka Belitung, Indonesia. 6.4 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-28T00:00:00.000Z",
+    "createdAt": "2026-08-28T00:00:00.000Z",
+    "updatedAt": "2026-09-28T08:49:38.675Z"
+  },
+  {
+    "id": "cmue0yh65000zjvvk1wtjht9l",
+    "slug": "clear-water-round-brilliant",
+    "sku": "RV-FAC-010",
+    "name": "Clear Water Round Brilliant",
+    "category": {
+      "id": "cmue0y9s900073lvkcr7p5uhe",
+      "slug": "faceted",
+      "name": "Faceted Gemstones"
+    },
+    "categoryId": "cmue0y9s900073lvkcr7p5uhe",
+    "categorySlug": "faceted",
+    "stoneType": "Quartz",
+    "origin": "Bangka Belitung, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 340,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 5,
+    "weightCarat": 25.5,
+    "dimensionsMm": {
+      "length": 11,
+      "width": 11,
+      "height": 7
+    },
+    "status": "Published",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A bright round brilliant with lively reflection, calibrated for standard setting sizes.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh660010jvvkywwfm75d",
+        "url": "/images/products/stone-ocean.svg",
+        "alt": "Clear Water Round Brilliant",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-ocean.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Clear Water Round Brilliant — Faceted Gemstones | RENDI VIRGO",
+      "metaDescription": "A bright round brilliant with lively reflection, calibrated for standard setting sizes. Quartz from Bangka Belitung, Indonesia. 5.1 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-25T00:00:00.000Z",
+    "createdAt": "2026-08-25T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.213Z"
+  },
+  {
+    "id": "cmue0yh680011jvvkyb49youk",
+    "slug": "forest-sphere",
+    "sku": "RV-SPH-011",
+    "name": "Forest Sphere",
+    "category": {
+      "id": "cmue0y9s900083lvky1j26sa5",
+      "slug": "spheres-shapes",
+      "name": "Spheres & Shapes"
+    },
+    "categoryId": "cmue0y9s900083lvky1j26sa5",
+    "categorySlug": "spheres-shapes",
+    "stoneType": "Agate",
+    "origin": "Pacitan, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 185,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 420,
+    "weightCarat": 2100,
+    "dimensionsMm": {
+      "length": 62,
+      "width": 62,
+      "height": 62
+    },
+    "status": "Published",
+    "tone": "moss",
+    "shippingClass": "Oversized",
+    "shippingProfileId": null,
+    "description": "A hand-polished sphere with even green banding, paired with a simple display ring.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh690012jvvk0cdqcfzb",
+        "url": "/images/products/stone-moss.svg",
+        "alt": "Forest Sphere",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-moss.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Forest Sphere — Spheres & Shapes | RENDI VIRGO",
+      "metaDescription": "A hand-polished sphere with even green banding, paired with a simple display ring. Agate from Pacitan, Indonesia. 420 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-22T00:00:00.000Z",
+    "createdAt": "2026-08-22T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.216Z"
+  },
+  {
+    "id": "cmue0yh6d0013jvvkhfzbhhcs",
+    "slug": "ivory-obelisk",
+    "sku": "RV-SPH-012",
+    "name": "Ivory Obelisk",
+    "category": {
+      "id": "cmue0y9s900083lvky1j26sa5",
+      "slug": "spheres-shapes",
+      "name": "Spheres & Shapes"
+    },
+    "categoryId": "cmue0y9s900083lvky1j26sa5",
+    "categorySlug": "spheres-shapes",
+    "stoneType": "Chalcedony",
+    "origin": "Banten, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 96,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 180,
+    "weightCarat": 900,
+    "dimensionsMm": {
+      "length": 110,
+      "width": 34,
+      "height": 34
+    },
+    "status": "Published",
+    "tone": "amber",
+    "shippingClass": "Oversized",
+    "shippingProfileId": null,
+    "description": "A soft ivory obelisk with gentle translucency, finished for shelf or desk display.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh6e0014jvvkx4u0cdo2",
+        "url": "/images/products/stone-amber.svg",
+        "alt": "Ivory Obelisk",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-amber.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Ivory Obelisk — Spheres & Shapes | RENDI VIRGO",
+      "metaDescription": "A soft ivory obelisk with gentle translucency, finished for shelf or desk display. Chalcedony from Banten, Indonesia. 180 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-20T00:00:00.000Z",
+    "createdAt": "2026-08-20T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.221Z"
+  },
+  {
+    "id": "cmue0yh6g0015jvvkibz318ju",
+    "slug": "veil-point-cluster",
+    "sku": "RV-CPT-013",
+    "name": "Veil Point Cluster",
+    "category": {
+      "id": "cmue0y9sa00093lvkzix5oxb9",
+      "slug": "crystal-points",
+      "name": "Crystal Points"
+    },
+    "categoryId": "cmue0y9sa00093lvkzix5oxb9",
+    "categorySlug": "crystal-points",
+    "stoneType": "Quartz",
+    "origin": "West Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 158,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 340,
+    "weightCarat": 1700,
+    "dimensionsMm": {
+      "length": 95,
+      "width": 70,
+      "height": 58
+    },
+    "status": "Published",
+    "tone": "jade",
+    "shippingClass": "Fragile",
+    "shippingProfileId": null,
+    "description": "A natural cluster of translucent points on matrix, full of light and movement.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": true,
+    "images": [
+      {
+        "id": "cmue0yh6g0016jvvkrwaw77hv",
+        "url": "/images/products/stone-jade.svg",
+        "alt": "Veil Point Cluster",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-jade.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Veil Point Cluster — Crystal Points | RENDI VIRGO",
+      "metaDescription": "A natural cluster of translucent points on matrix, full of light and movement. Quartz from West Java, Indonesia. 340 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-18T00:00:00.000Z",
+    "createdAt": "2026-08-18T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.224Z"
+  },
+  {
+    "id": "cmue0yh6i0017jvvk6k8hzbuc",
+    "slug": "dusk-amethyst-point",
+    "sku": "RV-CPT-014",
+    "name": "Dusk Amethyst Point",
+    "category": {
+      "id": "cmue0y9sa00093lvkzix5oxb9",
+      "slug": "crystal-points",
+      "name": "Crystal Points"
+    },
+    "categoryId": "cmue0y9sa00093lvkzix5oxb9",
+    "categorySlug": "crystal-points",
+    "stoneType": "Amethyst",
+    "origin": "West Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 122,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 210,
+    "weightCarat": 1050,
+    "dimensionsMm": {
+      "length": 128,
+      "width": 52,
+      "height": 46
+    },
+    "status": "Published",
+    "tone": "amber",
+    "shippingClass": "Fragile",
+    "shippingProfileId": null,
+    "description": "A single amethyst point with a violet gradient that deepens toward the termination.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": true,
+    "images": [
+      {
+        "id": "cmue0yh6j0018jvvke3ofi0wq",
+        "url": "/images/products/stone-amber.svg",
+        "alt": "Dusk Amethyst Point",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-amber.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Dusk Amethyst Point — Crystal Points | RENDI VIRGO",
+      "metaDescription": "A single amethyst point with a violet gradient that deepens toward the termination. Amethyst from West Java, Indonesia. 210 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-16T00:00:00.000Z",
+    "createdAt": "2026-08-16T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.226Z"
+  },
+  {
+    "id": "cmue0yh6l0019jvvk2rqqothl",
+    "slug": "leaf-carved-pendant",
+    "sku": "RV-CRV-015",
+    "name": "Leaf Carved Pendant",
+    "category": {
+      "id": "cmue0y9sb000a3lvk6qo7ccng",
+      "slug": "carvings",
+      "name": "Carved Stones"
+    },
+    "categoryId": "cmue0y9sb000a3lvk6qo7ccng",
+    "categorySlug": "carvings",
+    "stoneType": "Jade",
+    "origin": "Sulawesi, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 88,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 12,
+    "weightCarat": 60,
+    "dimensionsMm": {
+      "length": 38,
+      "width": 20,
+      "height": 6
+    },
+    "status": "Published",
+    "tone": "jade",
+    "shippingClass": "Oversized",
+    "shippingProfileId": null,
+    "description": "A small hand-carved leaf with fine vein detail and a soft polished surface.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh6l001ajvvk4tdjp1g2",
+        "url": "/images/products/stone-jade.svg",
+        "alt": "Leaf Carved Pendant",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-jade.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Leaf Carved Pendant — Carved Stones | RENDI VIRGO",
+      "metaDescription": "A small hand-carved leaf with fine vein detail and a soft polished surface. Jade from Sulawesi, Indonesia. 12 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-14T00:00:00.000Z",
+    "createdAt": "2026-08-14T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.229Z"
+  },
+  {
+    "id": "cmue0yh6o001bjvvkrcc3hdjj",
+    "slug": "sitting-frog-figurine",
+    "sku": "RV-CRV-016",
+    "name": "Sitting Frog Figurine",
+    "category": {
+      "id": "cmue0y9sb000a3lvk6qo7ccng",
+      "slug": "carvings",
+      "name": "Carved Stones"
+    },
+    "categoryId": "cmue0y9sb000a3lvk6qo7ccng",
+    "categorySlug": "carvings",
+    "stoneType": "Jasper",
+    "origin": "Central Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 135,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 240,
+    "weightCarat": 1200,
+    "dimensionsMm": {
+      "length": 72,
+      "width": 58,
+      "height": 46
+    },
+    "status": "Published",
+    "tone": "earth",
+    "shippingClass": "Oversized",
+    "shippingProfileId": null,
+    "description": "A whimsical carved figurine with warm earth tones and a friendly, compact form.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh6p001cjvvk1dcked1j",
+        "url": "/images/products/stone-earth.svg",
+        "alt": "Sitting Frog Figurine",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-earth.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Sitting Frog Figurine — Carved Stones | RENDI VIRGO",
+      "metaDescription": "A whimsical carved figurine with warm earth tones and a friendly, compact form. Jasper from Central Java, Indonesia. 240 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-12T00:00:00.000Z",
+    "createdAt": "2026-08-12T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.232Z"
+  },
+  {
+    "id": "cmue0yh6r001djvvkyfgmuygw",
+    "slug": "drilled-dewdrop",
+    "sku": "RV-DRL-017",
+    "name": "Drilled Dewdrop",
+    "category": {
+      "id": "cmue0y9sc000b3lvkmegfqnbx",
+      "slug": "drilled-briolettes",
+      "name": "Drilled & Briolettes"
+    },
+    "categoryId": "cmue0y9sc000b3lvkmegfqnbx",
+    "categorySlug": "drilled-briolettes",
+    "stoneType": "Chalcedony",
+    "origin": "Banten, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 64,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 4,
+    "weightCarat": 21,
+    "dimensionsMm": {
+      "length": 18,
+      "width": 11,
+      "height": 9
+    },
+    "status": "Published",
+    "tone": "ocean",
+    "shippingClass": "Fragile",
+    "shippingProfileId": null,
+    "description": "A translucent dewdrop shape drilled from the top, ready for a pendant setting.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": true,
+    "images": [
+      {
+        "id": "cmue0yh6s001ejvvkwxaslw4d",
+        "url": "/images/products/stone-ocean.svg",
+        "alt": "Drilled Dewdrop",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-ocean.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Drilled Dewdrop — Drilled & Briolettes | RENDI VIRGO",
+      "metaDescription": "A translucent dewdrop shape drilled from the top, ready for a pendant setting. Chalcedony from Banten, Indonesia. 4.2 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-10T00:00:00.000Z",
+    "createdAt": "2026-08-10T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.235Z"
+  },
+  {
+    "id": "cmue0yh6u001fjvvkfdjngwtz",
+    "slug": "briolette-earring-pair",
+    "sku": "RV-DRL-018",
+    "name": "Briolette Earring Pair",
+    "category": {
+      "id": "cmue0y9sc000b3lvkmegfqnbx",
+      "slug": "drilled-briolettes",
+      "name": "Drilled & Briolettes"
+    },
+    "categoryId": "cmue0y9sc000b3lvkmegfqnbx",
+    "categorySlug": "drilled-briolettes",
+    "stoneType": "Moss Agate",
+    "origin": "West Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 98,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "pair",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 8,
+    "weightCarat": 40,
+    "dimensionsMm": {
+      "length": 22,
+      "width": 10,
+      "height": 10
+    },
+    "status": "Published",
+    "tone": "moss",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "Two matched briolettes drilled for earrings, with mirrored mossy patterns.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh6u001gjvvkwb1mji9y",
+        "url": "/images/products/stone-moss.svg",
+        "alt": "Briolette Earring Pair",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-moss.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Briolette Earring Pair — Drilled & Briolettes | RENDI VIRGO",
+      "metaDescription": "Two matched briolettes drilled for earrings, with mirrored mossy patterns. Moss Agate from West Java, Indonesia. 8 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-08T00:00:00.000Z",
+    "createdAt": "2026-08-08T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.238Z"
+  },
+  {
+    "id": "cmue0yh6w001hjvvk7eaq6kpm",
+    "slug": "forest-chip-pouch",
+    "sku": "RV-CHP-019",
+    "name": "Forest Chip Pouch",
+    "category": {
+      "id": "cmue0y9sc000c3lvkc9xe5oex",
+      "slug": "chips",
+      "name": "Chips & Crushed"
+    },
+    "categoryId": "cmue0y9sc000c3lvkc9xe5oex",
+    "categorySlug": "chips",
+    "stoneType": "Agate",
+    "origin": "Pacitan, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 18,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "bag",
+    "stockModel": "Quantity",
+    "stockQuantity": 12,
+    "weightGram": 250,
+    "weightCarat": 1250,
+    "dimensionsMm": {
+      "length": 150,
+      "width": 110,
+      "height": 60
+    },
+    "status": "Published",
+    "tone": "moss",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "Washed agate chips for resin work, inlay, and decorative craft projects.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh6x001ijvvke7qza0vf",
+        "url": "/images/products/stone-moss.svg",
+        "alt": "Forest Chip Pouch",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-moss.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Forest Chip Pouch — Chips & Crushed | RENDI VIRGO",
+      "metaDescription": "Washed agate chips for resin work, inlay, and decorative craft projects. Agate from Pacitan, Indonesia. 250 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-06T00:00:00.000Z",
+    "createdAt": "2026-08-06T00:00:00.000Z",
+    "updatedAt": "2026-09-28T09:31:11.848Z"
+  },
+  {
+    "id": "cmue0yh6z001jjvvkphyztwjz",
+    "slug": "jasper-crushed-pouch",
+    "sku": "RV-CHP-020",
+    "name": "Jasper Crushed Pouch",
+    "category": {
+      "id": "cmue0y9sc000c3lvkc9xe5oex",
+      "slug": "chips",
+      "name": "Chips & Crushed"
+    },
+    "categoryId": "cmue0y9sc000c3lvkc9xe5oex",
+    "categorySlug": "chips",
+    "stoneType": "Jasper",
+    "origin": "East Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 26,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "bag",
+    "stockModel": "Quantity",
+    "stockQuantity": 6,
+    "weightGram": 500,
+    "weightCarat": 2500,
+    "dimensionsMm": {
+      "length": 180,
+      "width": 130,
+      "height": 80
+    },
+    "status": "Published",
+    "tone": "earth",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "Coarse crushed jasper with warm tones, graded for terrazzo and inlay work.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh70001kjvvkdyawc34n",
+        "url": "/images/products/stone-earth.svg",
+        "alt": "Jasper Crushed Pouch",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-earth.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Jasper Crushed Pouch — Chips & Crushed | RENDI VIRGO",
+      "metaDescription": "Coarse crushed jasper with warm tones, graded for terrazzo and inlay work. Jasper from East Java, Indonesia. 500 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-04T00:00:00.000Z",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-09-28T10:46:01.080Z"
+  },
+  {
+    "id": "cmue0yh72001ljvvkbt5wmfk5",
+    "slug": "ocean-tumbled-selection",
+    "sku": "RV-TMB-021",
+    "name": "Ocean Tumbled Selection",
+    "category": {
+      "id": "cmue0y9s700053lvkr9q6yscn",
+      "slug": "tumbled-stones",
+      "name": "Tumbled Stones"
+    },
+    "categoryId": "cmue0y9s700053lvkr9q6yscn",
+    "categorySlug": "tumbled-stones",
+    "stoneType": "Chalcedony",
+    "origin": "Banten, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 46,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "gram",
+    "stockModel": "Quantity",
+    "stockQuantity": 6,
+    "weightGram": 300,
+    "weightCarat": 1500,
+    "dimensionsMm": {
+      "length": 130,
+      "width": 95,
+      "height": 45
+    },
+    "status": "Published",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A calm selection of blue-green tumbled stones with a satin polish.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh72001mjvvk9c1fu9i5",
+        "url": "/images/products/stone-ocean.svg",
+        "alt": "Ocean Tumbled Selection",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-ocean.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Ocean Tumbled Selection — Tumbled Stones | RENDI VIRGO",
+      "metaDescription": "A calm selection of blue-green tumbled stones with a satin polish. Chalcedony from Banten, Indonesia. 300 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-08-02T00:00:00.000Z",
+    "createdAt": "2026-08-02T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.246Z"
+  },
+  {
+    "id": "cmue0yh74001njvvkoykm678k",
+    "slug": "amber-nugget-strand",
+    "sku": "RV-BEA-022",
+    "name": "Amber Nugget Strand",
+    "category": {
+      "id": "cmue0y9s800063lvkrtxkk2ko",
+      "slug": "beads",
+      "name": "Beads & Strands"
+    },
+    "categoryId": "cmue0y9s800063lvkrtxkk2ko",
+    "categorySlug": "beads",
+    "stoneType": "Agate",
+    "origin": "Banten, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 132,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "strand",
+    "stockModel": "Quantity",
+    "stockQuantity": 4,
+    "weightGram": 52,
+    "weightCarat": 260,
+    "dimensionsMm": {
+      "length": 400,
+      "width": 12,
+      "height": 12
+    },
+    "status": "Published",
+    "tone": "amber",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A warm strand of irregular nugget beads, each with its own banding pattern.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh75001ojvvk36l04plm",
+        "url": "/images/products/stone-amber.svg",
+        "alt": "Amber Nugget Strand",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-amber.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Amber Nugget Strand — Beads & Strands | RENDI VIRGO",
+      "metaDescription": "A warm strand of irregular nugget beads, each with its own banding pattern. Agate from Banten, Indonesia. 52 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-07-30T00:00:00.000Z",
+    "createdAt": "2026-07-30T00:00:00.000Z",
+    "updatedAt": "2026-09-28T09:03:59.761Z"
+  },
+  {
+    "id": "cmue0yh77001pjvvkbx3br0e3",
+    "slug": "harvest-oval-cabochon",
+    "sku": "RV-CAB-023",
+    "name": "Harvest Oval Cabochon",
+    "category": {
+      "id": "cmue0yh450000jvvk88xtgqzs",
+      "slug": "cabochons",
+      "name": "Cabochons"
+    },
+    "categoryId": "cmue0yh450000jvvk88xtgqzs",
+    "categorySlug": "cabochons",
+    "stoneType": "Jasper",
+    "origin": "East Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 112,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 15,
+    "weightCarat": 75,
+    "dimensionsMm": {
+      "length": 28,
+      "width": 22,
+      "height": 7
+    },
+    "status": "Published",
+    "tone": "amber",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "An oval cabochon with warm harvest colors and a clean, even dome.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh77001qjvvkvirc2u9p",
+        "url": "/images/products/stone-amber.svg",
+        "alt": "Harvest Oval Cabochon",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-amber.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Harvest Oval Cabochon — Cabochons | RENDI VIRGO",
+      "metaDescription": "An oval cabochon with warm harvest colors and a clean, even dome. Jasper from East Java, Indonesia. 15 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-07-28T00:00:00.000Z",
+    "createdAt": "2026-07-28T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.251Z"
+  },
+  {
+    "id": "cmue0yh79001rjvvk89lb7alt",
+    "slug": "druzy-river-geode",
+    "sku": "RV-SPC-024",
+    "name": "Druzy River Geode",
+    "category": {
+      "id": "cmue0y9s700043lvkzspgmwkt",
+      "slug": "specimen",
+      "name": "Specimen"
+    },
+    "categoryId": "cmue0y9s700043lvkzspgmwkt",
+    "categorySlug": "specimen",
+    "stoneType": "Agate",
+    "origin": "Pacitan, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 268,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 890,
+    "weightCarat": 4450,
+    "dimensionsMm": {
+      "length": 135,
+      "width": 108,
+      "height": 74
+    },
+    "status": "Sold",
+    "tone": "ocean",
+    "shippingClass": "Fragile",
+    "shippingProfileId": null,
+    "description": "A river-worn geode with a druzy interior that catches light from every angle.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": true,
+    "images": [
+      {
+        "id": "cmue0yh79001sjvvki4io53e7",
+        "url": "/images/products/stone-ocean.svg",
+        "alt": "Druzy River Geode",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-ocean.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Druzy River Geode — Specimen | RENDI VIRGO",
+      "metaDescription": "A river-worn geode with a druzy interior that catches light from every angle. Agate from Pacitan, Indonesia. 890 g."
+    },
+    "inStock": false,
+    "publishedAt": null,
+    "createdAt": "2026-07-25T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.253Z"
+  },
+  {
+    "id": "cmue0yh7b001tjvvksfvxhur2",
+    "slug": "moss-garden-rough-lot",
+    "sku": "RV-RGH-025",
+    "name": "Moss Garden Rough Lot",
+    "category": {
+      "id": "cmue0y9s400023lvkwiml4bos",
+      "slug": "rough",
+      "name": "Rough"
+    },
+    "categoryId": "cmue0y9s400023lvkwiml4bos",
+    "categorySlug": "rough",
+    "stoneType": "Moss Agate",
+    "origin": "West Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 64,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "gram",
+    "stockModel": "Quantity",
+    "stockQuantity": 5,
+    "weightGram": 500,
+    "weightCarat": 2500,
+    "dimensionsMm": {
+      "length": 180,
+      "width": 140,
+      "height": 90
+    },
+    "status": "Published",
+    "tone": "jade",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A 500 gram lot of rough with visible moss windows, ideal for practice cutting.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh7c001ujvvk6ptjwce5",
+        "url": "/images/products/stone-jade.svg",
+        "alt": "Moss Garden Rough Lot",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-jade.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Moss Garden Rough Lot — Rough | RENDI VIRGO",
+      "metaDescription": "A 500 gram lot of rough with visible moss windows, ideal for practice cutting. Moss Agate from West Java, Indonesia. 500 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-07-22T00:00:00.000Z",
+    "createdAt": "2026-07-22T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.255Z"
+  },
+  {
+    "id": "cmue0yh7e001vjvvkr5n0plcr",
+    "slug": "pattern-window-slab",
+    "sku": "RV-SLB-026",
+    "name": "Pattern Window Slab",
+    "category": {
+      "id": "cmue0y9s600033lvk7uqlfolz",
+      "slug": "slab",
+      "name": "Slab"
+    },
+    "categoryId": "cmue0y9s600033lvk7uqlfolz",
+    "categorySlug": "slab",
+    "stoneType": "Jasper",
+    "origin": "Central Java, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 84,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Quantity",
+    "stockQuantity": 2,
+    "weightGram": 310,
+    "weightCarat": 1550,
+    "dimensionsMm": {
+      "length": 110,
+      "width": 78,
+      "height": 8
+    },
+    "status": "Published",
+    "tone": "earth",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A slab with one polished window revealing landscape-like banding in warm tones.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh7e001wjvvku70zkxpt",
+        "url": "/images/products/stone-earth.svg",
+        "alt": "Pattern Window Slab",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-earth.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Pattern Window Slab — Slab | RENDI VIRGO",
+      "metaDescription": "A slab with one polished window revealing landscape-like banding in warm tones. Jasper from Central Java, Indonesia. 310 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-07-20T00:00:00.000Z",
+    "createdAt": "2026-07-20T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.258Z"
+  },
+  {
+    "id": "cmue0yh7g001xjvvkuhff3m23",
+    "slug": "ocean-twin-cabochons",
+    "sku": "RV-PAIR-027",
+    "name": "Ocean Twin Cabochons",
+    "category": {
+      "id": "cmue0y9s300013lvkns70hlwk",
+      "slug": "pair",
+      "name": "Pair"
+    },
+    "categoryId": "cmue0y9s300013lvkns70hlwk",
+    "categorySlug": "pair",
+    "stoneType": "Chalcedony",
+    "origin": "Banten, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 186,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "pair",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 14,
+    "weightCarat": 70,
+    "dimensionsMm": {
+      "length": 20,
+      "width": 15,
+      "height": 5
+    },
+    "status": "Published",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A matched pair with cool blue-green translucency, cut for small earrings.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh7h001yjvvk7fnj6ih8",
+        "url": "/images/products/stone-ocean.svg",
+        "alt": "Ocean Twin Cabochons",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-ocean.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Ocean Twin Cabochons — Pair | RENDI VIRGO",
+      "metaDescription": "A matched pair with cool blue-green translucency, cut for small earrings. Chalcedony from Banten, Indonesia. 14 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-07-18T00:00:00.000Z",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.260Z"
+  },
+  {
+    "id": "cmue0yh7k001zjvvk8k1t9ojr",
+    "slug": "moonlit-rose-cut",
+    "sku": "RV-FAC-028",
+    "name": "Moonlit Rose Cut",
+    "category": {
+      "id": "cmue0y9s900073lvkcr7p5uhe",
+      "slug": "faceted",
+      "name": "Faceted Gemstones"
+    },
+    "categoryId": "cmue0y9s900073lvkcr7p5uhe",
+    "categorySlug": "faceted",
+    "stoneType": "Quartz",
+    "origin": "Bangka Belitung, Indonesia",
+    "mohsHardness": null,
+    "condition": "Natural",
+    "price": 148,
+    "compareAtPrice": null,
+    "currency": "USD",
+    "unit": "piece",
+    "stockModel": "Unique",
+    "stockQuantity": 1,
+    "weightGram": 4,
+    "weightCarat": 24,
+    "dimensionsMm": {
+      "length": 12,
+      "width": 12,
+      "height": 5
+    },
+    "status": "Published",
+    "tone": "ocean",
+    "shippingClass": "Standard",
+    "shippingProfileId": null,
+    "description": "A soft rose cut with a calm, moonlit sheen that suits understated settings.",
+    "videoUrl": null,
+    "featured": false,
+    "fragile": false,
+    "images": [
+      {
+        "id": "cmue0yh7l0020jvvkxqsh9tph",
+        "url": "/images/products/stone-ocean.svg",
+        "alt": "Moonlit Rose Cut",
+        "focalX": null,
+        "focalY": null,
+        "sortOrder": 0
+      }
+    ],
+    "imageUrls": [
+      "/images/products/stone-ocean.svg"
+    ],
+    "variants": [],
+    "seo": {
+      "metaTitle": "Moonlit Rose Cut — Faceted Gemstones | RENDI VIRGO",
+      "metaDescription": "A soft rose cut with a calm, moonlit sheen that suits understated settings. Quartz from Bangka Belitung, Indonesia. 4.8 g."
+    },
+    "inStock": true,
+    "publishedAt": "2026-07-15T00:00:00.000Z",
+    "createdAt": "2026-07-15T00:00:00.000Z",
+    "updatedAt": "2026-09-23T11:33:35.264Z"
+  }
+]

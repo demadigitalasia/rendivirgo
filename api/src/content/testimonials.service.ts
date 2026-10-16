@@ -4,6 +4,7 @@ import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
 import type { AuditContext } from "../common/types/audit-context";
 import { PrismaService } from "../prisma/prisma.service";
+import type { StorefrontLanguage } from "../common/utils/storefront-language";
 import { CreateTestimonialDto, TestimonialQueryDto, UpdateTestimonialDto } from "./dto/content.dto";
 
 export const testimonialInclude = {
@@ -21,11 +22,15 @@ export class TestimonialsService {
 
   // ------------------------------------------------------------ queries
 
-  async listPublic() {
-    return this.prisma.testimonial.findMany({
+  async listPublic(language: StorefrontLanguage = "en") {
+    const testimonials = await this.prisma.testimonial.findMany({
       where: { isPublished: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       include: testimonialInclude,
+    });
+    return testimonials.map(({ quoteId, idTranslationStatus, ...testimonial }) => {
+      const idReady = language === "id" && idTranslationStatus === "Ready" && Boolean(quoteId?.trim());
+      return { ...testimonial, quote: idReady ? quoteId! : testimonial.quote, contentLocale: idReady ? "id" : "en" };
     });
   }
 
@@ -79,6 +84,8 @@ export class TestimonialsService {
         customerName: dto.customerName,
         location: dto.location ?? null,
         quote: dto.quote,
+        quoteId: dto.quoteId ?? null,
+        idTranslationStatus: dto.idTranslationStatus ?? "Missing",
         rating: dto.rating ?? 5,
         productId: dto.productId ?? null,
         isPublished: dto.isPublished ?? true,
@@ -113,6 +120,8 @@ export class TestimonialsService {
         ...(dto.customerName !== undefined ? { customerName: dto.customerName } : {}),
         ...(dto.location !== undefined ? { location: dto.location } : {}),
         ...(dto.quote !== undefined ? { quote: dto.quote } : {}),
+        ...(dto.quoteId !== undefined ? { quoteId: dto.quoteId } : {}),
+        ...(dto.idTranslationStatus !== undefined ? { idTranslationStatus: dto.idTranslationStatus } : {}),
         ...(dto.rating !== undefined ? { rating: dto.rating } : {}),
         ...(dto.productId !== undefined ? { productId: dto.productId } : {}),
         ...(dto.isPublished !== undefined ? { isPublished: dto.isPublished } : {}),

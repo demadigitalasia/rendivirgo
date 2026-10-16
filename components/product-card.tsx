@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/localized-link";
 import { useEffect, useState } from "react";
 import type { Product } from "@/lib/catalog";
 import { formatUSD, maxQuantityFor } from "@/lib/catalog";
-import { useCart, useCopy } from "@/components/providers";
+import { useCart, useCopy, useLanguage } from "@/components/providers";
 import { toast } from "@/components/toast";
 import { HeartIcon } from "@/components/icons";
 import { ProductArt } from "@/components/product-art";
@@ -14,6 +14,7 @@ const wishlistStorageKey = "rendi-virgo-wishlist";
 
 export function ProductCard({ product }: { product: Product }) {
   const t = useCopy();
+  const { language } = useLanguage();
   const { addToCart, quantityInCart } = useCart();
   const maxQuantity = maxQuantityFor(product);
   const inCart = quantityInCart(product.id);
@@ -93,14 +94,15 @@ export function ProductCard({ product }: { product: Product }) {
         </button>
       </div>
       <div className="product-card__body">
-        <div className="eyebrow">
-          {product.category} · {product.origin.split(",")[0]}
+        <div className="eyebrow" lang={product.categoryContentLocale}>
+          {product.category}{product.origin ? ` · ${product.origin.split(",")[0]}` : ""}
         </div>
-        <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="product-card__name">
+        {language === "id" && (product.contentLocale === "en" || product.categoryContentLocale === "en") ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+        <Link href={`/shop/${product.categorySlug}/${product.slug}`} className="product-card__name" lang={product.contentLocale}>
           {product.name}
         </Link>
         <div className="product-card__footer">
-          <strong>{formatUSD(product.price)}</strong>
+          <strong>{formatUSD(product.price, language)}</strong>
           {hasVariants && !unavailable && variantsInStock ? (
             <Link
               className="button button--outline button--compact"

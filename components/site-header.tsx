@@ -1,28 +1,38 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
 import { ArrowIcon, BagIcon, CloseIcon, GlobeIcon, HeartIcon, MenuIcon, SearchIcon } from "@/components/icons";
+import { LocalizedLink as Link } from "@/components/localized-link";
+import { localizedPath, stripLocalePrefix, type Language } from "@/lib/locale";
 
-function LanguageSwitch({ className = "" }: { className?: string }) {
-  const { language, setLanguage } = useLanguage();
+function LanguageSwitch({
+  className = "",
+  languages,
+  onSelect,
+}: {
+  className?: string;
+  languages: Language[];
+  onSelect: (language: Language) => void;
+}) {
+  const { language } = useLanguage();
   const t = useCopy();
   return (
     <div className={`language-switch ${className}`} role="group" aria-label={t.nav.language}>
       <GlobeIcon />
-      <button type="button" lang="en" aria-pressed={language === "en"} onClick={() => setLanguage("en")}>English</button>
-      <span aria-hidden="true">/</span>
-      <button type="button" lang="id" aria-pressed={language === "id"} onClick={() => setLanguage("id")}>Bahasa Indonesia</button>
+      {languages.includes("en") ? <button type="button" lang="en" aria-pressed={language === "en"} onClick={() => onSelect("en")}>English</button> : null}
+      {languages.includes("en") && languages.includes("id") ? <span aria-hidden="true">/</span> : null}
+      {languages.includes("id") ? <button type="button" lang="id" aria-pressed={language === "id"} onClick={() => onSelect("id")}>Bahasa Indonesia</button> : null}
     </div>
   );
 }
 
-export function SiteHeader() {
+export function SiteHeader({ languages }: { languages: Language[] }) {
   const t = useCopy();
   const { itemCount } = useCart();
+  const { language, setLanguage } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -32,6 +42,17 @@ export function SiteHeader() {
   const navRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const selectLanguage = async (nextLanguage: Language) => {
+    if (nextLanguage === language) return;
+    const response = await fetch("/api/language", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ language: nextLanguage }),
+    });
+    if (!response.ok) return;
+    setLanguage(nextLanguage);
+    router.replace(`${localizedPath(window.location.pathname, nextLanguage)}${window.location.search}`, { scroll: false });
+  };
   const navItems = [
     { href: "/", label: t.nav.home },
     { href: "/shop", label: t.nav.shop },
@@ -39,6 +60,7 @@ export function SiteHeader() {
     { href: "/blog", label: t.nav.blog },
     { href: "/contact", label: t.nav.contact },
   ];
+  const routePath = stripLocalePrefix(pathname);
 
   useEffect(() => {
     if (menuOpen) navRef.current?.querySelector<HTMLAnchorElement>("a")?.focus({ preventScroll: true });
@@ -94,7 +116,7 @@ export function SiteHeader() {
     }}>
       <div className="announcement-bar">
         <div className="announcement-message"><span>{t.announcement.authentic}</span><i aria-hidden="true" /><span>{t.announcement.worldwide}</span></div>
-        <LanguageSwitch className="announcement-language" />
+        <LanguageSwitch className="announcement-language" languages={languages} onSelect={(next) => void selectLanguage(next)} />
       </div>
       <div className="site-header">
         <Link href="/" className="brand-lockup" aria-label="RENDI VIRGO">
@@ -103,12 +125,12 @@ export function SiteHeader() {
         </Link>
         <nav ref={navRef} id="primary-navigation" className={`main-nav ${menuOpen ? "is-open" : ""}`} aria-label={t.nav.primary}>
           {navItems.map(({ href, label }) => {
-            const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+            const active = href === "/" ? routePath === "/" : routePath === href || routePath.startsWith(`${href}/`);
             return <Link key={href} href={href} className={`nav-link ${active ? "is-active" : ""}`}
               aria-current={active ? "page" : undefined} onClick={() => setMenuOpen(false)}>{label}</Link>;
           })}
           <Link className="mobile-wishlist nav-link" href="/wishlist" onClick={() => setMenuOpen(false)}>{t.nav.wishlist}<HeartIcon /></Link>
-          <div className="mobile-nav-language"><span>{t.nav.language}</span><LanguageSwitch /></div>
+          <div className="mobile-nav-language"><span>{t.nav.language}</span><LanguageSwitch languages={languages} onSelect={(next) => void selectLanguage(next)} /></div>
         </nav>
         <div className="header-actions">
           <button ref={searchButtonRef} type="button" className="icon-button"

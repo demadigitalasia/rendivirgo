@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "../../generated/prisma";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { slugify, uniqueSlug } from "../common/utils/slug";
 import { CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
 import type { AuditContext } from "../common/types/audit-context";
+import type { StorefrontLanguage } from "../common/utils/storefront-language";
 
 @Injectable()
 export class CategoriesService {
@@ -12,7 +14,21 @@ export class CategoriesService {
     private readonly audit: AuditService,
   ) {}
 
-  async listPublic() {
+  private toPublic(category: Prisma.CategoryGetPayload<object>, language: StorefrontLanguage) {
+    const idReady = language === "id" && category.idTranslationStatus === "Ready" && Boolean(category.nameId?.trim()) &&
+      (!category.description?.trim() || Boolean(category.descriptionId?.trim()));
+    const { nameId, descriptionId, metaTitleId, metaDescriptionId, idTranslationStatus, ...publicCategory } = category;
+    return {
+      ...publicCategory,
+      name: idReady ? nameId! : category.name,
+      description: idReady ? descriptionId ?? category.description : category.description,
+      metaTitle: idReady ? metaTitleId : category.metaTitle,
+      metaDescription: idReady ? metaDescriptionId : category.metaDescription,
+      contentLocale: idReady ? "id" : "en",
+    };
+  }
+
+  async listPublic(language: StorefrontLanguage = "en") {
     const categories = await this.prisma.category.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -20,7 +36,7 @@ export class CategoriesService {
         _count: { select: { products: { where: { status: "Published" } } } },
       },
     });
-    return categories.map(({ _count, ...category }) => ({ ...category, productCount: _count.products }));
+    return categories.map(({ _count, ...category }) => ({ ...this.toPublic(category, language), productCount: _count.products }));
   }
 
   async listAdmin() {
@@ -31,10 +47,10 @@ export class CategoriesService {
     return categories.map(({ _count, ...category }) => ({ ...category, productCount: _count.products }));
   }
 
-  async findBySlug(slug: string) {
+  async findBySlug(slug: string, language: StorefrontLanguage = "en") {
     const category = await this.prisma.category.findUnique({ where: { slug } });
     if (!category || !category.isActive) throw new NotFoundException("Category not found");
-    return category;
+    return this.toPublic(category, language);
   }
 
   async create(dto: CreateCategoryDto, context: AuditContext) {
@@ -51,6 +67,11 @@ export class CategoriesService {
         isActive: dto.isActive ?? true,
         metaTitle: dto.metaTitle ?? null,
         metaDescription: dto.metaDescription ?? null,
+        nameId: dto.nameId ?? null,
+        descriptionId: dto.descriptionId ?? null,
+        metaTitleId: dto.metaTitleId ?? null,
+        metaDescriptionId: dto.metaDescriptionId ?? null,
+        idTranslationStatus: dto.idTranslationStatus ?? "Missing",
       },
     });
 
@@ -88,6 +109,11 @@ export class CategoriesService {
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.metaTitle !== undefined ? { metaTitle: dto.metaTitle } : {}),
         ...(dto.metaDescription !== undefined ? { metaDescription: dto.metaDescription } : {}),
+        ...(dto.nameId !== undefined ? { nameId: dto.nameId } : {}),
+        ...(dto.descriptionId !== undefined ? { descriptionId: dto.descriptionId } : {}),
+        ...(dto.metaTitleId !== undefined ? { metaTitleId: dto.metaTitleId } : {}),
+        ...(dto.metaDescriptionId !== undefined ? { metaDescriptionId: dto.metaDescriptionId } : {}),
+        ...(dto.idTranslationStatus !== undefined ? { idTranslationStatus: dto.idTranslationStatus } : {}),
       },
     });
 
