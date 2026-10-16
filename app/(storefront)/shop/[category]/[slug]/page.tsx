@@ -3,17 +3,14 @@ import { notFound } from "next/navigation";
 import { ProductDetailClient } from "@/components/product-detail-client";
 import { formatDimensions } from "@/lib/catalog";
 import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
-import { getProductBySlug, getProductReviewSummary, getRelatedProducts, getAllPublishedProducts } from "@/lib/storefront";
+import { getProductBySlug, getProductReviewSummary, getRelatedProducts } from "@/lib/storefront";
 import { getRequestLanguage } from "@/lib/server-locale";
 import { localizedAlternates, localizedPath } from "@/lib/locale";
 import { dictionaries } from "@/lib/i18n";
 
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  const products = await getAllPublishedProducts();
-  return products.slice(0, 100).map((product) => ({ category: product.categorySlug, slug: product.slug }));
-}
+// Product content is localized from request headers, so render each detail page at request time.
+// The underlying API fetches keep their own 60-second cache.
+export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: Promise<{ category: string; slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
