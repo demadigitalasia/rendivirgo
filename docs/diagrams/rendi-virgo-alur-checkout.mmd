@@ -1,0 +1,21 @@
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Avenir Next, Helvetica Neue, Arial, sans-serif","primaryColor":"#faf8f2","primaryTextColor":"#26392e","primaryBorderColor":"#456b50","lineColor":"#666e63","secondaryColor":"#eeefe4","tertiaryColor":"#183e30","background":"#faf8f2","mainBkg":"#faf8f2","nodeBorder":"#456b50","clusterBkg":"#eeefe4","clusterBorder":"#dedfd2","edgeLabelBackground":"#faf8f2"}}}%%
+flowchart LR
+    A([Mulai]) --> B[Pilih batu dan checkout<br/>Keranjang · alamat · ongkir<br/>Diskon · metode bayar]
+    B --> C[Server cek ketersediaan<br/>Stok · harga · ongkir · diskon<br/>Hitung total resmi]
+    C --> D{Total harga<br/>cocok?}
+    D -- Ya --> E[Buat pesanan<br/>Reservasi stok · New / Pending]
+    D -- Tidak --> F[Tinjau harga terbaru<br/>Setujui sebelum pesanan dibuat]
+    F --> E
+    E --> G{Metode pembayaran?}
+    G -- PayPal --> H[Setujui dan capture PayPal<br/>Sukses → Paid<br/>Gagal → Pending]
+    G -- Transfer bank --> I[Transfer dan unggah bukti<br/>Pending sampai admin verifikasi]
+
+    classDef startEnd fill:#eeefe4,stroke:#183e30,stroke-width:2px,color:#183e30
+    classDef action fill:#fffdf8,stroke:#dedfd2,stroke-width:1px,color:#26392e
+    classDef decision fill:#eeefe4,stroke:#456b50,stroke-width:1.5px,color:#26392e
+    classDef focal fill:#183e30,stroke:#183e30,stroke-width:1px,color:#fffdf8
+    class A startEnd
+    class B,C,F,H,I action
+    class D,G decision
+    class E focal
+    linkStyle 2 stroke:#183e30,stroke-width:2px

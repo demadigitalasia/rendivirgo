@@ -1,0 +1,179 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="diagram-title diagram-desc">
+  <style>
+    :root {
+      --paper: #faf8f2;
+      --paper-2: #eeefe4;
+      --ink: #26392e;
+      --muted: #666e63;
+      --jade: #456b50;
+      --forest: #183e30;
+      --forest-deep: #102b23;
+      --bronze-light: #d8c49b;
+      --line: #dedfd2;
+      --white: #fffdf8;
+      --font-title: "Iowan Old Style", Baskerville, Georgia, "Times New Roman", serif;
+      --font-sans: "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "Geist Mono", ui-monospace, monospace;
+    }
+    .page-paper { fill: var(--paper); }
+    .eyebrow {
+      fill: var(--jade);
+      font: 500 8px var(--font-mono);
+      letter-spacing: 1.5px;
+    }
+    .title {
+      fill: var(--ink);
+      font: 400 28px var(--font-title);
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      fill: var(--muted);
+      font: 400 12px var(--font-sans);
+    }
+    .header-rule { stroke: var(--line); stroke-width: 1; }
+    .edge {
+      fill: none;
+      stroke: var(--muted);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      marker-end: url(#arrow-muted);
+    }
+    .edge--accent {
+      stroke: var(--forest);
+      stroke-width: 2;
+      marker-end: url(#arrow-accent);
+    }
+    .action {
+      fill: var(--white);
+      stroke: var(--line);
+      stroke-width: 1.2;
+    }
+    .decision {
+      fill: var(--paper-2);
+      stroke: var(--jade);
+      stroke-width: 1.4;
+    }
+    .start {
+      fill: var(--paper-2);
+      stroke: var(--forest);
+      stroke-width: 1.5;
+    }
+    .focal {
+      fill: var(--forest);
+      stroke: var(--forest);
+      stroke-width: 1.5;
+    }
+    .node-name {
+      fill: var(--ink);
+      font: 600 12px var(--font-sans);
+      text-anchor: middle;
+    }
+    .node-sub {
+      fill: var(--muted);
+      font: 400 9px var(--font-mono);
+      text-anchor: middle;
+      letter-spacing: 0.1px;
+    }
+    .node-name--light { fill: var(--white); }
+    .node-sub--light { fill: #e4eade; }
+    .decision-name {
+      fill: var(--ink);
+      font: 600 12px var(--font-sans);
+      text-anchor: middle;
+    }
+    .start-name {
+      fill: var(--forest);
+      font: 600 12px var(--font-sans);
+      text-anchor: middle;
+    }
+    .edge-label {
+      fill: var(--muted);
+      font: 500 8px var(--font-mono);
+      letter-spacing: 0.3px;
+      text-anchor: middle;
+    }
+    .edge-label--accent { fill: var(--forest); }
+    .tag-bg { fill: var(--paper); }
+    .accent-mark { fill: var(--bronze-light); }
+  </style>
+    <title id="diagram-title">Alur Checkout RENDI VIRGO</title>
+    <desc id="diagram-desc">Flowchart alur belanja pelanggan RENDI VIRGO dari pemilihan batu, validasi quote dan stok, pembuatan pesanan, hingga pembayaran PayPal atau transfer bank.</desc>
+    <defs>
+  <marker id="arrow-muted" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="#666e63"/>
+  </marker>
+  <marker id="arrow-accent" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 z" fill="#183e30"/>
+  </marker>
+    </defs>
+
+    <rect class="page-paper" width="1280" height="720"/>
+    <circle class="accent-mark" cx="49" cy="48" r="3"/>
+    <text class="eyebrow" x="62" y="51">CHECKOUT PELANGGAN · FLOWCHART</text>
+    <text class="title" x="48" y="88">Alur belanja RENDI VIRGO</text>
+    <text class="subtitle" x="49" y="111">Dari batu pilihan hingga pembayaran tercatat</text>
+    <line class="header-rule" x1="48" y1="128" x2="1232" y2="128"/>
+
+    <!-- Connectors sit behind the nodes so every route stays readable. -->
+    <path class="edge" d="M196 182 H230"/>
+    <path class="edge" d="M460 182 H518"/>
+    <path class="edge" d="M748 182 H780"/>
+    <path class="edge edge--accent" d="M916 182 H1010"/>
+    <path class="edge" d="M848 238 V320"/>
+    <path class="edge" d="M970 361 H990 V236 H1120 V218"/>
+    <path class="edge" d="M1120 218 V394"/>
+    <path class="edge" d="M1040 450 H1010 V540 H905 V570"/>
+    <path class="edge" d="M1200 450 H1240 V540 H1130 V570"/>
+
+    <rect class="tag-bg" x="938" y="160" width="34" height="18" rx="4"/>
+    <text class="edge-label edge-label--accent" x="955" y="172">Ya</text>
+    <rect class="tag-bg" x="855" y="267" width="48" height="18" rx="4"/>
+    <text class="edge-label" x="879" y="279">Tidak</text>
+    <rect class="tag-bg" x="972" y="425" width="62" height="18" rx="4"/>
+    <text class="edge-label" x="1003" y="437">PayPal</text>
+    <rect class="tag-bg" x="1156" y="425" width="88" height="18" rx="4"/>
+    <text class="edge-label" x="1200" y="437">Transfer bank</text>
+
+    <!-- Nodes -->
+    <ellipse class="start" cx="125" cy="182" rx="71" ry="28"/>
+    <text class="start-name" x="125" y="186">Mulai</text>
+
+    <rect class="action" x="230" y="146" width="230" height="72" rx="8"/>
+    <text class="node-name" x="345" y="171">Pilih batu &amp; checkout</text>
+    <text class="node-sub" x="345" y="190">keranjang · alamat · ongkir</text>
+    <text class="node-sub" x="345" y="203">diskon · metode bayar</text>
+
+    <rect class="action" x="518" y="146" width="230" height="72" rx="8"/>
+    <text class="node-name" x="633" y="171">Server cek ketersediaan</text>
+    <text class="node-sub" x="633" y="190">stok · harga · ongkir · diskon</text>
+    <text class="node-sub" x="633" y="203">hitung total resmi</text>
+
+    <polygon class="decision" points="848,126 916,182 848,238 780,182"/>
+    <text class="decision-name" x="848" y="178">
+  <tspan x="848" dy="0">Total harga</tspan>
+  <tspan x="848" dy="16">cocok?</tspan>
+    </text>
+
+    <rect class="focal" x="1010" y="146" width="230" height="72" rx="8"/>
+    <text class="node-name node-name--light" x="1125" y="174">Buat pesanan</text>
+    <text class="node-sub node-sub--light" x="1125" y="195">reservasi stok · New / Pending</text>
+
+    <rect class="action" x="720" y="320" width="250" height="82" rx="8"/>
+    <text class="node-name" x="845" y="348">Tinjau harga terbaru</text>
+    <text class="node-sub" x="845" y="374">setujui sebelum pesanan dibuat</text>
+
+    <polygon class="decision" points="1120,394 1200,450 1120,506 1040,450"/>
+    <text class="decision-name" x="1120" y="446">
+  <tspan x="1120" dy="0">Metode</tspan>
+  <tspan x="1120" dy="16">pembayaran?</tspan>
+    </text>
+
+    <rect class="action" x="800" y="570" width="210" height="72" rx="8"/>
+    <text class="node-name" x="905" y="596">PayPal · setujui &amp; capture</text>
+    <text class="node-sub" x="905" y="617">sukses → Paid · gagal → Pending</text>
+
+    <rect class="action" x="1020" y="570" width="220" height="72" rx="8"/>
+    <text class="node-name" x="1130" y="596">Transfer &amp; unggah bukti</text>
+    <text class="node-sub" x="1130" y="617">Pending sampai admin verifikasi</text>
+  </svg>
