@@ -1,62 +1,376 @@
-.rv-catalog-pdf__intro,
-.rv-catalog-pdf__actions,
-.rv-catalog-pdf__status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+.rv-catalog-pdf-content {
+  max-width: 1480px;
+  gap: 18px;
+  padding-top: 22px;
+}
+
+.rv-card--catalog-builder {
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(222, 233, 220, 0.45), transparent 44%),
+    var(--rv-surface);
+}
+
+.rv-card--catalog-builder > .rv-card__header {
+  padding: 20px 24px 10px;
+  border-bottom: 0;
+}
+
+.rv-card--catalog-builder > .rv-card__header h2 {
+  color: var(--rv-forest);
+  font-size: 1.4rem;
 }
 
 .rv-catalog-pdf__intro {
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--rv-line-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 26px;
+  padding: 4px 24px 18px;
 }
 
-.rv-catalog-pdf__intro strong {
+.rv-catalog-pdf__selection-summary {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+
+.rv-catalog-pdf__eyebrow {
+  color: var(--rv-jade);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.rv-catalog-pdf__selection-summary strong {
   color: var(--rv-forest);
+  font-size: 1rem;
   font-weight: 600;
 }
 
-.rv-catalog-pdf__intro p {
-  margin: 4px 0 0;
+.rv-catalog-pdf__selection-summary p {
+  margin: 0;
+}
+
+.rv-catalog-pdf__price-option {
+  display: inline-flex;
+  min-width: 240px;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 15px;
+  border: 1px solid var(--rv-line-soft);
+  border-radius: 10px;
+  background: rgba(255, 253, 248, 0.78);
+  cursor: pointer;
+}
+
+.rv-catalog-pdf__price-option input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--rv-jade);
+}
+
+.rv-catalog-pdf__price-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.rv-catalog-pdf__price-option strong {
+  color: var(--rv-forest);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.rv-catalog-pdf__price-option small {
+  color: var(--rv-muted);
+  font-size: 0.71rem;
 }
 
 .rv-catalog-pdf__actions {
-  justify-content: flex-start;
-  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   flex-wrap: wrap;
+  padding: 15px 24px 19px;
+  border-top: 1px solid var(--rv-line-soft);
+  background: rgba(240, 238, 228, 0.3);
+}
+
+.rv-catalog-pdf__actions .rv-btn {
+  min-height: 42px;
+  gap: 10px;
+}
+
+.rv-catalog-pdf__action-count {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1;
 }
 
 .rv-catalog-pdf__toolbar {
-  flex-wrap: wrap;
-}
-
-.rv-catalog-pdf__status {
-  padding: 12px 18px;
-  border-top: 1px solid var(--rv-line-soft);
+  display: grid;
+  grid-template-columns: minmax(250px, 1.35fr) repeat(2, minmax(170px, 0.8fr)) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--rv-line-soft);
-  background: #faf8f2;
+  background: linear-gradient(180deg, var(--rv-panel) 0%, rgba(240, 238, 228, 0.54) 100%);
 }
 
-.rv-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--rv-ink);
-  font-size: 0.85rem;
+.rv-catalog-pdf__search,
+.rv-catalog-pdf__filter {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.rv-catalog-pdf__search > span,
+.rv-catalog-pdf__filter > span {
+  color: var(--rv-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rv-catalog-pdf__toolbar .rv-input,
+.rv-catalog-pdf__toolbar .rv-select {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 44px;
+  background-color: var(--rv-surface);
+}
+
+.rv-catalog-pdf__reset {
+  min-height: 44px;
   white-space: nowrap;
 }
 
-.rv-btn--disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-  pointer-events: none;
+.rv-catalog-pdf__status {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--rv-line-soft);
+  background: var(--rv-surface);
+}
+
+.rv-catalog-pdf__status .rv-inline {
+  gap: 10px;
+}
+
+.rv-catalog-pdf__result-count {
+  color: var(--rv-forest);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rv-catalog-pdf__selection-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--rv-forest);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.rv-card--pdf-products {
+  overflow: hidden;
+}
+
+.rv-card--pdf-products .rv-table {
+  min-width: 760px;
+}
+
+.rv-card--pdf-products .rv-table th,
+.rv-card--pdf-products .rv-table td {
+  padding: 12px 16px;
+}
+
+.rv-card--pdf-products .rv-table th:first-child,
+.rv-card--pdf-products .rv-table td:first-child {
+  width: 48px;
+  padding-right: 6px;
+  padding-left: 20px;
+}
+
+.rv-card--pdf-products .rv-table td.is-actions {
+  color: var(--rv-forest);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rv-catalog-pdf__product {
+  display: flex;
+  min-width: 220px;
+  align-items: center;
+  gap: 12px;
+}
+
+.rv-catalog-pdf__product-image,
+.rv-catalog-pdf__product-placeholder {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid var(--rv-line-soft);
+  border-radius: 9px;
+  background: var(--rv-panel);
+}
+
+.rv-catalog-pdf__product-image {
+  object-fit: cover;
+}
+
+.rv-catalog-pdf__product-placeholder {
+  color: var(--rv-jade);
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.2rem;
+}
+
+.rv-catalog-pdf__product-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.rv-catalog-pdf__product-copy a {
+  color: var(--rv-forest);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rv-catalog-pdf__product-copy a:hover {
+  color: var(--rv-jade);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rv-card--pdf-products .rv-pagination {
+  min-height: 58px;
+  border-top: 1px solid var(--rv-line-soft);
+  background: var(--rv-surface);
+  color: var(--rv-muted);
+}
+
+.rv-card--pdf-products .rv-pagination .rv-btn {
+  border-color: var(--rv-line);
+  background: #fffdf8;
+  color: var(--rv-forest);
+}
+
+.rv-card--pdf-products .rv-pagination .rv-btn:disabled {
+  opacity: 0.48;
+}
+
+@media (max-width: 900px) {
+  .rv-catalog-pdf__toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rv-catalog-pdf__search {
+    grid-column: 1 / -1;
+  }
+
+  .rv-catalog-pdf__reset {
+    justify-self: start;
+  }
 }
 
 @media (max-width: 640px) {
-  .rv-catalog-pdf__intro,
+  .rv-catalog-pdf-content {
+    gap: 14px;
+    padding: 16px 14px 48px;
+  }
+
+  .rv-card--catalog-builder > .rv-card__header {
+    padding: 17px 16px 8px;
+  }
+
+  .rv-catalog-pdf__intro {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 4px 16px 16px;
+  }
+
+  .rv-catalog-pdf__price-option {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .rv-catalog-pdf__actions {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 13px 16px 16px;
+  }
+
+  .rv-catalog-pdf__actions .rv-btn {
+    justify-content: space-between;
+  }
+
+  .rv-catalog-pdf__toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
+    padding: 15px;
+  }
+
+  .rv-catalog-pdf__search {
+    grid-column: auto;
+  }
+
+  .rv-catalog-pdf__reset {
+    width: 100%;
+    justify-content: center;
+  }
+
   .rv-catalog-pdf__status {
     align-items: flex-start;
     flex-direction: column;
+    padding: 12px 15px;
+  }
+
+  .rv-catalog-pdf__status .rv-inline {
+    flex-wrap: wrap;
+  }
+
+  .rv-catalog-pdf__product {
+    min-width: 190px;
+    gap: 9px;
+  }
+
+  .rv-catalog-pdf__product-image,
+  .rv-catalog-pdf__product-placeholder {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .rv-card--pdf-products .rv-table th,
+  .rv-card--pdf-products .rv-table td {
+    padding: 10px 12px;
+  }
+
+  .rv-card--pdf-products .rv-table th:first-child,
+  .rv-card--pdf-products .rv-table td:first-child {
+    width: 40px;
+    padding-left: 14px;
+  }
+
+  .rv-card--pdf-products .rv-pagination {
+    padding: 12px 14px;
   }
 }

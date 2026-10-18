@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   apiFetch,
   errorMessage,
@@ -27,6 +27,7 @@ import {
   TextInput,
 } from "@/components/admin/ui";
 import { contentStatusOptions, parseTags, translationStatusOptions, type BlogAuthorType, type BlogPost, type ContentStatus, type TranslationStatus } from "../../types";
+import "./blog-editor.css";
 
 type BlogForm = {
   title: string;
@@ -53,6 +54,20 @@ type BlogForm = {
   metaDescriptionId: string;
   idTranslationStatus: TranslationStatus;
 };
+
+type GeneratedBlogCopy = Pick<
+  BlogForm,
+  | "title"
+  | "excerpt"
+  | "body"
+  | "metaTitle"
+  | "metaDescription"
+  | "titleId"
+  | "excerptId"
+  | "bodyId"
+  | "metaTitleId"
+  | "metaDescriptionId"
+> & { tags: string[]; tagsId: string[] };
 
 const emptyForm: BlogForm = {
   title: "",
@@ -117,13 +132,81 @@ export default function BlogEditorPage() {
   const state: ApiState<BlogPost> = useApi<BlogPost>(isNew ? null : `/api/admin/blog/${id}`);
   const [form, setForm] = useState<BlogForm>(emptyForm);
   const [busy, setBusy] = useState(false);
+  const [aiBrief, setAiBrief] = useState("");
+  const [generatingCopy, setGeneratingCopy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const formRevision = useRef(0);
 
   useEffect(() => {
     if (state.data) setForm(formFrom(state.data));
   }, [state.data]);
 
-  const update = <K extends keyof BlogForm>(key: K, value: BlogForm[K]) =>
+  const update = <K extends keyof BlogForm>(key: K, value: BlogForm[K]) => {
+    formRevision.current += 1;
+    setAiError(null);
+    setAiNotice(null);
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const generateCopy = async () => {
+    const titleSeed = form.title.trim();
+    const briefSeed = aiBrief.trim();
+    if (titleSeed.length < 2 && briefSeed.length < 2) {
+      setAiError("Enter a title or a short brief before generating copy.");
+      return;
+    }
+
+    const generatedFields: Array<keyof GeneratedBlogCopy> = [
+      "excerpt", "body", "tags", "metaTitle", "metaDescription", "titleId", "excerptId", "bodyId", "tagsId", "metaTitleId", "metaDescriptionId",
+    ];
+    const hasExistingCopy = generatedFields.some((field) => {
+      const value = form[field];
+      return Array.isArray(value) ? value.length > 0 : value.trim().length > 0;
+    });
+    if (hasExistingCopy && !window.confirm("Generate new copy and replace the existing English and Indonesian article text and SEO drafts?")) {
+      return;
+    }
+
+    setGeneratingCopy(true);
+    setAiError(null);
+    setAiNotice(null);
+    const requestRevision = formRevision.current;
+    try {
+      const copy = await apiFetch<GeneratedBlogCopy>("/api/admin/blog/generate-copy", {
+        json: {
+          title: titleSeed.length >= 2 ? titleSeed : undefined,
+          brief: briefSeed || undefined,
+        },
+      });
+      if (formRevision.current !== requestRevision) {
+        setAiNotice("The article form changed while copy was generating, so the result was not applied. Generate again to use the latest details.");
+        return;
+      }
+      setForm((current) => ({
+        ...current,
+        title: current.title.trim().length >= 2 ? current.title : copy.title,
+        excerpt: copy.excerpt,
+        body: copy.body,
+        tags: copy.tags.join(", "),
+        metaTitle: copy.metaTitle,
+        metaDescription: copy.metaDescription,
+        titleId: copy.titleId,
+        excerptId: copy.excerptId,
+        bodyId: copy.bodyId,
+        tagsId: copy.tagsId.join(", "),
+        metaTitleId: copy.metaTitleId,
+        metaDescriptionId: copy.metaDescriptionId,
+        idTranslationStatus: "Draft",
+        status: "Draft",
+      }));
+      setAiNotice("English and Indonesian article drafts are ready. Review the copy, add a cover if needed, then save the post manually.");
+    } catch (error) {
+      setAiError(errorMessage(error));
+    } finally {
+      setGeneratingCopy(false);
+    }
+  };
 
   const save = async () => {
     const title = form.title.trim();
@@ -194,7 +277,7 @@ export default function BlogEditorPage() {
   };
 
   return (
-    <>
+    <div className="rv-blog-editor-page">
       <PageHeader
         title={isNew ? "New post" : "Edit post"}
         subtitle={isNew ? "Draft a new blog article" : state.data?.title}
@@ -217,7 +300,7 @@ export default function BlogEditorPage() {
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-blog-editor-content">
         {!isNew && state.loading && !state.data ? (
           <Card>
             <Loading label="Loading post…" />
@@ -231,62 +314,69 @@ export default function BlogEditorPage() {
         ) : null}
 
         {isNew || state.data ? (
-          <>
-            <Card title="Article">
-              <div className="rv-stack">
-                <Field label="Title">
-                  <TextInput value={form.title} onChange={(value) => update("title", value)} placeholder="Post title" />
-                </Field>
-                <div className="rv-form-grid">
-                  <Field label="Slug" hint="Leave blank to generate from the title">
-                    <TextInput value={form.slug} onChange={(value) => update("slug", value)} placeholder="post-slug" />
+          <div className="rv-blog-editor-layout">
+            <div className="rv-blog-editor-main">
+              <Card
+                className="rv-blog-editor-card rv-blog-editor-article"
+                title="Article"
+                description="Shape the story, then preview how it reads before publishing."
+                actions={isNew ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={generateCopy}
+                    disabled={(form.title.trim().length < 2 && aiBrief.trim().length < 2) || generatingCopy}
+                    loading={generatingCopy}
+                  >
+                    Generate with AI
+                  </Button>
+                ) : undefined}
+              >
+                <div className="rv-stack">
+                  <Field label="Title">
+                    <TextInput value={form.title} onChange={(value) => update("title", value)} placeholder="Post title" />
                   </Field>
-                  <Field label="Tags" hint="Comma separated">
-                    <TextInput value={form.tags} onChange={(value) => update("tags", value)} placeholder="stones, guide" />
+                  {isNew ? (
+                    <div className="rv-blog-ai-copy">
+                      <Field label="Brief for AI" hint="Share the topic, audience, angle, keywords, and facts you have verified. Leave it blank to generate from the title.">
+                        <TextArea
+                          value={aiBrief}
+                          onChange={(value) => {
+                            formRevision.current += 1;
+                            setAiBrief(value);
+                            setAiError(null);
+                            setAiNotice(null);
+                          }}
+                          placeholder="For example: Explain how to identify natural inclusions in quartz for beginner collectors. Avoid claims about origin or treatment unless listed here."
+                          maxLength={1200}
+                          rows={3}
+                        />
+                      </Field>
+                      <p className="rv-hint">Generates English and Indonesian drafts for the article, excerpt, tags, and SEO. The brief is sent to OpenRouter.</p>
+                      {aiError ? <div className="rv-ai-copy-message rv-ai-copy-message--error" role="alert">{aiError}</div> : null}
+                      {aiNotice ? <div className="rv-ai-copy-message rv-ai-copy-message--success" role="status">{aiNotice}</div> : null}
+                    </div>
+                  ) : null}
+                  <div className="rv-form-grid">
+                    <Field label="Slug" hint="Leave blank to generate from the title">
+                      <TextInput value={form.slug} onChange={(value) => update("slug", value)} placeholder="post-slug" />
+                    </Field>
+                    <Field label="Tags" hint="Comma separated">
+                      <TextInput value={form.tags} onChange={(value) => update("tags", value)} placeholder="stones, guide" />
+                    </Field>
+                  </div>
+                  <Field label="Excerpt" hint="Shown in listings and search results">
+                    <TextArea rows={3} value={form.excerpt} onChange={(value) => update("excerpt", value)} />
+                  </Field>
+                  <Field label="Body" hint="Use the toolbar to format paragraphs and preview the article.">
+                    <BlogBodyEditor value={form.body} onChange={(value) => update("body", value)} />
                   </Field>
                 </div>
-                <Field label="Excerpt" hint="Shown in listings and search results">
-                  <TextArea rows={3} value={form.excerpt} onChange={(value) => update("excerpt", value)} />
-                </Field>
-                <Field label="Body" hint="Use the toolbar to format paragraphs and preview the article.">
-                  <BlogBodyEditor value={form.body} onChange={(value) => update("body", value)} />
-                </Field>
-              </div>
-            </Card>
+              </Card>
+            </div>
 
-            <Card title="Bahasa Indonesia" description="Add a reviewed Indonesian version. Set the status to Ready when all required fields are translated.">
-              <div className="rv-stack">
-                <Field label="Translation status">
-                  <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
-                </Field>
-                <Field label="Title">
-                  <TextInput value={form.titleId} onChange={(value) => update("titleId", value)} />
-                </Field>
-                <Field label="Tags" hint="Pisahkan dengan koma">
-                  <TextInput value={form.tagsId} onChange={(value) => update("tagsId", value)} />
-                </Field>
-                <Field label="Ringkasan">
-                  <TextArea rows={3} value={form.excerptId} onChange={(value) => update("excerptId", value)} />
-                </Field>
-                <Field label="Isi artikel" hint="Gunakan toolbar untuk mengatur format dan melihat pratinjau.">
-                  <BlogBodyEditor value={form.bodyId} onChange={(value) => update("bodyId", value)} />
-                </Field>
-                <Field label="Alt teks sampul" hint="Jelaskan isi gambar dalam bahasa Indonesia secara singkat.">
-                  <TextInput value={form.coverAltId} onChange={(value) => update("coverAltId", value)} />
-                </Field>
-                <div className="rv-form-grid">
-                  <Field label="Judul meta">
-                    <TextInput value={form.metaTitleId} onChange={(value) => update("metaTitleId", value)} />
-                  </Field>
-                  <Field label="Deskripsi meta">
-                    <TextArea rows={3} value={form.metaDescriptionId} onChange={(value) => update("metaDescriptionId", value)} />
-                  </Field>
-                </div>
-              </div>
-            </Card>
-
-            <div className="rv-split">
-              <Card title="Publishing">
+            <aside className="rv-blog-editor-rail">
+              <Card className="rv-blog-editor-card" title="Publishing" description="Set visibility, timing, and author details.">
                 <div className="rv-stack">
                   <div className="rv-form-grid">
                     <Field label="Status">
@@ -330,7 +420,7 @@ export default function BlogEditorPage() {
                         onChange={(value) => update("readMinutes", value)}
                       />
                     </Field>
-                    <Field label="Published at" hint="Leave blank to keep the current schedule">
+                    <Field label="Published at" hint={isNew ? "Optional; set a date and time to schedule this post." : "Leave blank to keep the current schedule."}>
                       <TextInput
                         type="datetime-local"
                         value={form.publishedAt}
@@ -350,7 +440,7 @@ export default function BlogEditorPage() {
                 </div>
               </Card>
 
-              <Card title="Cover & SEO">
+              <Card className="rv-blog-editor-card" title="Cover & SEO" description="Choose the cover image and search preview.">
                 <div className="rv-stack">
                   <MediaPicker
                     label="Cover image"
@@ -370,10 +460,45 @@ export default function BlogEditorPage() {
                   </Field>
                 </div>
               </Card>
+            </aside>
+
+            <div className="rv-blog-editor-translation">
+              <Card className="rv-blog-editor-card" title="Bahasa Indonesia" description="Add a reviewed Indonesian version. Set the status to Ready when all required fields are translated.">
+                <div className="rv-stack">
+                  <div className="rv-form-grid">
+                    <Field label="Translation status">
+                      <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
+                    </Field>
+                    <Field label="Title">
+                      <TextInput value={form.titleId} onChange={(value) => update("titleId", value)} />
+                    </Field>
+                    <Field label="Tags" hint="Pisahkan dengan koma">
+                      <TextInput value={form.tagsId} onChange={(value) => update("tagsId", value)} />
+                    </Field>
+                    <Field label="Alt teks sampul" hint="Jelaskan isi gambar dalam bahasa Indonesia secara singkat.">
+                      <TextInput value={form.coverAltId} onChange={(value) => update("coverAltId", value)} />
+                    </Field>
+                  </div>
+                  <Field label="Ringkasan">
+                    <TextArea rows={3} value={form.excerptId} onChange={(value) => update("excerptId", value)} />
+                  </Field>
+                  <Field label="Isi artikel" hint="Gunakan toolbar untuk mengatur format dan melihat pratinjau.">
+                    <BlogBodyEditor value={form.bodyId} onChange={(value) => update("bodyId", value)} />
+                  </Field>
+                  <div className="rv-form-grid">
+                    <Field label="Judul meta">
+                      <TextInput value={form.metaTitleId} onChange={(value) => update("metaTitleId", value)} />
+                    </Field>
+                    <Field label="Deskripsi meta">
+                      <TextArea rows={3} value={form.metaDescriptionId} onChange={(value) => update("metaDescriptionId", value)} />
+                    </Field>
+                  </div>
+                </div>
+              </Card>
             </div>
-          </>
+          </div>
         ) : null}
       </div>
-    </>
+    </div>
   );
 }

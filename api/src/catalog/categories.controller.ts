@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { CategoriesService } from "./categories.service";
 import { storefrontLanguage } from "../common/utils/storefront-language";
-import { CreateCategoryDto, UpdateCategoryDto } from "./dto/category.dto";
+import { CreateCategoryDto, GenerateCategoryCopyDto, UpdateCategoryDto } from "./dto/category.dto";
+import { CategoryCopyService } from "./category-copy.service";
 
 @Controller("categories")
 export class CategoriesController {
@@ -25,11 +27,20 @@ export class CategoriesController {
 
 @Controller("admin/categories")
 export class AdminCategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
+  constructor(
+    private readonly categoriesService: CategoriesService,
+    private readonly categoryCopyService: CategoryCopyService,
+  ) {}
 
   @Get()
   list() {
     return this.categoriesService.listAdmin();
+  }
+
+  @Post("generate-copy")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  generateCopy(@Body() dto: GenerateCategoryCopyDto) {
+    return this.categoryCopyService.generate(dto);
   }
 
   @Post()

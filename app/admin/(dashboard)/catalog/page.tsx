@@ -60,18 +60,19 @@ export default function AdminCatalogPdfPage() {
 
   const columns: Array<Column<ApiProduct>> = [
     {
-      key: "image",
-      header: "",
-      width: "64px",
-      render: (product) => (product.imageUrls[0] ? <img className="rv-table__thumb" src={product.imageUrls[0]} alt="" /> : <div className="rv-thumb-empty">—</div>),
-    },
-    {
       key: "name",
       header: "Product",
       render: (product) => (
-        <div className="rv-product-cell">
-          <Link href={`/admin/products/${product.id}`}>{product.name}</Link>
-          <span className="rv-hint rv-mono">{product.sku ?? "—"}</span>
+        <div className="rv-catalog-pdf__product">
+          {product.imageUrls[0] ? (
+            <img className="rv-catalog-pdf__product-image" src={product.imageUrls[0]} alt="" />
+          ) : (
+            <span className="rv-catalog-pdf__product-placeholder" aria-hidden="true">{product.name.slice(0, 1)}</span>
+          )}
+          <div className="rv-catalog-pdf__product-copy">
+            <Link href={`/admin/products/${product.id}`}>{product.name}</Link>
+            <span className="rv-hint rv-mono">{product.sku ?? "SKU not set"}</span>
+          </div>
         </div>
       ),
     },
@@ -90,52 +91,69 @@ export default function AdminCatalogPdfPage() {
       <PageHeader
         title="PDF Catalog"
         subtitle="Create a client-ready catalog from live published stock"
-        actions={
-          <a className="rv-btn rv-btn--primary" href={allPdfUrl}>
-            Download all filtered
-          </a>
-        }
       />
 
-      <div className="rv-content">
-        <Card title="Build your catalog" description="Only published products with available stock are shown here.">
+      <div className="rv-content rv-catalog-pdf-content">
+        <Card className="rv-card--catalog-builder" title="Build your catalog" description="Choose what to include in a shareable PDF.">
           <div className="rv-catalog-pdf__intro">
-            <div>
-              <strong>{selectedIds.length ? `${selectedIds.length} product(s) selected` : "Choose products for the PDF"}</strong>
-              <p className="rv-hint">Select individual products, use the filters, or download every product matching the current filters.</p>
+            <div className="rv-catalog-pdf__selection-summary">
+              <span className="rv-catalog-pdf__eyebrow">CATALOG BUILDER</span>
+              <strong>{selectedIds.length ? `${selectedIds.length} product${selectedIds.length === 1 ? "" : "s"} selected` : "Choose products for your PDF"}</strong>
+              <p className="rv-hint">Select products below, or include all published items that match your filters.</p>
             </div>
-            <label className="rv-check">
+            <label className="rv-catalog-pdf__price-option">
               <input type="checkbox" checked={includePrice} onChange={(event) => setIncludePrice(event.target.checked)} />
-              Include prices
+              <span>
+                <strong>Include prices</strong>
+                <small>Show product prices in the PDF</small>
+              </span>
             </label>
           </div>
           <div className="rv-catalog-pdf__actions">
             <a className={selectedIds.length ? "rv-btn rv-btn--primary" : "rv-btn rv-btn--disabled"} href={selectedIds.length ? selectedPdfUrl : undefined} aria-disabled={!selectedIds.length}>
-              Download selected PDF{selectedIds.length ? ` (${selectedIds.length})` : ""}
+              Download selected PDF{selectedIds.length ? ` · ${selectedIds.length}` : ""}
             </a>
-            <a className="rv-btn" href={allPdfUrl}>Download all filtered PDF</a>
+            <a className="rv-btn" href={allPdfUrl}>
+              Download all filtered
+              <span className="rv-catalog-pdf__action-count">{list.data ? list.data.total : "…"}</span>
+            </a>
           </div>
         </Card>
 
-        <Card flush>
-          <div className="rv-toolbar rv-catalog-pdf__toolbar">
-            <TextInput value={list.searchInput} onChange={list.setSearchInput} placeholder="Search product, SKU, origin…" />
-            <Select
-              value={String(params.category ?? "")}
-              onChange={(value) => setFilter({ category: value || undefined })}
-              options={(categoriesState.data ?? []).map((category) => ({ value: category.slug, label: category.name }))}
-              placeholder="All categories"
-            />
-            <Select value={String(params.sort ?? "name")} onChange={(value) => setFilter({ sort: value })} options={sortOptions} />
-            <Button size="sm" onClick={() => { setSelectedIds([]); list.reset(); }}>Reset</Button>
+        <Card className="rv-card--pdf-products" flush>
+          <div className="rv-catalog-pdf__toolbar">
+            <label className="rv-catalog-pdf__search">
+              <span>Search catalog</span>
+              <TextInput id="rv-catalog-search" type="search" value={list.searchInput} onChange={list.setSearchInput} placeholder="Product name, SKU, or origin" />
+            </label>
+            <label className="rv-catalog-pdf__filter">
+              <span>Category</span>
+              <Select
+                id="rv-catalog-category"
+                value={String(params.category ?? "")}
+                onChange={(value) => setFilter({ category: value || undefined })}
+                options={(categoriesState.data ?? []).map((category) => ({ value: category.slug, label: category.name }))}
+                placeholder="All categories"
+              />
+            </label>
+            <label className="rv-catalog-pdf__filter">
+              <span>Sort by</span>
+              <Select id="rv-catalog-sort" value={String(params.sort ?? "name")} onChange={(value) => setFilter({ sort: value })} options={sortOptions} />
+            </label>
+            <Button className="rv-catalog-pdf__reset" size="sm" onClick={() => { setSelectedIds([]); list.reset(); }}>Reset filters</Button>
           </div>
 
           <div className="rv-catalog-pdf__status">
             <div className="rv-inline">
               <Badge tone="green">Published & in stock</Badge>
-              <span className="rv-hint">{list.data ? `${list.data.total} product(s) available` : "Loading available products…"}</span>
+              <span className="rv-catalog-pdf__result-count">{list.data ? `${list.data.total} products` : "Loading products…"}</span>
             </div>
-            {selectedIds.length ? <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>Clear selection</Button> : null}
+            {selectedIds.length ? (
+              <div className="rv-catalog-pdf__selection-tools">
+                <span>{selectedIds.length} selected</span>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>Clear selection</Button>
+              </div>
+            ) : <span className="rv-hint">Select rows to create a custom PDF.</span>}
           </div>
 
           <DataTable

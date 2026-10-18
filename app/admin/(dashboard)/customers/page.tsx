@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiUrl, formatCurrency, formatDate, formatNumber, useList } from "@/components/admin/api";
 import { DataTable, TablePagination, type Column } from "@/components/admin/data-table";
-import { Badge, Button, Card, PageHeader, TextInput } from "@/components/admin/ui";
+import { Badge, Button, Card, Field, PageHeader, TextInput } from "@/components/admin/ui";
+import "./customers.css";
 
 type CustomerRow = {
   id: string;
@@ -43,6 +44,7 @@ export default function AdminCustomersPage() {
   }, [tag, update]);
 
   const hasFilters = Boolean(state.params.search || state.params.tag);
+  const customerCount = state.data?.total ?? 0;
 
   const exportUrl = apiUrl("/api/admin/customers/export.csv", {
     search: state.params.search,
@@ -135,21 +137,31 @@ export default function AdminCustomersPage() {
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-customers-content">
         {state.error ? (
           <Card title="Could not load customers">
             <p className="rv-error-text">{state.error}</p>
           </Card>
         ) : null}
 
-        <Card flush>
-          <div className="rv-toolbar">
-            <TextInput
-              value={state.searchInput}
-              onChange={state.setSearchInput}
-              placeholder="Search name, email or phone"
-            />
-            <TextInput value={tag} onChange={setTag} placeholder="Filter by tag" />
+        <Card
+          title="Customer directory"
+          description="Search customer details and review purchase activity."
+          actions={<Badge tone="green">{formatNumber(customerCount)} {customerCount === 1 ? "customer" : "customers"}</Badge>}
+          flush
+          className="rv-customers-card"
+        >
+          <div className="rv-toolbar rv-customers-toolbar">
+            <Field label="Search customers">
+              <TextInput
+                value={state.searchInput}
+                onChange={state.setSearchInput}
+                placeholder="Name, email or phone"
+              />
+            </Field>
+            <Field label="Filter by tag">
+              <TextInput value={tag} onChange={setTag} placeholder="For example: wholesale" />
+            </Field>
             {hasFilters ? (
               <Button
                 size="sm"
@@ -158,9 +170,12 @@ export default function AdminCustomersPage() {
                   state.reset();
                 }}
               >
-                Reset
+                Clear filters
               </Button>
-            ) : null}
+            ) : <span className="rv-customers-toolbar__tip">Search updates as you type</span>}
+          </div>
+          <div className="rv-customers-scroll-hint" aria-hidden="true">
+            Some fields are hidden at this screen width. Open a customer to view phone, country, and tags.
           </div>
 
           <DataTable

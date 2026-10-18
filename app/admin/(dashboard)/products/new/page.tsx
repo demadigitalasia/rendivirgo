@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ProductForm, type ApiProduct } from "@/components/admin/product-form";
 import { toast } from "@/components/admin/toast";
 import { PageHeader } from "@/components/admin/ui";
+import "../[id]/product-edit.css";
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function NewProductPage() {
   return (
     <>
       <PageHeader title="New product" subtitle="Create a catalog listing" />
-      <div className="rv-content">
+      <div className="rv-content rv-product-edit-content">
         <ProductForm
           mode="create"
           onSaved={(created: ApiProduct) => {

@@ -41,6 +41,18 @@ export class BlogQueryDto extends PaginationQueryDto {
   tag?: string;
 }
 
+export class GenerateBlogCopyDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  brief?: string;
+}
+
 export class CreateBlogPostDto {
   @IsString()
   @MinLength(2)

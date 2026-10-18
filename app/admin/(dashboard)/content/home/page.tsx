@@ -7,6 +7,7 @@ import { toast } from "@/components/admin/toast";
 import { Button, Card, Field, Loading, PageHeader, Select, Switch, TextArea, TextInput } from "@/components/admin/ui";
 import { translationStatusOptions, type TranslationStatus } from "../types";
 import "../content.css";
+import "./home.css";
 
 type SiteContent = Record<string, unknown>;
 
@@ -179,7 +180,7 @@ export default function ContentHomePage() {
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-home-content">
         {state.loading && !data ? (
           <Card>
             <Loading label="Loading content…" />
@@ -193,139 +194,144 @@ export default function ContentHomePage() {
         ) : null}
 
         {data ? (
-          <>
-            <Card title="Hero" description="Top of the home page">
-              <div className="rv-stack">
-                <div className="rv-form-grid">
-                  <Field label="Hero title">
-                    <TextInput value={form.heroTitle} onChange={(value) => update("heroTitle", value)} />
-                  </Field>
-                  <Field label="Hero subtitle">
-                    <TextInput value={form.heroSubtitle} onChange={(value) => update("heroSubtitle", value)} />
-                  </Field>
+          <div className="rv-home-layout">
+            <div className="rv-stack rv-home-form">
+              <Card title="Hero" description="Top of the home page" className="rv-home-section rv-home-section--hero">
+                <div className="rv-stack">
+                  <div className="rv-form-grid">
+                    <Field label="Hero title">
+                      <TextInput value={form.heroTitle} onChange={(value) => update("heroTitle", value)} />
+                    </Field>
+                    <Field label="Hero subtitle">
+                      <TextInput value={form.heroSubtitle} onChange={(value) => update("heroSubtitle", value)} />
+                    </Field>
+                  </div>
+                  <div className="rv-form-grid">
+                    <Field label="Hero title in Bahasa Indonesia">
+                      <TextInput value={form.heroTitleId} onChange={(value) => update("heroTitleId", value)} />
+                    </Field>
+                    <Field label="Hero subtitle in Bahasa Indonesia">
+                      <TextArea rows={2} value={form.heroSubtitleId} onChange={(value) => update("heroSubtitleId", value)} />
+                    </Field>
+                  </div>
+                  <MediaPicker
+                    label="Hero image"
+                    folder="banners"
+                    multiple={false}
+                    value={form.heroImage ? [form.heroImage] : []}
+                    onChange={(urls) => update("heroImage", urls[0] ?? "")}
+                  />
                 </div>
-                <div className="rv-form-grid">
-                  <Field label="Hero title in Bahasa Indonesia">
-                    <TextInput value={form.heroTitleId} onChange={(value) => update("heroTitleId", value)} />
-                  </Field>
-                  <Field label="Hero subtitle in Bahasa Indonesia">
-                    <TextArea rows={2} value={form.heroSubtitleId} onChange={(value) => update("heroSubtitleId", value)} />
-                  </Field>
-                </div>
-                <MediaPicker
-                  label="Hero image"
-                  folder="banners"
-                  multiple={false}
-                  value={form.heroImage ? [form.heroImage] : []}
-                  onChange={(urls) => update("heroImage", urls[0] ?? "")}
-                />
-              </div>
-            </Card>
+              </Card>
 
-            <Card title="Owner" description="Founder story block">
-              <div className="rv-stack">
-                <div className="rv-form-grid">
-                  <Field label="Owner name">
-                    <TextInput value={form.ownerName} onChange={(value) => update("ownerName", value)} />
+              <Card title="Owner" description="Founder story block" className="rv-home-section">
+                <div className="rv-stack">
+                  <div className="rv-form-grid">
+                    <Field label="Owner name">
+                      <TextInput value={form.ownerName} onChange={(value) => update("ownerName", value)} />
+                    </Field>
+                    <Field label="Owner role">
+                      <TextInput value={form.ownerRole} onChange={(value) => update("ownerRole", value)} />
+                    </Field>
+                  </div>
+                  <Field label="Owner bio">
+                    <TextArea rows={5} value={form.ownerBio} onChange={(value) => update("ownerBio", value)} />
                   </Field>
-                  <Field label="Owner role">
-                    <TextInput value={form.ownerRole} onChange={(value) => update("ownerRole", value)} />
+                  <div className="rv-form-grid">
+                    <Field label="Owner role in Bahasa Indonesia">
+                      <TextInput value={form.ownerRoleId} onChange={(value) => update("ownerRoleId", value)} />
+                    </Field>
+                    <Field label="Owner bio in Bahasa Indonesia">
+                      <TextArea rows={5} value={form.ownerBioId} onChange={(value) => update("ownerBioId", value)} />
+                    </Field>
+                  </div>
+                  <div className="rv-form-grid">
+                    <Field label="CTA label">
+                      <TextInput value={form.ownerCtaLabel} onChange={(value) => update("ownerCtaLabel", value)} />
+                    </Field>
+                    <Field label="CTA label in Bahasa Indonesia">
+                      <TextInput value={form.ownerCtaLabelId} onChange={(value) => update("ownerCtaLabelId", value)} />
+                    </Field>
+                    <Field label="CTA link">
+                      <TextInput value={form.ownerCtaHref} onChange={(value) => update("ownerCtaHref", value)} />
+                    </Field>
+                  </div>
+                  <Field label="Indonesian translation status" hint="Only set to ready after every Indonesian field has been reviewed.">
+                    <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
                   </Field>
                 </div>
-                <Field label="Owner bio">
-                  <TextArea rows={5} value={form.ownerBio} onChange={(value) => update("ownerBio", value)} />
-                </Field>
-                <div className="rv-form-grid">
-                  <Field label="Owner role in Bahasa Indonesia">
-                    <TextInput value={form.ownerRoleId} onChange={(value) => update("ownerRoleId", value)} />
-                  </Field>
-                  <Field label="Owner bio in Bahasa Indonesia">
-                    <TextArea rows={5} value={form.ownerBioId} onChange={(value) => update("ownerBioId", value)} />
-                  </Field>
-                </div>
-                <div className="rv-form-grid">
-                  <Field label="CTA label">
-                    <TextInput value={form.ownerCtaLabel} onChange={(value) => update("ownerCtaLabel", value)} />
-                  </Field>
-                  <Field label="CTA label in Bahasa Indonesia">
-                    <TextInput value={form.ownerCtaLabelId} onChange={(value) => update("ownerCtaLabelId", value)} />
-                  </Field>
-                  <Field label="CTA link">
-                    <TextInput value={form.ownerCtaHref} onChange={(value) => update("ownerCtaHref", value)} />
-                  </Field>
-                </div>
-                <Field label="Indonesian translation status" hint="Only set to ready after every Indonesian field has been reviewed.">
-                  <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
-                </Field>
-              </div>
-            </Card>
+              </Card>
 
-            <Card title="About Us owner photos" description="These photos are separate from the owner story image used on the Home page.">
-              <div className="rv-form-grid">
-                <MediaPicker
-                  label="Rendi Virgo photo"
-                  folder="pages"
-                  multiple={false}
-                  value={form.aboutRendiImage ? [form.aboutRendiImage] : []}
-                  onChange={(urls) => update("aboutRendiImage", urls[0] ?? "")}
-                />
-                <MediaPicker
-                  label="Pajar Agung photo"
-                  folder="pages"
-                  multiple={false}
-                  value={form.aboutPajarImage ? [form.aboutPajarImage] : []}
-                  onChange={(urls) => update("aboutPajarImage", urls[0] ?? "")}
-                />
-              </div>
-            </Card>
-
-            <Card title="Shipping overrides" description="Custom flat rate and free shipping threshold">
-              <div className="rv-stack">
-                <Switch
-                  checked={form.overrideEnabled}
-                  onChange={(checked) => update("overrideEnabled", checked)}
-                  label="Override shipping amount"
-                />
+              <Card title="About Us owner photos" description="These photos are separate from the owner story image used on the Home page." className="rv-home-section">
                 <div className="rv-form-grid">
-                  <Field label="Override amount" hint="Flat shipping fee">
-                    <TextInput
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={form.overrideAmount}
-                      onChange={(value) => update("overrideAmount", value)}
-                    />
-                  </Field>
-                  <Field label="Free shipping threshold" hint="Set 0 to disable">
-                    <TextInput
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={form.freeShippingThreshold}
-                      onChange={(value) => update("freeShippingThreshold", value)}
-                    />
-                  </Field>
+                  <MediaPicker
+                    label="Rendi Virgo photo"
+                    folder="pages"
+                    multiple={false}
+                    value={form.aboutRendiImage ? [form.aboutRendiImage] : []}
+                    onChange={(urls) => update("aboutRendiImage", urls[0] ?? "")}
+                  />
+                  <MediaPicker
+                    label="Pajar Agung photo"
+                    folder="pages"
+                    multiple={false}
+                    value={form.aboutPajarImage ? [form.aboutPajarImage] : []}
+                    onChange={(urls) => update("aboutPajarImage", urls[0] ?? "")}
+                  />
                 </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card title="Preview" description="Hero and owner copy as visitors will read it">
-              <div className="rv-content-preview">
-                {form.heroImage ? (
-                  <img className="rv-content-preview__image" src={form.heroImage} alt="" />
-                ) : null}
-                <div className="rv-content-preview__eyebrow">Home hero</div>
-                <h2 className="rv-content-preview__title">{form.heroTitle || "Hero title"}</h2>
-                <p className="rv-content-preview__subtitle">{form.heroSubtitle || "Hero subtitle"}</p>
-                <div className="rv-content-preview__owner">
-                  <div className="rv-content-preview__owner-name">{form.ownerName || "Owner name"}</div>
-                  {form.ownerRole ? <div className="rv-content-preview__owner-role">{form.ownerRole}</div> : null}
-                  <p className="rv-content-preview__owner-bio">{form.ownerBio || "Owner bio"}</p>
-                  {form.ownerCtaLabel ? <span className="rv-content-preview__cta">{form.ownerCtaLabel}</span> : null}
+              <Card title="Shipping overrides" description="Custom flat rate and free shipping threshold" className="rv-home-section rv-home-section--shipping">
+                <div className="rv-stack">
+                  <Switch
+                    checked={form.overrideEnabled}
+                    onChange={(checked) => update("overrideEnabled", checked)}
+                    label="Override shipping amount"
+                  />
+                  <div className="rv-form-grid">
+                    <Field label="Override amount" hint="Flat shipping fee">
+                      <TextInput
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={form.overrideAmount}
+                        onChange={(value) => update("overrideAmount", value)}
+                      />
+                    </Field>
+                    <Field label="Free shipping threshold" hint="Set 0 to disable">
+                      <TextInput
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={form.freeShippingThreshold}
+                        onChange={(value) => update("freeShippingThreshold", value)}
+                      />
+                    </Field>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          </>
+              </Card>
+
+            </div>
+
+            <aside className="rv-stack rv-home-preview-rail">
+              <Card title="Preview" description="Hero and owner copy as visitors will read it" className="rv-home-section rv-home-preview-card">
+                <div className="rv-content-preview">
+                  {form.heroImage ? (
+                    <img className="rv-content-preview__image" src={form.heroImage} alt="" />
+                  ) : null}
+                  <div className="rv-content-preview__eyebrow">Home hero</div>
+                  <h2 className="rv-content-preview__title">{form.heroTitle || "Hero title"}</h2>
+                  <p className="rv-content-preview__subtitle">{form.heroSubtitle || "Hero subtitle"}</p>
+                  <div className="rv-content-preview__owner">
+                    <div className="rv-content-preview__owner-name">{form.ownerName || "Owner name"}</div>
+                    {form.ownerRole ? <div className="rv-content-preview__owner-role">{form.ownerRole}</div> : null}
+                    <p className="rv-content-preview__owner-bio">{form.ownerBio || "Owner bio"}</p>
+                    {form.ownerCtaLabel ? <span className="rv-content-preview__cta">{form.ownerCtaLabel}</span> : null}
+                  </div>
+                </div>
+              </Card>
+            </aside>
+          </div>
         ) : null}
       </div>
     </>

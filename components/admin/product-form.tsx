@@ -453,10 +453,10 @@ export function ProductForm({
   const slugPlaceholder = slugPreview(values.name) || "auto-generated from name";
 
   return (
-    <div className="rv-stack">
+    <div className="rv-stack rv-product-edit-form">
       {error ? <p className="rv-error-text">{error}</p> : null}
 
-      <Card title="Basics">
+      <Card title="Basics" description="Core details, storefront visibility, and product status." className="rv-product-edit-section rv-product-edit-section--basics">
         <div className="rv-form-grid">
           <Field label="Name">
             <TextInput value={values.name} onChange={(value) => update("name", value)} placeholder="Forest River Cabochon" />
@@ -526,7 +526,7 @@ export function ProductForm({
         </div>
       </Card>
 
-      <Card title="Pricing & stock">
+      <Card title="Pricing & stock" description="Set the price, inventory model, and workshop allocation." className="rv-product-edit-section">
         <div className="rv-form-grid">
           <Field label="Price (USD)">
             <TextInput value={values.price} onChange={(value) => update("price", value)} type="number" min={0} step="0.01" />
@@ -574,7 +574,7 @@ export function ProductForm({
         </div>
       </Card>
 
-      <Card title="Dimensions (mm)">
+      <Card title="Dimensions (mm)" description="Physical size used for product details and shipping." className="rv-product-edit-section">
         <div className="rv-form-grid">
           <Field label="Length">
             <TextInput value={values.lengthMm} onChange={(value) => update("lengthMm", value)} type="number" min={0} step="1" />
@@ -591,6 +591,7 @@ export function ProductForm({
       <Card
         title="Description & SEO"
         description="Generate English product copy and SEO, with Indonesian name, description, and metadata drafts."
+        className="rv-product-edit-section rv-product-edit-section--copy"
         actions={
           <Button
             size="sm"
@@ -631,7 +632,7 @@ export function ProductForm({
         </div>
       </Card>
 
-      <Card title="Bahasa Indonesia" description="The product appears in Indonesian only after its translation status is Ready and required text is complete.">
+      <Card title="Bahasa Indonesia" description="The product appears in Indonesian after its translation is ready." className="rv-product-edit-section">
         <div className="rv-stack">
           <Field label="Translation status">
             <Select value={values.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as FormValues["idTranslationStatus"])} options={[
@@ -656,7 +657,7 @@ export function ProductForm({
         </div>
       </Card>
 
-      <Card title="Images & video">
+      <Card title="Images & video" description="Manage the product gallery and its supporting video." className="rv-product-edit-section">
         <div className="rv-stack">
           <MediaPicker value={imageUrls} onChange={setImageUrls} folder="products" label="Product images" />
           <VideoPicker value={videoUrl} onChange={setVideoUrl} folder="products" />
@@ -666,6 +667,7 @@ export function ProductForm({
       <Card
         title="Variants"
         description="Optional SKU-level combinations"
+        className="rv-product-edit-section rv-product-edit-section--variants"
         actions={
           <Button size="sm" onClick={addVariant}>
             Add variant
@@ -765,7 +767,7 @@ export function ProductForm({
         </div>
       </Card>
 
-      <Card flush>
+      <Card flush className="rv-product-edit-save-card">
         <div className="rv-form-actions">
           {onCancel ? <Button onClick={onCancel}>Cancel</Button> : null}
           <Button variant="primary" loading={saving} onClick={submit}>

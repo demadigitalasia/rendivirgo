@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { BlogService } from "./blog.service";
-import { BlogQueryDto, CreateBlogPostDto, UpdateBlogPostDto } from "./dto/content.dto";
+import { BlogQueryDto, CreateBlogPostDto, GenerateBlogCopyDto, UpdateBlogPostDto } from "./dto/content.dto";
 import { storefrontLanguage } from "../common/utils/storefront-language";
+import { BlogCopyService } from "./blog-copy.service";
 
 @Controller("blog")
 export class BlogController {
@@ -31,11 +33,20 @@ export class BlogController {
 
 @Controller("admin/blog")
 export class AdminBlogController {
-  constructor(private readonly blogService: BlogService) {}
+  constructor(
+    private readonly blogService: BlogService,
+    private readonly blogCopyService: BlogCopyService,
+  ) {}
 
   @Get()
   list(@Query() query: BlogQueryDto) {
     return this.blogService.listAdmin(query);
+  }
+
+  @Post("generate-copy")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  generateCopy(@Body() dto: GenerateBlogCopyDto) {
+    return this.blogCopyService.generate(dto);
   }
 
   @Post()

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatCurrency, formatDate, formatNumber, formatUSD, useList, type PaginatedResponse } from "@/components/admin/api";
 import { DataTable, TablePagination, type Column } from "@/components/admin/data-table";
 import { Button, Card, PageHeader, Select, Stat, StatusBadge, TextInput } from "@/components/admin/ui";
+import "./orders-page.css";
 
 type OrderRow = {
   id: string;
@@ -61,20 +62,30 @@ export default function AdminOrdersPage() {
     {
       key: "orderNumber",
       header: "Order",
-      render: (order) => <Link href={`/admin/orders/${order.id}`}>{order.orderNumber}</Link>,
+      render: (order) => (
+        <div className="rv-order-number-cell">
+          <Link className="rv-order-number" href={`/admin/orders/${order.id}`}>{order.orderNumber}</Link>
+          <span className="rv-hint">{formatNumber(order.itemCount)} {order.itemCount === 1 ? "item" : "items"}</span>
+        </div>
+      ),
     },
     {
       key: "placedAt",
       header: "Date",
-      render: (order) => formatDate(order.placedAt),
+      render: (order) => <time className="rv-order-date" dateTime={order.placedAt}>{formatDate(order.placedAt)}</time>,
     },
     {
       key: "customer",
       header: "Customer",
       render: (order) => (
-        <div>
-          <div>{order.customerName}</div>
-          <div className="rv-hint">{order.email ?? "No email"} · {order.source === "POS" ? "Workshop POS" : order.source}</div>
+        <div className="rv-order-customer">
+          <strong>{order.customerName}</strong>
+          <div className="rv-order-customer__meta">
+            <span className="rv-hint">{order.email ?? "No email"}</span>
+            <span className={`rv-order-source rv-order-source--${order.source.toLowerCase()}`}>
+              {order.source === "POS" ? "Workshop POS" : order.source}
+            </span>
+          </div>
         </div>
       ),
     },
@@ -82,7 +93,7 @@ export default function AdminOrdersPage() {
       key: "total",
       header: "Total",
       align: "right",
-      render: (order) => formatCurrency(order.total, order.currency),
+      render: (order) => <strong className="rv-order-total">{formatCurrency(order.total, order.currency)}</strong>,
     },
     {
       key: "status",
@@ -96,7 +107,7 @@ export default function AdminOrdersPage() {
         <div>
           <StatusBadge status={order.paymentStatus} />
           {order.paymentMethod === "BankTransfer" && order.paymentProofUploadedAt ? (
-            <div className="rv-hint" style={{ marginTop: 4 }}>
+            <div className="rv-hint rv-order-receipt-age">
               Receipt {Math.max(0, Math.floor((Date.now() - Date.parse(order.paymentProofUploadedAt)) / 86_400_000))} day(s) ago
             </div>
           ) : null}
@@ -127,9 +138,9 @@ export default function AdminOrdersPage() {
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-orders-content">
         {data?.summary ? (
-          <div className="rv-stat-grid">
+          <div className="rv-stat-grid rv-stat-grid--orders">
             <Stat label="Orders" value={formatNumber(data.summary.count)} hint="Matching current filters" />
             <Stat label="Revenue · USD" value={formatUSD(data.summary.revenueByCurrency?.USD ?? 0)} hint="Paid orders, net of refunds" />
             {data.summary.revenueByCurrency?.IDR !== undefined ? <Stat label="Revenue · IDR" value={formatCurrency(data.summary.revenueByCurrency.IDR, "IDR")} hint="Workshop POS, net of refunds" /> : null}
@@ -144,10 +155,20 @@ export default function AdminOrdersPage() {
           </Card>
         ) : null}
 
-        <Card flush>
+        <Card className="rv-card--orders" flush>
+          <div className="rv-orders-card-heading">
+            <div>
+              <span className="rv-orders-card-heading__eyebrow">ORDER MANAGEMENT</span>
+              <h2>Order register</h2>
+              <p>Search, filter, and review recent customer orders.</p>
+            </div>
+            {data ? <span className="rv-orders-card-heading__count">{formatNumber(data.total)} orders</span> : null}
+          </div>
+
           <div className="rv-toolbar rv-orders-toolbar">
             <div className="rv-orders-toolbar__main">
               <Button
+                className="rv-orders-toolbar__queue-button"
                 size="sm"
                 variant={proofQueueActive ? "primary" : "default"}
                 onClick={() => state.update({ proofQueue: proofQueueActive ? undefined : "true", page: 1 })}

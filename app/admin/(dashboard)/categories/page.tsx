@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ApiError, apiFetch, errorMessage, formatNumber, useApi } from "@/components/admin/api";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { MediaPicker } from "@/components/admin/media";
@@ -56,6 +56,11 @@ type CategoryFormValues = {
   idTranslationStatus: "Missing" | "Draft" | "Review" | "Ready";
 };
 
+type GeneratedCategoryCopy = Pick<
+  CategoryFormValues,
+  "description" | "metaTitle" | "metaDescription" | "nameId" | "descriptionId" | "metaTitleId" | "metaDescriptionId"
+>;
+
 const toneValues = ["moss", "jade", "amber", "ocean", "earth"] as const;
 
 function categoryToneClass(tone: string) {
@@ -90,7 +95,12 @@ export default function AdminCategoriesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryFormValues>(emptyForm);
+  const formRevision = useRef(0);
   const [imageUrl, setImageUrl] = useState("");
+  const [aiBrief, setAiBrief] = useState("");
+  const [generatingCopy, setGeneratingCopy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [forceCategory, setForceCategory] = useState<Category | null>(null);
@@ -100,18 +110,26 @@ export default function AdminCategoriesPage() {
   const emptyCategoryCount = categories.filter((category) => category.productCount === 0).length;
 
   function setField<K extends keyof CategoryFormValues>(key: K, value: CategoryFormValues[K]) {
+    formRevision.current += 1;
     setForm((current) => ({ ...current, [key]: value }));
+    setAiError(null);
+    setAiNotice(null);
   }
 
   const openCreate = () => {
+    formRevision.current += 1;
     setEditing(null);
     setForm(emptyForm);
     setImageUrl("");
+    setAiBrief("");
+    setAiError(null);
+    setAiNotice(null);
     setFormError(null);
     setModalOpen(true);
   };
 
   const openEdit = (category: Category) => {
+    formRevision.current += 1;
     setEditing(category);
     setForm({
       name: category.name,
@@ -129,8 +147,51 @@ export default function AdminCategoriesPage() {
       idTranslationStatus: category.idTranslationStatus ?? "Missing",
     });
     setImageUrl(category.imageUrl ?? "");
+    setAiBrief("");
+    setAiError(null);
+    setAiNotice(null);
     setFormError(null);
     setModalOpen(true);
+  };
+
+  const generateCategoryCopy = async () => {
+    if (form.name.trim().length < 2) {
+      setAiError("Enter a category name before generating copy.");
+      return;
+    }
+
+    const generatedFields: Array<keyof GeneratedCategoryCopy> = [
+      "description", "metaTitle", "metaDescription", "nameId", "descriptionId", "metaTitleId", "metaDescriptionId",
+    ];
+    const hasExistingCopy = generatedFields.some((field) => form[field].trim().length > 0);
+    if (hasExistingCopy && !window.confirm("This will replace the current English and Indonesian category descriptions and SEO text. Continue?")) {
+      return;
+    }
+
+    setGeneratingCopy(true);
+    setAiError(null);
+    setAiNotice(null);
+    const requestRevision = formRevision.current;
+    try {
+      const copy = await apiFetch<GeneratedCategoryCopy>("/api/admin/categories/generate-copy", {
+        json: {
+          name: form.name.trim(),
+          slug: form.slug.trim() || slugify(form.name),
+          currentDescription: form.description.trim(),
+          brief: aiBrief.trim(),
+        },
+      });
+      if (formRevision.current !== requestRevision) {
+        setAiNotice("The category form changed while copy was generating, so the result was not applied. Generate again to use the latest details.");
+        return;
+      }
+      setForm((current) => ({ ...current, ...copy, idTranslationStatus: "Draft" }));
+      setAiNotice("Category descriptions and SEO drafts are ready. Review the English and Indonesian text before saving.");
+    } catch (error) {
+      setAiError(errorMessage(error));
+    } finally {
+      setGeneratingCopy(false);
+    }
   };
 
   const save = async () => {
@@ -341,7 +402,7 @@ export default function AdminCategoriesPage() {
         footer={
           <>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" loading={saving} onClick={save}>
+            <Button variant="primary" loading={saving} disabled={generatingCopy} onClick={save}>
               {editing ? "Save changes" : "Create category"}
             </Button>
           </>
@@ -382,9 +443,46 @@ export default function AdminCategoriesPage() {
               <Field label="Visibility" className="rv-category-form__field-full">
                 <Switch checked={form.isActive} onChange={(checked) => setField("isActive", checked)} label="Visible on storefront" />
               </Field>
-              <Field label="Description" hint="A short introduction shown with this category." className="rv-category-form__field-full">
-                <TextArea value={form.description} onChange={(value) => setField("description", value)} rows={3} />
-              </Field>
+              <div className="rv-category-copy-editor rv-category-form__field-full">
+                <div className="rv-category-copy-editor__heading">
+                  <label className="rv-label" htmlFor="rv-category-description">Description</label>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={generatingCopy}
+                    disabled={form.name.trim().length < 2}
+                    onClick={generateCategoryCopy}
+                  >
+                    Generate with AI
+                  </Button>
+                </div>
+                <TextArea
+                  id="rv-category-description"
+                  value={form.description}
+                  onChange={(value) => setField("description", value)}
+                  rows={3}
+                  ariaDescribedBy="rv-category-description-hint"
+                />
+                <span id="rv-category-description-hint" className="rv-hint">
+                  Generates English and Indonesian descriptions and SEO drafts. Review before saving. Category details and the brief are sent to OpenRouter.
+                </span>
+                <Field label="Optional brief for AI" hint="Share only details that are accurate for this category.">
+                  <TextArea
+                    value={aiBrief}
+                    onChange={(value) => {
+                      formRevision.current += 1;
+                      setAiBrief(value);
+                      setAiError(null);
+                      setAiNotice(null);
+                    }}
+                    placeholder="Key details to include, if any"
+                    maxLength={1200}
+                    rows={2}
+                  />
+                </Field>
+                {aiError ? <div className="rv-ai-copy-message rv-ai-copy-message--error" role="alert">{aiError}</div> : null}
+                {aiNotice ? <div className="rv-ai-copy-message rv-ai-copy-message--success" role="status">{aiNotice}</div> : null}
+              </div>
             </div>
           </section>
 

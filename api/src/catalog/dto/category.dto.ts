@@ -82,3 +82,25 @@ export class CategoryQueryDto {
   @IsBoolean()
   includeInactive?: boolean;
 }
+
+export class GenerateCategoryCopyDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(140)
+  slug?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(600)
+  currentDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1200)
+  brief?: string;
+}

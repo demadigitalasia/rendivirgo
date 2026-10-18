@@ -5,6 +5,7 @@ import { apiFetch, errorMessage, formatDateTime, formatUSD, useApi } from "@/com
 import { ProductForm, type ApiProduct } from "@/components/admin/product-form";
 import { toast } from "@/components/admin/toast";
 import { Button, Card, ConfirmButton, KeyValue, Loading, PageHeader, StatusBadge } from "@/components/admin/ui";
+import "./product-edit.css";
 
 type PriceHistoryEntry = {
   id: string;
@@ -68,7 +69,7 @@ export default function EditProductPage() {
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-product-edit-content">
         {state.loading && !product ? (
           <Card>
             <Loading label="Loading product…" />
@@ -82,7 +83,7 @@ export default function EditProductPage() {
         ) : null}
 
         {product ? (
-          <div className="rv-split">
+          <div className="rv-split rv-product-edit-layout">
             <ProductForm
               mode="edit"
               product={product}
@@ -94,8 +95,8 @@ export default function EditProductPage() {
               onCancel={() => router.push("/admin/products")}
             />
 
-            <div className="rv-stack">
-              <Card title="Actions">
+            <div className="rv-stack rv-product-edit-rail">
+              <Card title="Actions" className="rv-product-edit-rail-card">
                 <div className="rv-stack">
                   <a
                     className="rv-btn"
@@ -128,7 +129,7 @@ export default function EditProductPage() {
                 </div>
               </Card>
 
-              <Card title="Details" flush>
+              <Card title="Details" flush className="rv-product-edit-rail-card">
                 <div className="rv-card__body">
                   <KeyValue
                     entries={[
@@ -143,7 +144,7 @@ export default function EditProductPage() {
                 </div>
               </Card>
 
-              <Card title="Price & stock history" description="Latest 100 changes" flush>
+              <Card title="Price & stock history" description="Latest 100 changes" flush className="rv-product-edit-rail-card">
                 {history.loading && !history.data ? (
                   <div className="rv-card__body">
                     <Loading label="Loading history…" />

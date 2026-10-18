@@ -1,0 +1,209 @@
+.rv-product-edit-content {
+  max-width: 1680px;
+  gap: 0;
+  padding: 24px 32px 88px;
+}
+
+.rv-product-edit-layout {
+  grid-template-columns: minmax(0, 1.85fr) minmax(300px, 0.85fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.rv-product-edit-form {
+  min-width: 0;
+  gap: 16px;
+}
+
+.rv-product-edit-section {
+  overflow: hidden;
+  border-color: rgba(91, 112, 87, 0.2);
+  box-shadow: 0 3px 14px rgba(24, 62, 48, 0.045);
+}
+
+.rv-product-edit-section > .rv-card__header {
+  align-items: center;
+  padding: 18px 24px;
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(240, 238, 228, 0.38));
+}
+
+.rv-product-edit-section > .rv-card__header h2 {
+  font-size: 1.38rem;
+}
+
+.rv-product-edit-section > .rv-card__header .rv-hint {
+  max-width: 640px;
+  margin-top: 4px;
+  line-height: 1.55;
+}
+
+.rv-product-edit-section > .rv-card__body {
+  padding: 24px;
+}
+
+.rv-product-edit-form .rv-form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 20px;
+}
+
+.rv-product-edit-form .rv-field {
+  min-width: 0;
+}
+
+.rv-product-edit-form .rv-input,
+.rv-product-edit-form .rv-select,
+.rv-product-edit-form .rv-textarea {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.rv-product-edit-section--basics > .rv-card__body {
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.38), transparent 180px);
+}
+
+.rv-product-edit-section--copy .rv-card__header {
+  align-items: flex-start;
+}
+
+.rv-product-edit-section--copy .rv-card__actions {
+  flex: 0 0 auto;
+}
+
+.rv-product-edit-section--variants .rv-table-wrap {
+  max-height: 560px;
+  overflow: auto;
+}
+
+.rv-product-edit-section--variants .rv-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--rv-panel);
+}
+
+.rv-product-edit-rail {
+  min-width: 0;
+  gap: 16px;
+}
+
+.rv-product-edit-rail-card {
+  overflow: hidden;
+  border-color: rgba(91, 112, 87, 0.2);
+  box-shadow: 0 3px 14px rgba(24, 62, 48, 0.045);
+}
+
+.rv-product-edit-rail-card > .rv-card__header {
+  padding: 18px 20px 16px;
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(240, 238, 228, 0.38));
+}
+
+.rv-product-edit-rail-card > .rv-card__body:not(.rv-card__body--flush) {
+  padding: 18px 20px;
+}
+
+.rv-product-edit-rail-card .rv-stack .rv-btn {
+  width: 100%;
+}
+
+.rv-product-edit-rail-card .rv-list__row {
+  align-items: flex-start;
+  padding: 13px 18px;
+}
+
+.rv-product-edit-rail-card .rv-list__meta {
+  max-width: 58%;
+  overflow-wrap: anywhere;
+  font-size: 0.74rem;
+}
+
+.rv-product-edit-save-card {
+  position: sticky;
+  bottom: 12px;
+  z-index: 15;
+  border-color: rgba(69, 107, 80, 0.32);
+  box-shadow: 0 10px 30px rgba(18, 52, 39, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.rv-product-edit-save-card > .rv-card__body {
+  padding: 0;
+  background: rgba(255, 253, 248, 0.94);
+}
+
+.rv-product-edit-save-card .rv-form-actions {
+  position: static;
+  padding: 14px 18px;
+  background: transparent;
+}
+
+@media (max-width: 1450px) {
+  .rv-product-edit-form .rv-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1080px) {
+  .rv-product-edit-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-product-edit-rail {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .rv-product-edit-rail-card:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .rv-product-edit-content {
+    padding: 16px 14px 64px;
+  }
+
+  .rv-product-edit-layout {
+    gap: 18px;
+  }
+
+  .rv-product-edit-section > .rv-card__header,
+  .rv-product-edit-rail-card > .rv-card__header {
+    padding: 16px;
+  }
+
+  .rv-product-edit-section > .rv-card__body {
+    padding: 18px 16px;
+  }
+
+  .rv-product-edit-form .rv-form-grid,
+  .rv-product-edit-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-product-edit-rail-card:last-child {
+    grid-column: auto;
+  }
+
+  .rv-product-edit-section--copy > .rv-card__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rv-product-edit-section--copy .rv-card__actions {
+    margin-left: 0;
+  }
+
+  .rv-product-edit-form .rv-span-2 {
+    grid-column: auto;
+  }
+
+  .rv-product-edit-save-card .rv-form-actions {
+    padding: 12px;
+  }
+
+  .rv-product-edit-save-card .rv-form-actions .rv-btn {
+    flex: 1;
+  }
+}

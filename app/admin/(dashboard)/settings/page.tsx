@@ -603,7 +603,7 @@ export default function AdminSettingsPage() {
             {tab === "ai" ? (
               <Card
                 title="OpenRouter AI"
-                description="Configure API access and choose a model for Generate with AI on the product form."
+                description="Configure API access and choose a model for Generate with AI on product, category, and blog forms."
                 actions={
                   aiState.data ? (
                     <Badge tone={aiState.data.configured ? "green" : "gray"}>
