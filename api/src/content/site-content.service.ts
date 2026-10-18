@@ -17,6 +17,8 @@ export const SITE_CONTENT_DEFAULTS: Record<string, unknown> = {
   "home.ownerBio": "",
   "home.ownerBioId": "",
   "home.ownerImage": "",
+  "about.rendiImage": "",
+  "about.pajarImage": "",
   "home.ownerCtaLabel": "",
   "home.ownerCtaLabelId": "",
   "home.ownerCtaHref": "",
@@ -26,7 +28,7 @@ export const SITE_CONTENT_DEFAULTS: Record<string, unknown> = {
   "home.idTranslationStatus": "Missing",
 };
 
-const PUBLIC_PREFIXES = ["home.", "shipping."] as const;
+const PUBLIC_PREFIXES = ["home.", "about.", "shipping."] as const;
 
 @Injectable()
 export class SiteContentService {

@@ -144,6 +144,8 @@ export type SiteContent = {
   ownerRole: string;
   ownerBio: string;
   ownerImage: string;
+  aboutRendiImage: string;
+  aboutPajarImage: string;
   ownerCtaLabel: string;
   ownerCtaHref: string;
   contentLocale: Language;
@@ -439,6 +441,8 @@ const defaultSiteContent: SiteContent = {
   ownerBio:
     "A lifelong passion for Indonesia's natural treasures. RENDI VIRGO is dedicated to sharing the beauty and authenticity of our local stones with the world.",
   ownerImage: "/images/rendi-virgo-owner-cutout.png",
+  aboutRendiImage: "/images/rendi-virgo-owner-cutout.png",
+  aboutPajarImage: "/images/pajar-agung-owner-cutout.png",
   ownerCtaLabel: "About Us",
   ownerCtaHref: "/about-us",
   contentLocale: "en",
@@ -462,6 +466,8 @@ export async function getSiteContent(language: Language = "en"): Promise<SiteCon
     ownerRole: value("home.ownerRole", defaultSiteContent.ownerRole),
     ownerBio: value("home.ownerBio", defaultSiteContent.ownerBio),
     ownerImage: value("home.ownerImage", defaultSiteContent.ownerImage) || defaultSiteContent.ownerImage,
+    aboutRendiImage: value("about.rendiImage", "") || value("home.ownerImage", defaultSiteContent.ownerImage) || defaultSiteContent.ownerImage,
+    aboutPajarImage: value("about.pajarImage", "") || "/images/pajar-agung-owner-cutout.png",
     ownerCtaLabel: value("home.ownerCtaLabel", defaultSiteContent.ownerCtaLabel),
     ownerCtaHref: value("home.ownerCtaHref", defaultSiteContent.ownerCtaHref) || defaultSiteContent.ownerCtaHref,
     contentLocale: value("home.contentLocale", "en"),

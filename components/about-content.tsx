@@ -10,7 +10,8 @@ export type AboutContentProps = {
   ownerName: string;
   ownerRole: string;
   ownerBio: string;
-  ownerImage: string;
+  aboutRendiImage: string;
+  aboutPajarImage: string;
   heroImage: string;
   email: string;
   storyParagraphs: string[];
@@ -22,7 +23,8 @@ export function AboutContent({
   ownerName,
   ownerRole,
   ownerBio,
-  ownerImage,
+  aboutRendiImage,
+  aboutPajarImage,
   heroImage,
   email,
   storyParagraphs,
@@ -38,14 +40,14 @@ export function AboutContent({
     {
       key: "rendi",
       name: ownerName,
-      image: ownerImage,
+      image: aboutRendiImage,
       role: ownerRole,
       alt: `${ownerName}, ${ownerRole}`,
     },
     {
       key: "pajar",
       name: "PAJAR AGUNG",
-      image: "/images/pajar-agung-owner-cutout.png",
+      image: aboutPajarImage,
       role: ownerRole,
       alt: copy.pajarPortrait,
     },

@@ -48,7 +48,8 @@ export default async function AboutPage() {
       ownerRole={siteContent.ownerRole || "Founder & Curator"}
       ownerBio={siteContent.ownerBio}
       ownerBioLanguage={siteContent.contentLocale}
-      ownerImage={siteContent.ownerImage}
+      aboutRendiImage={siteContent.aboutRendiImage}
+      aboutPajarImage={siteContent.aboutPajarImage}
       heroImage={siteContent.heroImage}
       email={store.store.email || "cs@rendivirgo.com"}
       storyParagraphs={storyParagraphs.length ? storyParagraphs : fallbackStory}

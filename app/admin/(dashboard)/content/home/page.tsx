@@ -21,6 +21,8 @@ type HomeForm = {
   ownerRoleId: string;
   ownerBio: string;
   ownerBioId: string;
+  aboutRendiImage: string;
+  aboutPajarImage: string;
   ownerCtaLabel: string;
   ownerCtaLabelId: string;
   ownerCtaHref: string;
@@ -41,6 +43,8 @@ const emptyForm: HomeForm = {
   ownerRoleId: "",
   ownerBio: "",
   ownerBioId: "",
+  aboutRendiImage: "",
+  aboutPajarImage: "/images/pajar-agung-owner-cutout.png",
   ownerCtaLabel: "",
   ownerCtaLabelId: "",
   ownerCtaHref: "",
@@ -72,6 +76,8 @@ function formFrom(data: SiteContent): HomeForm {
     ownerRoleId: asText(data["home.ownerRoleId"]),
     ownerBio: asText(data["home.ownerBio"]),
     ownerBioId: asText(data["home.ownerBioId"]),
+    aboutRendiImage: asText(data["about.rendiImage"]) || asText(data["home.ownerImage"]),
+    aboutPajarImage: asText(data["about.pajarImage"]) || "/images/pajar-agung-owner-cutout.png",
     ownerCtaLabel: asText(data["home.ownerCtaLabel"]),
     ownerCtaLabelId: asText(data["home.ownerCtaLabelId"]),
     ownerCtaHref: asText(data["home.ownerCtaHref"]),
@@ -122,6 +128,8 @@ export default function ContentHomePage() {
     if (form.ownerRoleId !== saved.ownerRoleId) payload["home.ownerRoleId"] = form.ownerRoleId;
     if (form.ownerBio !== saved.ownerBio) payload["home.ownerBio"] = form.ownerBio;
     if (form.ownerBioId !== saved.ownerBioId) payload["home.ownerBioId"] = form.ownerBioId;
+    if (form.aboutRendiImage !== saved.aboutRendiImage) payload["about.rendiImage"] = form.aboutRendiImage;
+    if (form.aboutPajarImage !== saved.aboutPajarImage) payload["about.pajarImage"] = form.aboutPajarImage;
     if (form.ownerCtaLabel !== saved.ownerCtaLabel) payload["home.ownerCtaLabel"] = form.ownerCtaLabel;
     if (form.ownerCtaLabelId !== saved.ownerCtaLabelId) payload["home.ownerCtaLabelId"] = form.ownerCtaLabelId;
     if (form.idTranslationStatus !== saved.idTranslationStatus) payload["home.idTranslationStatus"] = form.idTranslationStatus;
@@ -249,6 +257,25 @@ export default function ContentHomePage() {
                 <Field label="Indonesian translation status" hint="Only set to ready after every Indonesian field has been reviewed.">
                   <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
                 </Field>
+              </div>
+            </Card>
+
+            <Card title="About Us owner photos" description="These photos are separate from the owner story image used on the Home page.">
+              <div className="rv-form-grid">
+                <MediaPicker
+                  label="Rendi Virgo photo"
+                  folder="pages"
+                  multiple={false}
+                  value={form.aboutRendiImage ? [form.aboutRendiImage] : []}
+                  onChange={(urls) => update("aboutRendiImage", urls[0] ?? "")}
+                />
+                <MediaPicker
+                  label="Pajar Agung photo"
+                  folder="pages"
+                  multiple={false}
+                  value={form.aboutPajarImage ? [form.aboutPajarImage] : []}
+                  onChange={(urls) => update("aboutPajarImage", urls[0] ?? "")}
+                />
               </div>
             </Card>
 
