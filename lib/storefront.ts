@@ -87,9 +87,12 @@ export type ApiBlogPost = {
   excerpt: string;
   body?: string;
   coverImage: string | null;
+  coverAlt: string | null;
   tags: string[];
   status: "Draft" | "Published" | "Scheduled" | "Archived";
   author: string;
+  authorType: "Person" | "Organization";
+  authorUrl: string | null;
   readMinutes: number;
   views: number;
   publishedAt: string | null;

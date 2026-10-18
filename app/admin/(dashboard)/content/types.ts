@@ -1,5 +1,6 @@
 export type ContentStatus = "Draft" | "Published" | "Scheduled" | "Archived";
 export type TranslationStatus = "Missing" | "Draft" | "Review" | "Ready";
+export type BlogAuthorType = "Person" | "Organization";
 
 export const translationStatusOptions: Array<{ value: TranslationStatus; label: string }> = [
   { value: "Missing", label: "Missing" },
@@ -22,9 +23,13 @@ export type BlogPost = {
   excerpt: string;
   body: string;
   coverImage: string | null;
+  coverAlt: string | null;
+  coverAltId: string | null;
   tags: string[];
   status: ContentStatus;
   author: string;
+  authorType: BlogAuthorType;
+  authorUrl: string | null;
   readMinutes: number;
   views: number;
   metaTitle: string | null;

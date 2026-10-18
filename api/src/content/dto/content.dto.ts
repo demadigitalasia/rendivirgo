@@ -9,12 +9,13 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUrl,
   Max,
   MaxLength,
   Min,
   MinLength,
 } from "class-validator";
-import { BannerPlacement, ContentStatus, TranslationStatus } from "../../../generated/prisma";
+import { BannerPlacement, BlogAuthorType, ContentStatus, TranslationStatus } from "../../../generated/prisma";
 import { PaginationQueryDto } from "../../common/dto/pagination.dto";
 
 const optionalBoolean = () =>
@@ -67,6 +68,16 @@ export class CreateBlogPostDto {
   coverImage?: string | null;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  coverAlt?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  coverAltId?: string | null;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
@@ -79,6 +90,15 @@ export class CreateBlogPostDto {
   @IsString()
   @MaxLength(120)
   author?: string;
+
+  @IsOptional()
+  @IsEnum(BlogAuthorType)
+  authorType?: BlogAuthorType;
+
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(1000)
+  authorUrl?: string | null;
 
   @IsOptional()
   @IsInt()

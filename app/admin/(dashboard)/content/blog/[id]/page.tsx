@@ -12,6 +12,7 @@ import {
   type ApiState,
 } from "@/components/admin/api";
 import { MediaPicker } from "@/components/admin/media";
+import { BlogBodyEditor } from "@/components/admin/blog-body-editor";
 import { toast } from "@/components/admin/toast";
 import {
   Button,
@@ -25,7 +26,7 @@ import {
   TextArea,
   TextInput,
 } from "@/components/admin/ui";
-import { contentStatusOptions, parseTags, translationStatusOptions, type BlogPost, type ContentStatus, type TranslationStatus } from "../../types";
+import { contentStatusOptions, parseTags, translationStatusOptions, type BlogAuthorType, type BlogPost, type ContentStatus, type TranslationStatus } from "../../types";
 
 type BlogForm = {
   title: string;
@@ -35,11 +36,15 @@ type BlogForm = {
   tags: string;
   status: ContentStatus;
   author: string;
+  authorType: BlogAuthorType;
+  authorUrl: string;
   readMinutes: string;
   publishedAt: string;
   metaTitle: string;
   metaDescription: string;
   coverImage: string;
+  coverAlt: string;
+  coverAltId: string;
   titleId: string;
   excerptId: string;
   bodyId: string;
@@ -57,11 +62,15 @@ const emptyForm: BlogForm = {
   tags: "",
   status: "Draft",
   author: "RENDI VIRGO",
+  authorType: "Organization",
+  authorUrl: "",
   readMinutes: "5",
   publishedAt: "",
   metaTitle: "",
   metaDescription: "",
   coverImage: "",
+  coverAlt: "",
+  coverAltId: "",
   titleId: "",
   excerptId: "",
   bodyId: "",
@@ -80,11 +89,15 @@ function formFrom(post: BlogPost): BlogForm {
     tags: post.tags.join(", "),
     status: post.status,
     author: post.author,
+    authorType: post.authorType ?? "Organization",
+    authorUrl: post.authorUrl ?? "",
     readMinutes: String(post.readMinutes),
     publishedAt: toDateTimeInputValue(post.publishedAt),
     metaTitle: post.metaTitle ?? "",
     metaDescription: post.metaDescription ?? "",
     coverImage: post.coverImage ?? "",
+    coverAlt: post.coverAlt ?? "",
+    coverAltId: post.coverAltId ?? "",
     titleId: post.titleId ?? "",
     excerptId: post.excerptId ?? "",
     bodyId: post.bodyId ?? "",
@@ -131,9 +144,13 @@ export default function BlogEditorPage() {
       excerpt: form.excerpt,
       body: form.body,
       coverImage: form.coverImage || null,
+      coverAlt: form.coverAlt.trim() || null,
+      coverAltId: form.coverAltId.trim() || null,
       tags: parseTags(form.tags),
       status: form.status,
       author: form.author.trim() || "RENDI VIRGO",
+      authorType: form.authorType,
+      authorUrl: form.authorUrl.trim() || null,
       metaTitle: form.metaTitle.trim() || null,
       metaDescription: form.metaDescription.trim() || null,
       titleId: form.titleId.trim() || null,
@@ -231,8 +248,8 @@ export default function BlogEditorPage() {
                 <Field label="Excerpt" hint="Shown in listings and search results">
                   <TextArea rows={3} value={form.excerpt} onChange={(value) => update("excerpt", value)} />
                 </Field>
-                <Field label="Body" hint="Plain text or Markdown">
-                  <TextArea code rows={18} value={form.body} onChange={(value) => update("body", value)} />
+                <Field label="Body" hint="Use the toolbar to format paragraphs and preview the article.">
+                  <BlogBodyEditor value={form.body} onChange={(value) => update("body", value)} />
                 </Field>
               </div>
             </Card>
@@ -251,8 +268,11 @@ export default function BlogEditorPage() {
                 <Field label="Ringkasan">
                   <TextArea rows={3} value={form.excerptId} onChange={(value) => update("excerptId", value)} />
                 </Field>
-                <Field label="Isi artikel">
-                  <TextArea code rows={18} value={form.bodyId} onChange={(value) => update("bodyId", value)} />
+                <Field label="Isi artikel" hint="Gunakan toolbar untuk mengatur format dan melihat pratinjau.">
+                  <BlogBodyEditor value={form.bodyId} onChange={(value) => update("bodyId", value)} />
+                </Field>
+                <Field label="Alt teks sampul" hint="Jelaskan isi gambar dalam bahasa Indonesia secara singkat.">
+                  <TextInput value={form.coverAltId} onChange={(value) => update("coverAltId", value)} />
                 </Field>
                 <div className="rv-form-grid">
                   <Field label="Judul meta">
@@ -278,6 +298,26 @@ export default function BlogEditorPage() {
                     </Field>
                     <Field label="Author">
                       <TextInput value={form.author} onChange={(value) => update("author", value)} />
+                    </Field>
+                  </div>
+                  <div className="rv-form-grid">
+                    <Field label="Author type">
+                      <Select
+                        value={form.authorType}
+                        onChange={(value) => update("authorType", value as BlogAuthorType)}
+                        options={[
+                          { value: "Organization", label: "Organization" },
+                          { value: "Person", label: "Person" },
+                        ]}
+                      />
+                    </Field>
+                    <Field label="Author profile URL" hint="Optional; add a public profile or About page for a person author.">
+                      <TextInput
+                        type="url"
+                        value={form.authorUrl}
+                        onChange={(value) => update("authorUrl", value)}
+                        placeholder="https://rendivirgo.com/about-us"
+                      />
                     </Field>
                   </div>
                   <div className="rv-form-grid">
@@ -324,6 +364,9 @@ export default function BlogEditorPage() {
                   </Field>
                   <Field label="Meta description">
                     <TextArea rows={3} value={form.metaDescription} onChange={(value) => update("metaDescription", value)} />
+                  </Field>
+                  <Field label="Cover image alt text" hint="Briefly describe what is visible in the cover image.">
+                    <TextInput value={form.coverAlt} onChange={(value) => update("coverAlt", value)} />
                   </Field>
                 </div>
               </Card>

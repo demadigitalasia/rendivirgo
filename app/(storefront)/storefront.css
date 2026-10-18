@@ -206,7 +206,6 @@
 .storefront .journal-card__visual img, .storefront .journal-featured__visual img { transition: transform .8s var(--ease-organic); }
 .storefront .journal-card:hover .journal-card__visual img, .storefront .journal-featured:hover .journal-featured__visual img { transform: scale(1.04); }
 .storefront .journal-featured__visual { overflow: hidden; }
-.storefront .article-hero__cover { border-radius: 12px; }
 .storefront .article-side { top: 112px; }
 .storefront .article-toc, .storefront .article-facts { border-radius: 10px; }
 .storefront .article__body h2, .storefront .article__body h3 { scroll-margin-top: 120px; }

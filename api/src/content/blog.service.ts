@@ -14,8 +14,11 @@ export const blogSummarySelect = {
   title: true,
   excerpt: true,
   coverImage: true,
+  coverAlt: true,
   tags: true,
   author: true,
+  authorType: true,
+  authorUrl: true,
   readMinutes: true,
   publishedAt: true,
   views: true,
@@ -27,7 +30,9 @@ export const blogSummarySelect = {
   tagsId: true,
   metaTitleId: true,
   metaDescriptionId: true,
+  coverAltId: true,
   idTranslationStatus: true,
+  updatedAt: true,
 } satisfies Prisma.BlogPostSelect;
 
 export type BlogPostSummary = Prisma.BlogPostGetPayload<{ select: typeof blogSummarySelect }>;
@@ -41,6 +46,7 @@ export class BlogService {
 
   private toPublic<T extends {
     title: string; excerpt: string; tags: string[]; metaTitle: string | null; metaDescription: string | null;
+    coverAlt: string | null; coverAltId: string | null;
     titleId: string | null; excerptId: string | null; bodyId: string | null; tagsId: string[];
     metaTitleId: string | null; metaDescriptionId: string | null; idTranslationStatus: string; body?: string;
   }>(post: T, language: StorefrontLanguage) {
@@ -48,7 +54,7 @@ export class BlogService {
       (!post.excerpt.trim() || Boolean(post.excerptId?.trim())) &&
       post.tagsId.length === post.tags.length &&
       (post.body === undefined || !post.body.trim() || Boolean(post.bodyId?.trim()));
-    const { titleId, excerptId, bodyId, tagsId, metaTitleId, metaDescriptionId, idTranslationStatus, ...publicPost } = post;
+    const { titleId, excerptId, bodyId, tagsId, metaTitleId, metaDescriptionId, coverAltId, idTranslationStatus, ...publicPost } = post;
     return {
       ...publicPost,
       title: idReady ? titleId! : post.title,
@@ -57,6 +63,7 @@ export class BlogService {
       tags: idReady ? tagsId : post.tags,
       metaTitle: idReady ? metaTitleId : post.metaTitle,
       metaDescription: idReady ? metaDescriptionId : post.metaDescription,
+      coverAlt: idReady ? coverAltId : post.coverAlt,
       contentLocale: idReady ? "id" : "en",
     };
   }
@@ -183,9 +190,13 @@ export class BlogService {
         excerpt: dto.excerpt ?? "",
         body: dto.body ?? "",
         coverImage: dto.coverImage ?? null,
+        coverAlt: dto.coverAlt ?? null,
+        coverAltId: dto.coverAltId ?? null,
         tags: dto.tags ?? [],
         status,
         author: dto.author ?? "RENDI VIRGO",
+        authorType: dto.authorType ?? "Organization",
+        authorUrl: dto.authorUrl ?? null,
         readMinutes: dto.readMinutes ?? 5,
         metaTitle: dto.metaTitle ?? null,
         metaDescription: dto.metaDescription ?? null,
@@ -238,9 +249,13 @@ export class BlogService {
         ...(dto.excerpt !== undefined ? { excerpt: dto.excerpt } : {}),
         ...(dto.body !== undefined ? { body: dto.body } : {}),
         ...(dto.coverImage !== undefined ? { coverImage: dto.coverImage } : {}),
+        ...(dto.coverAlt !== undefined ? { coverAlt: dto.coverAlt } : {}),
+        ...(dto.coverAltId !== undefined ? { coverAltId: dto.coverAltId } : {}),
         ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.author !== undefined ? { author: dto.author } : {}),
+        ...(dto.authorType !== undefined ? { authorType: dto.authorType } : {}),
+        ...(dto.authorUrl !== undefined ? { authorUrl: dto.authorUrl } : {}),
         ...(dto.readMinutes !== undefined ? { readMinutes: dto.readMinutes } : {}),
         ...(dto.metaTitle !== undefined ? { metaTitle: dto.metaTitle } : {}),
         ...(dto.metaDescription !== undefined ? { metaDescription: dto.metaDescription } : {}),

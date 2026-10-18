@@ -6,18 +6,42 @@ import { Pagination } from "@/components/pagination";
 import { formatContentDate } from "@/components/page-body";
 import { dictionaries } from "@/lib/i18n";
 import { getRequestLanguage } from "@/lib/server-locale";
-import { localizedAlternates } from "@/lib/locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
 import { getBlogPosts } from "@/lib/storefront";
 
 const PAGE_SIZE = 9;
 
-export async function generateMetadata(): Promise<Metadata> {
-  const language = await getRequestLanguage();
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const [query, language] = await Promise.all([searchParams, getRequestLanguage()]);
   const journal = dictionaries[language].journal;
+  const rawPage = Array.isArray(query.page) ? query.page[0] : query.page;
+  const rawTag = Array.isArray(query.tag) ? query.tag[0] : query.tag;
+  const page = Math.max(1, Number(rawPage) || 1);
+  const activeTag = rawTag?.trim() || "";
+  const params = new URLSearchParams();
+  if (activeTag) params.set("tag", activeTag);
+  if (page > 1) params.set("page", String(page));
+  const queryString = params.toString();
+  const currentPath = `${localizedPath("/blog", language)}${queryString ? `?${queryString}` : ""}`;
+  const paginatedLanguages = page > 1 && !activeTag
+    ? {
+        en: `${localizedPath("/blog", "en")}?page=${page}`,
+        id: `${localizedPath("/blog", "id")}?page=${page}`,
+      }
+    : undefined;
+
   return {
-    title: `${journal.eyebrow} — RENDI VIRGO`,
+    title: page > 1
+      ? `${language === "id" ? "Halaman" : "Page"} ${page} — ${journal.eyebrow} — RENDI VIRGO`
+      : `${journal.eyebrow} — RENDI VIRGO`,
     description: journal.intro,
-    alternates: localizedAlternates("/blog", language),
+    alternates: activeTag || page > 1
+      ? { canonical: currentPath, ...(paginatedLanguages ? { languages: paginatedLanguages } : {}) }
+      : localizedAlternates("/blog", language),
   };
 }
 

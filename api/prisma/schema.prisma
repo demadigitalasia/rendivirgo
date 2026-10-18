@@ -89,6 +89,11 @@ enum ContentStatus {
   Archived
 }
 
+enum BlogAuthorType {
+  Person
+  Organization
+}
+
 enum DiscountType {
   Percentage
   Fixed
@@ -588,9 +593,13 @@ model BlogPost {
   excerpt        String        @default("")
   body           String        @default("")
   coverImage     String?
+  coverAlt       String?
+  coverAltId     String?
   tags           String[]      @default([])
   status         ContentStatus @default(Draft)
   author         String        @default("RENDI VIRGO")
+  authorType     BlogAuthorType @default(Organization)
+  authorUrl      String?
   readMinutes    Int           @default(5)
   views          Int           @default(0)
   metaTitle      String?

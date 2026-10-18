@@ -23,11 +23,28 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const englishFallback = language === "id" && post.contentLocale === "en";
   const title = englishFallback ? `Artikel berbahasa Inggris | ${post.title} | RENDI VIRGO` : post.metaTitle ?? `${post.title} | RENDI VIRGO ${journal.eyebrow}`;
   const description = englishFallback ? dictionaries.id.draft.fallback : post.metaDescription ?? post.excerpt;
+  const coverImage = absoluteUrl(journalCover(post.coverImage, post.slug));
   return {
     title,
     description,
     alternates: localizedAlternates(`/blog/${post.slug}`, language),
-    openGraph: { title: post.title, description, type: "article" },
+    openGraph: {
+      title: post.title,
+      description,
+      type: "article",
+      siteName: "RENDI VIRGO",
+      locale: language === "id" ? "id_ID" : "en_GB",
+      images: [coverImage],
+      publishedTime: post.publishedAt ?? post.updatedAt,
+      modifiedTime: post.updatedAt,
+      ...(post.authorUrl ? { authors: [post.authorUrl] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description,
+      images: [coverImage],
+    },
   };
 }
 
@@ -67,7 +84,11 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
     datePublished: publishedAt,
     dateModified: post.updatedAt,
     image: [absoluteUrl(journalCover(post.coverImage, post.slug))],
-    author: { "@type": "Organization", name: post.author || "RENDI VIRGO" },
+    author: {
+      "@type": post.authorType ?? "Organization",
+      name: post.author || "RENDI VIRGO",
+      url: post.authorUrl || (post.authorType === "Organization" ? absoluteUrl("/") : undefined),
+    },
     publisher: {
       "@type": "Organization",
       name: "RENDI VIRGO",
@@ -93,30 +114,24 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
             tone="light"
             items={[{ label: journal.eyebrow, href: "/blog" }, { label: post.title }]}
           />
-          <div className="article-hero__grid">
-            <div>
-              {language === "id" && post.contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
-              <div className="article-hero__tags">
-                <span className="article-hero__chip">{category}</span>
-                {post.tags.slice(1, 3).map((tag) => (
-                  <span key={tag} className="article-hero__tag">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <h1 lang={post.contentLocale}>{post.title}</h1>
-              <p className="article-hero__excerpt" lang={post.contentLocale}>{post.excerpt}</p>
-              <div className="article-hero__meta">
-                <span>{post.author || "RENDI VIRGO"}</span>
-                <span aria-hidden="true">·</span>
-                <span>{publishedLabel}</span>
-                <span aria-hidden="true">·</span>
-                  <span>{journal.readTime(post.readMinutes)}</span>
-              </div>
+          <div className="article-hero__copy">
+            {language === "id" && post.contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+            <div className="article-hero__tags">
+              <span className="article-hero__chip">{category}</span>
+              {post.tags.slice(1, 3).map((tag) => (
+                <span key={tag} className="article-hero__tag">
+                  {tag}
+                </span>
+              ))}
             </div>
-            <div className="article-hero__cover">
-              <JournalCover src={post.coverImage} slug={post.slug} alt="" width={880} height={620}
-                sizes="(max-width: 980px) 100vw, 420px" />
+            <h1 lang={post.contentLocale}>{post.title}</h1>
+            <p className="article-hero__excerpt" lang={post.contentLocale}>{post.excerpt}</p>
+            <div className="article-hero__meta">
+              <span>{post.author || "RENDI VIRGO"}</span>
+              <span aria-hidden="true">·</span>
+              <span>{publishedLabel}</span>
+              <span aria-hidden="true">·</span>
+              <span>{journal.readTime(post.readMinutes)}</span>
             </div>
           </div>
         </div>
@@ -124,6 +139,10 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
 
       <div className="page-container article-layout">
         <article className="article article--rich">
+          <figure className="article-cover">
+            <JournalCover src={post.coverImage} slug={post.slug} alt={post.coverAlt?.trim() || post.title} width={880} height={620}
+              sizes="(max-width: 980px) 100vw, (max-width: 1280px) 68vw, 820px" />
+          </figure>
           <div lang={post.contentLocale ?? language}>
             <PageBody body={post.body ?? ""} className="article__body" />
           </div>

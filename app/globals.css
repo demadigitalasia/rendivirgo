@@ -418,23 +418,24 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .article-hero { background: linear-gradient(160deg, var(--forest) 0%, var(--forest-deep) 120%); color: var(--ivory); position: relative; }
 .article-hero::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, var(--bronze), transparent 60%); opacity: .6; pointer-events: none; }
 .article-hero .breadcrumb { padding-top: 22px; }
-.article-hero__grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: clamp(28px, 5vw, 64px); align-items: center; padding: 12px 0 56px; }
+.article-hero__copy { max-width: 900px; padding: 12px 0 44px; }
 .article-hero__tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .article-hero__chip { padding: 5px 12px; background: var(--bronze); color: var(--forest-deep); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
 .article-hero__tag { padding: 5px 12px; border: 1px solid rgba(247,244,238,.35); color: rgba(247,244,238,.85); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
-.article-hero__grid h1 { font-size: clamp(2.4rem, 5vw, 4.2rem); line-height: 1; font-weight: 400; }
+.article-hero__copy h1 { font-size: clamp(2.4rem, 5vw, 4.2rem); line-height: 1; font-weight: 400; }
 .article-hero__excerpt { margin-top: 16px; max-width: 620px; color: rgba(247,244,238,.82); font-family: var(--font-display); font-size: 1.2rem; }
 .article-hero__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; color: var(--bronze-light); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
-.article-hero__cover { position: relative; overflow: hidden; border: 1px solid rgba(247,244,238,.22); background: rgba(8, 38, 29, .5); }
-.article-hero__cover img { width: 100%; height: auto; display: block; aspect-ratio: 4 / 3; object-fit: cover; }
-.article-hero__cover--empty { aspect-ratio: 4 / 3; display: grid; place-content: center; gap: 4px; text-align: center; background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.25), transparent 40%), linear-gradient(140deg, #2d6049, #0d2e22); }
-.article-hero__cover--empty span { color: var(--bronze-light); font-size: .72rem; letter-spacing: .3em; }
-.article-hero__cover--empty strong { font-family: var(--font-display); font-size: 2.4rem; font-weight: 400; }
 .article-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: clamp(28px, 5vw, 64px); align-items: start; padding: 56px 0 8px; }
 .article--rich { max-width: none; }
+.article-cover { margin: 0 0 36px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; aspect-ratio: 16 / 10; background: var(--ivory); }
+.article-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .article__body > p:first-of-type::first-letter { float: left; font-family: var(--font-display); font-size: 3.4rem; line-height: .9; padding-right: 10px; color: var(--forest); }
 .article__body h2 { scroll-margin-top: 90px; margin: 40px 0 10px; padding-top: 18px; border-top: 2px solid var(--bronze); font-size: 1.8rem; }
 .article__body h3 { scroll-margin-top: 90px; }
+.article__body a { color: var(--forest); text-decoration-color: var(--bronze); text-underline-offset: 3px; }
+.article__body blockquote { margin: 26px 0; padding: 14px 22px; border-left: 3px solid var(--bronze); background: var(--ivory); }
+.article__body blockquote p { margin: 0; color: var(--forest); font-family: var(--font-display); font-size: 1.2rem; }
+.article__body hr { margin: 30px 0; border: 0; border-top: 1px solid var(--line); }
 .article__body ul { list-style: none; padding: 0; display: grid; gap: 10px; }
 .article__body ul li { position: relative; padding: 14px 16px 14px 40px; background: var(--ivory); border: 1px solid var(--line); color: var(--ink); }
 .article__body ul li::before { content: ''; position: absolute; left: 16px; top: 22px; width: 10px; height: 10px; border-radius: 50%; background: var(--bronze); }
@@ -464,7 +465,6 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .article-related .section-heading { justify-content: space-between; }
 .article-related .section-heading::after { display: none; }
 @media (max-width: 980px) {
-  .article-hero__grid { grid-template-columns: 1fr; }
   .article-layout { grid-template-columns: 1fr; }
   .article-side { position: static; grid-template-columns: 1fr 1fr; }
 }
