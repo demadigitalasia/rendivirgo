@@ -166,6 +166,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
             where: {
               id: reservation.variantId,
               productId: reservation.productId,
+              product: { is: { status: "Published", sellOnWeb: true } },
               stockQuantity: { gte: reservation.quantity },
             },
             data: { stockQuantity: { decrement: reservation.quantity } },
@@ -179,6 +180,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
               id: reservation.productId,
               stockModel: "Quantity",
               status: "Published",
+              sellOnWeb: true,
               stockQuantity: { gte: reservation.quantity },
             },
             data: { stockQuantity: { decrement: reservation.quantity } },
@@ -192,7 +194,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
       const uniqueProductIds = [...new Set(input.items.filter((item) => item.stockModel === "Unique").map((item) => item.productId))];
       if (uniqueProductIds.length) {
         const reserved = await tx.product.updateMany({
-          where: { id: { in: uniqueProductIds }, stockModel: "Unique", status: "Published" },
+          where: { id: { in: uniqueProductIds }, stockModel: "Unique", status: "Published", sellOnWeb: true, workshopStockQuantity: 0 },
           data: { status: "Reserved" },
         });
         if (reserved.count !== uniqueProductIds.length) {
@@ -594,6 +596,9 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
     if (order.paymentMethod === "PayPal") {
       throw new BadRequestException("PayPal payments must be confirmed by PayPal");
     }
+    if (order.paymentMethod !== "BankTransfer" && order.paymentMethod !== "Manual") {
+      throw new BadRequestException("This payment method is not eligible for manual settlement");
+    }
     return this.settlePayment({
       orderId,
       paymentMethod: order.paymentMethod,
@@ -831,22 +836,33 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
 
     for (const item of items) {
       if (!item.productId || !item.product) continue;
-      if (item.product.stockModel === "Quantity") {
-        if (item.variantId) {
-          await tx.productVariant.updateMany({
-            where: { id: item.variantId },
-            data: { stockQuantity: { increment: item.quantity } },
-          });
-        } else if (item.product.stockQuantity !== null) {
+      if (item.variantId) {
+        const sharedQuantity = item.quantity - item.workshopAllocatedQuantity;
+        await tx.productVariant.updateMany({
+          where: { id: item.variantId },
+          data: {
+            ...(sharedQuantity > 0 ? { stockQuantity: { increment: sharedQuantity } } : {}),
+            ...(item.workshopAllocatedQuantity > 0 ? { workshopStockQuantity: { increment: item.workshopAllocatedQuantity } } : {}),
+          },
+        });
+      } else if (item.product.stockModel === "Quantity") {
+        if (item.product.stockQuantity !== null) {
+          const sharedQuantity = item.quantity - item.workshopAllocatedQuantity;
           await tx.product.updateMany({
             where: { id: item.productId },
-            data: { stockQuantity: { increment: item.quantity } },
+            data: {
+              ...(sharedQuantity > 0 ? { stockQuantity: { increment: sharedQuantity } } : {}),
+              ...(item.workshopAllocatedQuantity > 0 ? { workshopStockQuantity: { increment: item.workshopAllocatedQuantity } } : {}),
+            },
           });
         }
       } else {
         await tx.product.updateMany({
           where: { id: item.productId, status: { in: ["Reserved", "Sold"] } },
-          data: { status: "Published" },
+          data: {
+            status: "Published",
+            ...(item.workshopAllocatedQuantity > 0 ? { workshopStockQuantity: { increment: item.workshopAllocatedQuantity } } : {}),
+          },
         });
       }
     }
@@ -883,12 +899,14 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
+    if (!order.email) return;
+
     const settings = await this.settings.getNotificationSettings();
     if (!settings.orderConfirmation) return;
     const data = buildOrderEmailData(order);
     if (status === "Shipped") {
       await this.email.send({
-        to: order.email,
+        to: order.email ?? "",
         subject: "Order " + order.orderNumber + " has shipped",
         html: renderOrderShippedEmail({
           ...data,
@@ -899,13 +917,13 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
       });
     } else if (status === "Completed") {
       await this.email.send({
-        to: order.email,
+        to: order.email ?? "",
         subject: "Order " + order.orderNumber + " is complete",
         html: renderOrderCompletedEmail(data),
       });
     } else if (status === "Cancelled") {
       await this.email.send({
-        to: order.email,
+        to: order.email ?? "",
         subject: "Order " + order.orderNumber + " was cancelled",
         html: renderOrderCancelledEmail({ ...data, reason: order.internalNote }),
       });
@@ -970,6 +988,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
     const job = await this.prisma.orderOutbox.findUnique({ where: { id: jobId }, include: { order: { include: orderInclude } } });
     if (!job) return;
     const order = job.order;
+    if (job.kind !== "OrderReceivedAdmin" && !order.email) return;
     const data = buildOrderEmailData(order);
 
     if (job.kind === "OrderReceivedCustomer") {
@@ -977,7 +996,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
       if (!settings.orderConfirmation) return;
       const paymentSettings = await this.settings.getPaymentSettings();
       await this.email.send({
-        to: order.email,
+        to: order.email ?? "",
         subject: `Order ${order.orderNumber} received — payment pending`,
         html: renderOrderReceivedEmail({
           ...data,
@@ -999,7 +1018,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
       await this.email.send({
         to: storeEmail,
         subject: `New order ${order.orderNumber} — ${order.currency} ${order.total.toFixed(2)}`,
-        html: renderNewOrderAdminEmail({ ...data, email: order.email }),
+        html: renderNewOrderAdminEmail({ ...data, email: order.email ?? "" }),
       });
       return;
     }
@@ -1007,7 +1026,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
     const settings = await this.settings.getNotificationSettings();
     if (!settings.orderConfirmation) return;
     await this.email.send({
-      to: order.email,
+      to: order.email ?? "",
       subject: "Payment received — order " + order.orderNumber + " confirmed",
       html: renderOrderPaidEmail(data),
     });

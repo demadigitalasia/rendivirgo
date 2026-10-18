@@ -124,7 +124,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
           },
         });
 
-    if (!order || order.email.toLowerCase() !== input.email.trim().toLowerCase()) {
+    if (!order || !order.email || order.email.toLowerCase() !== input.email.trim().toLowerCase()) {
       throw new NotFoundException("Order not found");
     }
 
@@ -182,7 +182,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
         placedAt: true,
       },
     });
-    if (!order || order.email.toLowerCase() !== email.trim().toLowerCase()) throw new NotFoundException("Order not found");
+    if (!order || !order.email || order.email.toLowerCase() !== email.trim().toLowerCase()) throw new NotFoundException("Order not found");
     if (order.paymentMethod !== "BankTransfer") throw new BadRequestException("This order is not using bank transfer");
     if (order.paymentStatus !== "Pending" || order.status === "Cancelled" || order.status === "Returned") {
       throw new BadRequestException("This order is no longer awaiting a bank transfer");

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useApi, formatDate, formatDateTime, formatNumber, formatUSD, type ApiState } from "@/components/admin/api";
+import { useApi, formatCurrency, formatDate, formatDateTime, formatNumber, formatUSD, type ApiState } from "@/components/admin/api";
 import { BarChart } from "@/components/admin/charts";
 import { Badge, Button, Card, Loading, PageHeader, Stat, StatusBadge } from "@/components/admin/ui";
 
@@ -31,14 +31,18 @@ type Overview = {
     lowStockCount: number;
     soldUniqueCount: number;
   };
+  posKpis: { revenue: number; orders: number };
   salesSeries: Array<{ label: string; revenue: number; orders: number }>;
+  posSalesSeries: Array<{ label: string; revenue: number; orders: number }>;
   statusBreakdown: Array<{ status: string; count: number }>;
   recentOrders: Array<{
     id: string;
     orderNumber: string;
     customerName: string;
     total: number;
+    currency: string;
     status: string;
+    source: string;
     paymentStatus: string;
     placedAt: string;
   }>;
@@ -64,18 +68,41 @@ const ranges = [
 ];
 
 function compactSeries(series: Overview["salesSeries"], range: string) {
-  if (range !== "30d" || series.length < 14) return series;
+  if (range === "12m") {
+    const formatter = new Intl.DateTimeFormat("en-US", { month: "short" });
+    const monthlyPoints = series.map((point) => {
+      const date = new Date(Number(point.label.slice(0, 4)), Number(point.label.slice(5, 7)) - 1, 1);
+      return { point, month: formatter.format(date), year: String(date.getFullYear()).slice(-2) };
+    });
+    const monthCounts = new Map<string, number>();
+    for (const { month } of monthlyPoints) monthCounts.set(month, (monthCounts.get(month) ?? 0) + 1);
 
-  return Array.from({ length: Math.ceil(series.length / 7) }, (_, index) => {
-    const bucket = series.slice(index * 7, index * 7 + 7);
+    return monthlyPoints.map(({ point, month, year }) => ({
+      ...point,
+      label: monthCounts.get(month)! > 1 ? `${month} '${year}` : month,
+    }));
+  }
+
+  if ((range !== "30d" && range !== "90d") || series.length < 14) return series;
+
+  const bucketSize = range === "90d" ? 14 : 7;
+
+  return Array.from({ length: Math.ceil(series.length / bucketSize) }, (_, index) => {
+    const bucket = series.slice(index * bucketSize, index * bucketSize + bucketSize);
     const first = bucket[0];
     const last = bucket[bucket.length - 1];
     return {
-      label: `${first.label.slice(5)}–${last.label.slice(5)}`,
+      label: range === "90d" ? first.label.slice(5) : `${first.label.slice(5)}–${last.label.slice(5)}`,
       revenue: bucket.reduce((total, point) => total + point.revenue, 0),
       orders: bucket.reduce((total, point) => total + point.orders, 0),
     };
   });
+}
+
+function trendViewLabel(range: string) {
+  if (range === "30d") return "weekly";
+  if (range === "90d") return "2-week";
+  return range === "12m" ? "monthly" : "daily";
 }
 
 function changePercent(current: number, previous: number) {
@@ -134,7 +161,7 @@ export default function AdminDashboardPage() {
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-dashboard-content">
         {state.loading && !data ? (
           <Card>
             <Loading label="Loading dashboard…" />
@@ -156,28 +183,34 @@ export default function AdminDashboardPage() {
                 <div>
                   <span className="rv-dashboard-section__eyebrow">Selected period</span>
                   <h2 id="core-performance-heading" className="rv-dashboard-section__title">Core performance</h2>
-                  <p className="rv-dashboard-section__hint">Revenue, paid orders, and new customers.</p>
+                  <p className="rv-dashboard-section__hint">Online revenue and orders, workshop sales, and new customers.</p>
                 </div>
               </div>
               <div className="rv-stat-grid rv-stat-grid--primary">
-              <Stat
-                label="Revenue"
-                value={formatUSD(data.kpis.revenue)}
-                hint={<MetricHint current={data.kpis.revenue} previous={data.comparison.revenue} detail="Net paid orders" />}
-                tone="primary"
-              />
-              <Stat
-                label="Paid orders"
-                value={formatNumber(data.kpis.orders)}
-                hint={<MetricHint current={data.kpis.orders} previous={data.comparison.orders} detail={`All orders ${formatNumber(data.kpis.allOrders)} · Average ${formatUSD(data.kpis.avgOrderValue)}`} />}
-                tone="primary"
-              />
-              <Stat
-                label="New customers"
-                value={formatNumber(data.kpis.newCustomers)}
-                hint={<MetricHint current={data.kpis.newCustomers} previous={data.comparison.newCustomers} detail="First purchase or signup" />}
-                tone="primary"
-              />
+                <Stat
+                  label="Revenue"
+                  value={formatUSD(data.kpis.revenue)}
+                  hint={<MetricHint current={data.kpis.revenue} previous={data.comparison.revenue} detail="Net paid orders" />}
+                  tone="primary"
+                />
+                <Stat
+                  label="Paid orders"
+                  value={formatNumber(data.kpis.orders)}
+                  hint={<MetricHint current={data.kpis.orders} previous={data.comparison.orders} detail={`All orders ${formatNumber(data.kpis.allOrders)} · Average ${formatUSD(data.kpis.avgOrderValue)}`} />}
+                  tone="primary"
+                />
+                <Stat
+                  label="New customers"
+                  value={formatNumber(data.kpis.newCustomers)}
+                  hint={<MetricHint current={data.kpis.newCustomers} previous={data.comparison.newCustomers} detail="First purchase or signup" />}
+                  tone="primary"
+                />
+                <Stat
+                  label="Workshop POS revenue"
+                  value={formatCurrency(data.posKpis.revenue, "IDR")}
+                  hint={`${formatNumber(data.posKpis.orders)} paid POS order(s) · net of refunds`}
+                  tone="primary"
+                />
               </div>
             </section>
 
@@ -188,6 +221,10 @@ export default function AdminDashboardPage() {
                   <h2 id="needs-attention-heading" className="rv-dashboard-section__title">Needs attention</h2>
                   <p className="rv-dashboard-section__hint">Current operating state · independent of the selected period.</p>
                 </div>
+                <div className="rv-dashboard-section__actions" aria-label="Quick actions">
+                  <Button size="sm" variant="primary" href="/admin/products/new">New product</Button>
+                  <Button size="sm" href="/admin/discounts">Manage discounts</Button>
+                </div>
               </div>
               <div className="rv-stat-grid rv-stat-grid--attention">
                 <Stat href="/admin/orders" label="Pending orders" value={formatNumber(data.kpis.pendingOrders)} hint="New and processing · Open orders" tone="attention" />
@@ -196,17 +233,10 @@ export default function AdminDashboardPage() {
               </div>
             </section>
 
-            <Card className="rv-card--priority" title="Quick actions" description="Common tasks for the current operating day">
-              <div className="rv-inline">
-                <Button variant="primary" href="/admin/products/new">New product</Button>
-                <Button href="/admin/discounts">Manage discounts</Button>
-              </div>
-            </Card>
-
             <div className="rv-split rv-split--charts">
               <Card
                 title="Revenue trend"
-                description={`Net paid orders · ${range === "30d" ? "weekly" : "period"} view · USD`}
+                description={`Net paid orders · ${trendViewLabel(range)} view · USD`}
                 actions={<Badge tone="green">{range}</Badge>}
               >
                 <BarChart
@@ -218,13 +248,21 @@ export default function AdminDashboardPage() {
               </Card>
               <Card
                 title="Orders trend"
-                description={`Paid orders · ${range === "30d" ? "weekly" : "period"} view · count`}
+                description={`Paid orders · ${trendViewLabel(range)} view · count`}
                 actions={<Badge tone="blue">{range}</Badge>}
               >
                 <BarChart
                   data={compactSeries(data.salesSeries, range).map((point) => ({ label: point.label, value: point.orders }))}
                   formatValue={(value) => formatNumber(value)}
                   ariaLabel={`Paid orders by period for ${range}`}
+                  height={180}
+                />
+              </Card>
+              <Card className="rv-card--chart-wide" title="Workshop POS revenue trend" description="Paid workshop orders · IDR, shown separately from USD online revenue" actions={<Badge tone="green">IDR</Badge>}>
+                <BarChart
+                  data={compactSeries(data.posSalesSeries, range).map((point) => ({ label: point.label, value: point.revenue }))}
+                  formatValue={(value) => formatCurrency(value, "IDR")}
+                  ariaLabel={`Workshop POS revenue by period for ${range}, in IDR`}
                   height={180}
                 />
               </Card>
@@ -250,7 +288,8 @@ export default function AdminDashboardPage() {
                           <div className="rv-hint">{order.customerName}</div>
                         </div>
                         <div className="rv-list__meta">
-                          <div>{formatUSD(order.total)}</div>
+                          <div>{formatCurrency(order.total, order.currency)}</div>
+                          {order.source === "POS" ? <Badge tone="blue">Workshop POS</Badge> : null}
                           <StatusBadge status={order.status} />
                         </div>
                       </Link>

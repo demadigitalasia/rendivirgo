@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { formatDate, formatNumber, formatUSD, useList, type PaginatedResponse } from "@/components/admin/api";
+import { formatCurrency, formatDate, formatNumber, formatUSD, useList, type PaginatedResponse } from "@/components/admin/api";
 import { DataTable, TablePagination, type Column } from "@/components/admin/data-table";
 import { Button, Card, PageHeader, Select, Stat, StatusBadge, TextInput } from "@/components/admin/ui";
 
@@ -9,12 +9,13 @@ type OrderRow = {
   id: string;
   orderNumber: string;
   customerId: string | null;
-  email: string;
+  email: string | null;
   customerName: string;
   phone: string | null;
   status: string;
   paymentStatus: string;
   paymentMethod: string;
+  source: string;
   paymentProofUploadedAt: string | null;
   currency: string;
   subtotal: number;
@@ -30,6 +31,7 @@ type OrderRow = {
 type OrderSummary = {
   count: number;
   revenue: number;
+  revenueByCurrency: Record<string, number>;
   pending: number;
   paid: number;
 };
@@ -45,6 +47,7 @@ const labelize = (value: string) => value.replace(/([a-z])([A-Z])/g, "$1 $2");
 const statusOptions = orderStatuses.map((value) => ({ value, label: labelize(value) }));
 
 const paymentOptions = paymentStatuses.map((value) => ({ value, label: labelize(value) }));
+const sourceOptions = ["Online", "POS", "Wholesale"].map((value) => ({ value, label: value === "POS" ? "Workshop POS" : value }));
 
 export default function AdminOrdersPage() {
   const state = useList<OrderRow>("/api/admin/orders");
@@ -52,7 +55,7 @@ export default function AdminOrdersPage() {
   const params = state.params;
 
   const proofQueueActive = params.proofQueue === "true";
-  const hasFilters = Boolean(params.search || params.status || params.paymentStatus || params.from || params.to || proofQueueActive);
+  const hasFilters = Boolean(params.search || params.status || params.paymentStatus || params.source || params.from || params.to || proofQueueActive);
 
   const columns: Array<Column<OrderRow>> = [
     {
@@ -71,7 +74,7 @@ export default function AdminOrdersPage() {
       render: (order) => (
         <div>
           <div>{order.customerName}</div>
-          <div className="rv-hint">{order.email}</div>
+          <div className="rv-hint">{order.email ?? "No email"} · {order.source === "POS" ? "Workshop POS" : order.source}</div>
         </div>
       ),
     },
@@ -79,7 +82,7 @@ export default function AdminOrdersPage() {
       key: "total",
       header: "Total",
       align: "right",
-      render: (order) => formatUSD(order.total),
+      render: (order) => formatCurrency(order.total, order.currency),
     },
     {
       key: "status",
@@ -128,7 +131,8 @@ export default function AdminOrdersPage() {
         {data?.summary ? (
           <div className="rv-stat-grid">
             <Stat label="Orders" value={formatNumber(data.summary.count)} hint="Matching current filters" />
-            <Stat label="Revenue" value={formatUSD(data.summary.revenue)} hint="Paid orders, net of refunds" />
+            <Stat label="Revenue · USD" value={formatUSD(data.summary.revenueByCurrency?.USD ?? 0)} hint="Paid orders, net of refunds" />
+            {data.summary.revenueByCurrency?.IDR !== undefined ? <Stat label="Revenue · IDR" value={formatCurrency(data.summary.revenueByCurrency.IDR, "IDR")} hint="Workshop POS, net of refunds" /> : null}
             <Stat label="Pending payment" value={formatNumber(data.summary.pending)} hint="Awaiting payment" />
             <Stat label="Paid" value={formatNumber(data.summary.paid)} hint="Paid or partially refunded" />
           </div>
@@ -178,6 +182,15 @@ export default function AdminOrdersPage() {
                   onChange={(value) => state.update({ paymentStatus: value || undefined, page: 1 })}
                   options={paymentOptions}
                   placeholder="All payments"
+                />
+              </label>
+              <label className="rv-orders-toolbar__field">
+                <span className="rv-label">Source</span>
+                <Select
+                  value={String(params.source ?? "")}
+                  onChange={(value) => state.update({ source: value || undefined, page: 1 })}
+                  options={sourceOptions}
+                  placeholder="All sources"
                 />
               </label>
               <div className="rv-orders-toolbar__date-range" role="group" aria-label="Filter by order date">

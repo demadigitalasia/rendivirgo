@@ -16,40 +16,45 @@ export function BarChart({
   ariaLabel?: string;
 }) {
   if (!data.length) {
-    return <p className="rv-hint">No data for this period yet.</p>;
+    return <div className="rv-chart__empty-state" role="status">No data for this period yet.</div>;
   }
 
   const dataMax = Math.max(...data.map((point) => point.value), 0);
   const max = dataMax || 1;
-  const showZeroValues = data.length <= 12;
   const hasActivity = dataMax > 0;
 
   return (
     <>
-      {!hasActivity ? <p className="rv-chart__empty">No activity in this period.</p> : null}
-      <div className="rv-bars__frame">
-        <div className="rv-bars__scale" aria-hidden="true">
-          <span>{formatValue(dataMax)}</span>
-          <span>{formatValue(0)}</span>
-        </div>
-        <div className="rv-bars" style={{ height }} role="img" aria-label={ariaLabel}>
-          <div className="rv-bars__grid" aria-hidden="true">
-            <span />
-            <span />
+      {hasActivity ? (
+        <div className="rv-bars__frame">
+          <div className="rv-bars__scale" aria-hidden="true">
+            <span>{formatValue(dataMax)}</span>
+            <span>{formatValue(0)}</span>
           </div>
-          {data.map((point) => (
-            <div className="rv-bars__item" key={point.label} title={`${point.label}: ${formatValue(point.value)}`}>
-              <span className="rv-bars__value">
-                {point.value > 0 || showZeroValues ? formatValue(point.value) : ""}
-              </span>
-              <div className="rv-bars__fill" style={{ height: `${Math.max(2, (point.value / max) * 100)}%` }} />
-              <span className="rv-bars__label">{point.label}</span>
+          <div className="rv-bars" style={{ height }} role="img" aria-label={ariaLabel}>
+            <div className="rv-bars__grid" aria-hidden="true">
+              <span />
+              <span />
             </div>
-          ))}
+            {data.map((point, index) => (
+              <div className="rv-bars__item" key={`${point.label}-${index}`} title={`${point.label}: ${formatValue(point.value)}`}>
+                <span className="rv-bars__value">
+                  {point.value > 0 && data.length <= 7 ? formatValue(point.value) : ""}
+                </span>
+                <div className="rv-bars__fill" style={{ height: `${Math.max(2, (point.value / max) * 100)}%` }} />
+                <span className="rv-bars__label">{point.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rv-chart__empty-state" role="status">
+          <strong>No activity in this period</strong>
+          <span>Sales trends will appear here once an order is recorded.</span>
+        </div>
+      )}
       <ul className="rv-sr-only" aria-label={`${ariaLabel} data points`}>
-        {data.map((point) => <li key={point.label}>{point.label}: {formatValue(point.value)}</li>)}
+        {data.map((point, index) => <li key={`${point.label}-${index}`}>{point.label}: {formatValue(point.value)}</li>)}
       </ul>
     </>
   );

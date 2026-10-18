@@ -16,6 +16,7 @@ import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { NewsletterModule } from "./newsletter/newsletter.module";
 import { OrdersModule } from "./orders/orders.module";
 import { PaymentsModule } from "./payments/payments.module";
+import { PosModule } from "./pos/pos.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReportsModule } from "./reports/reports.module";
 import { ReviewsModule } from "./reviews/reviews.module";
@@ -40,6 +41,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     NewsletterModule,
     OrdersModule,
     PaymentsModule,
+    PosModule,
     ReportsModule,
     ReviewsModule,
     SettingsModule,

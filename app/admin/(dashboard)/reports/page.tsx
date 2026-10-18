@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { apiUrl, formatDate, formatNumber, formatUSD, useApi, type ApiState } from "@/components/admin/api";
+import { apiUrl, formatCurrency, formatDate, formatNumber, formatUSD, useApi, type ApiState } from "@/components/admin/api";
 import { BarChart, LineChart } from "@/components/admin/charts";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import {
@@ -27,7 +27,9 @@ type SalesReport = {
   to: string;
   groupBy: GroupValue;
   series: Array<{ label: string; revenue: number; orders: number }>;
+  posSeries: Array<{ label: string; revenue: number; orders: number }>;
   total: { revenue: number; orders: number; avgOrderValue: number };
+  posTotal: { revenue: number; orders: number; avgOrderValue: number };
 };
 
 type ProductsReport = {
@@ -252,6 +254,8 @@ function SalesTab({
               value={formatUSD(data.total.avgOrderValue)}
               hint={`${formatDate(data.from)} – ${formatDate(data.to)}`}
             />
+            <Stat label="Workshop POS · IDR" value={formatCurrency(data.posTotal.revenue, "IDR")} hint="Paid POS orders, net of refunds" />
+            <Stat label="Workshop POS orders" value={formatNumber(data.posTotal.orders)} hint={`Grouped by ${data.groupBy}`} />
           </div>
 
           <Card title="Revenue trend" actions={<Badge tone="green">{data.groupBy}</Badge>}>
@@ -267,6 +271,14 @@ function SalesTab({
               data={data.series.map((point) => ({ label: point.label, value: point.orders }))}
               formatValue={(value) => formatNumber(value)}
               ariaLabel="Orders by period"
+            />
+          </Card>
+
+          <Card title="Workshop POS revenue trend" description="IDR values are shown separately from online USD sales." actions={<Badge tone="green">IDR</Badge>}>
+            <LineChart
+              data={data.posSeries.map((point) => ({ label: point.label, value: point.revenue }))}
+              ariaLabel="Workshop POS revenue by period in IDR"
+              formatValue={(value) => formatCurrency(value, "IDR")}
             />
           </Card>
 

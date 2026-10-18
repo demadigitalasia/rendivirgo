@@ -56,8 +56,13 @@ export class ProductsService {
       height: product.heightMm ?? 0,
     };
 
-    const stockQuantity = product.stockModel === "Unique" ? 1 : (product.stockQuantity ?? 0);
-    const inStock = product.status === "Published" && stockQuantity > 0;
+    const stockQuantity = product.variants.length
+      ? product.variants.reduce((sum, variant) => sum + variant.stockQuantity, 0)
+      : product.stockModel === "Unique" ? 1 : (product.stockQuantity ?? 0);
+    const webAvailable = product.variants.length
+      ? stockQuantity > 0
+      : product.stockModel === "Unique" ? product.workshopStockQuantity === 0 : stockQuantity > 0;
+    const inStock = product.status === "Published" && product.sellOnWeb && webAvailable;
 
     const idReady = language === "id" && product.idTranslationStatus === "Ready" && Boolean(product.nameId?.trim()) &&
       (!product.description.trim() || Boolean(product.descriptionId?.trim()));
@@ -112,6 +117,7 @@ export class ProductsService {
         name: variant.name,
         price: Number(variant.price),
         stockQuantity: variant.stockQuantity,
+        ...(includeTranslations ? { workshopStockQuantity: variant.workshopStockQuantity } : {}),
         weightGram: variant.weightGram,
         dimensionsMm: {
           length: variant.lengthMm ?? 0,
@@ -126,6 +132,9 @@ export class ProductsService {
       },
       contentLocale: idReady ? "id" : "en",
       ...(includeTranslations ? {
+        sellOnWeb: product.sellOnWeb,
+        sellInWorkshop: product.sellInWorkshop,
+        workshopStockQuantity: product.workshopStockQuantity,
         nameId: product.nameId,
         descriptionId: product.descriptionId,
         metaTitleId: product.metaTitleId,
@@ -153,6 +162,7 @@ export class ProductsService {
 
     if (publicOnly) {
       where.status = "Published";
+      where.sellOnWeb = true;
     } else if (query.status) {
       where.status = query.status;
     } else {
@@ -186,8 +196,9 @@ export class ProductsService {
 
     if (query.inStock) {
       where.OR = [
-        { stockModel: "Unique" },
-        { stockModel: "Quantity", stockQuantity: { gt: 0 } },
+        { stockModel: "Unique", workshopStockQuantity: 0, variants: { none: {} } },
+        { stockModel: "Quantity", stockQuantity: { gt: 0 }, variants: { none: {} } },
+        { variants: { some: { stockQuantity: { gt: 0 } } } },
       ];
     }
 
@@ -272,7 +283,7 @@ export class ProductsService {
 
   async getPublicBySlug(slug: string, language: StorefrontLanguage = "en") {
     const product = await this.prisma.product.findFirst({
-      where: { slug, status: { in: ["Published", "Reserved", "Sold"] }, category: { isActive: true } },
+      where: { slug, sellOnWeb: true, status: { in: ["Published", "Reserved", "Sold"] }, category: { isActive: true } },
       include: productInclude,
     });
     if (!product) throw new NotFoundException("Product not found");
@@ -295,10 +306,10 @@ export class ProductsService {
   }
 
   async related(slug: string, limit = 4, language: StorefrontLanguage = "en") {
-    const product = await this.prisma.product.findUnique({ where: { slug }, select: { id: true, categoryId: true } });
+    const product = await this.prisma.product.findFirst({ where: { slug, sellOnWeb: true }, select: { id: true, categoryId: true } });
     if (!product) return [];
     const products = await this.prisma.product.findMany({
-      where: { status: "Published", categoryId: product.categoryId, id: { not: product.id } },
+      where: { status: "Published", sellOnWeb: true, categoryId: product.categoryId, id: { not: product.id } },
       orderBy: { createdAt: "desc" },
       take: limit,
       include: productInclude,
@@ -309,13 +320,13 @@ export class ProductsService {
   async filters() {
     const [origins, stoneTypes] = await this.prisma.$transaction([
       this.prisma.product.findMany({
-        where: { status: "Published" },
+        where: { status: "Published", sellOnWeb: true },
         distinct: ["origin"],
         select: { origin: true },
         orderBy: { origin: "asc" },
       }),
       this.prisma.product.findMany({
-        where: { status: "Published" },
+        where: { status: "Published", sellOnWeb: true },
         distinct: ["stoneType"],
         select: { stoneType: true },
         orderBy: { stoneType: "asc" },
@@ -352,6 +363,7 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto, context: AuditContext) {
+    this.validateSalesChannels(dto.sellOnWeb ?? true, dto.sellInWorkshop ?? true, dto.workshopStockQuantity ?? 0, dto.stockModel ?? "Unique", dto.variants ?? []);
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new BadRequestException("Category not found");
 
@@ -390,6 +402,9 @@ export class ProductsService {
         unit: dto.unit ?? "piece",
         stockModel,
         stockQuantity: stockModel === "Unique" ? null : Math.max(0, dto.stockQuantity ?? 0),
+        sellOnWeb: dto.sellOnWeb ?? true,
+        sellInWorkshop: dto.sellInWorkshop ?? true,
+        workshopStockQuantity: Math.max(0, dto.workshopStockQuantity ?? 0),
         weightGram: dto.weightGram,
         weightCarat: dto.weightCarat ?? null,
         lengthMm: dto.lengthMm ?? null,
@@ -426,6 +441,7 @@ export class ProductsService {
             name: variant.name,
             price: new Prisma.Decimal(variant.price),
             stockQuantity: variant.stockQuantity,
+            workshopStockQuantity: Math.max(0, variant.workshopStockQuantity ?? 0),
             weightGram: variant.weightGram,
             lengthMm: variant.lengthMm ?? null,
             widthMm: variant.widthMm ?? null,
@@ -452,6 +468,25 @@ export class ProductsService {
     return this.toApiProduct(product, "en", true);
   }
 
+  private validateSalesChannels(
+    sellOnWeb: boolean,
+    sellInWorkshop: boolean,
+    workshopStockQuantity: number,
+    stockModel: string,
+    variants: Array<{ workshopStockQuantity?: number | null }>,
+  ): void {
+    if (!sellOnWeb && !sellInWorkshop) throw new BadRequestException("Select at least one sales channel");
+    if (variants.length > 0 && workshopStockQuantity > 0) {
+      throw new BadRequestException("Allocate workshop stock on individual variants, not the parent product");
+    }
+    if (!sellInWorkshop && (workshopStockQuantity > 0 || variants.some((variant) => (variant.workshopStockQuantity ?? 0) > 0))) {
+      throw new BadRequestException("Workshop stock cannot be allocated when Workshop POS is disabled");
+    }
+    if (stockModel === "Unique" && workshopStockQuantity > 1) {
+      throw new BadRequestException("A unique product can allocate at most one item to workshop stock");
+    }
+  }
+
   // Variant SKUs are globally unique, so every write is scoped to this product
   // and checked explicitly — an upsert by SKU could otherwise mutate a variant
   // that belongs to a different product.
@@ -466,6 +501,7 @@ export class ProductsService {
         name: variant.name,
         price: new Prisma.Decimal(variant.price),
         stockQuantity: variant.stockQuantity,
+        workshopStockQuantity: Math.max(0, variant.workshopStockQuantity ?? 0),
         weightGram: variant.weightGram,
         lengthMm: variant.lengthMm ?? null,
         widthMm: variant.widthMm ?? null,
@@ -512,6 +548,17 @@ export class ProductsService {
     }
 
     const nextStatus = dto.status ?? existing.status;
+    const nextSellOnWeb = dto.sellOnWeb ?? existing.sellOnWeb;
+    const nextSellInWorkshop = dto.sellInWorkshop ?? existing.sellInWorkshop;
+    const nextWorkshopStock = dto.workshopStockQuantity ?? existing.workshopStockQuantity;
+    const nextStockModel = dto.stockModel ?? existing.stockModel;
+    this.validateSalesChannels(
+      nextSellOnWeb,
+      nextSellInWorkshop,
+      nextWorkshopStock,
+      nextStockModel,
+      dto.variants ?? existing.variants,
+    );
     const priceChanged = dto.price !== undefined && Number(existing.price) !== Number(dto.price);
     const stockChanged = dto.stockQuantity !== undefined && existing.stockQuantity !== dto.stockQuantity;
 
@@ -542,6 +589,9 @@ export class ProductsService {
           ...(dto.unit !== undefined ? { unit: dto.unit } : {}),
           ...(dto.stockModel !== undefined ? { stockModel: dto.stockModel } : {}),
           ...(dto.stockModel === "Unique" ? { stockQuantity: null } : dto.stockQuantity !== undefined ? { stockQuantity: Math.max(0, dto.stockQuantity ?? 0) } : {}),
+          ...(dto.sellOnWeb !== undefined ? { sellOnWeb: dto.sellOnWeb } : {}),
+          ...(dto.sellInWorkshop !== undefined ? { sellInWorkshop: dto.sellInWorkshop } : {}),
+          ...(dto.workshopStockQuantity !== undefined ? { workshopStockQuantity: Math.max(0, dto.workshopStockQuantity) } : {}),
           ...(dto.weightGram !== undefined ? { weightGram: dto.weightGram } : {}),
           ...(dto.weightCarat !== undefined ? { weightCarat: dto.weightCarat } : {}),
           ...(dto.lengthMm !== undefined ? { lengthMm: dto.lengthMm } : {}),
@@ -701,6 +751,9 @@ export class ProductsService {
         unit: source.unit,
         stockModel: source.stockModel,
         stockQuantity: source.stockQuantity,
+        sellOnWeb: source.sellOnWeb,
+        sellInWorkshop: source.sellInWorkshop,
+        workshopStockQuantity: 0,
         weightGram: source.weightGram,
         weightCarat: source.weightCarat,
         lengthMm: source.lengthMm,

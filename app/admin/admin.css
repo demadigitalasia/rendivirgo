@@ -325,6 +325,11 @@
   gap: 22px;
 }
 
+.rv-dashboard-content {
+  max-width: 1480px;
+  gap: 24px;
+}
+
 .rv-card {
   background: var(--rv-surface);
   border: 1px solid var(--rv-line);
@@ -516,9 +521,21 @@
   background: var(--rv-line);
 }
 
-.rv-stat-grid--primary,
+.rv-stat-grid--primary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .rv-stat-grid--attention {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rv-dashboard-section__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
 }
 
 .rv-stat--primary {
@@ -1313,7 +1330,9 @@ a.rv-list__row:hover {
   isolation: isolate;
   display: flex;
   align-items: flex-end;
+  flex: 1 1 auto;
   gap: 6px;
+  min-width: 0;
   height: 220px;
   padding-top: 12px;
   border-bottom: 1px solid var(--rv-line);
@@ -1322,6 +1341,8 @@ a.rv-list__row:hover {
 .rv-bars__frame {
   display: flex;
   align-items: stretch;
+  width: 100%;
+  min-width: 0;
   gap: 8px;
 }
 
@@ -1387,10 +1408,30 @@ a.rv-list__row:hover {
   white-space: nowrap;
 }
 
-.rv-chart__empty {
-  margin: 0 0 8px;
+.rv-chart__empty-state {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 7px;
+  min-height: 180px;
+  padding: 18px;
+  border: 1px dashed var(--rv-line);
+  border-radius: 10px;
   color: var(--rv-muted);
+  background: linear-gradient(135deg, rgba(240, 238, 228, 0.48), rgba(255, 253, 248, 0.72));
   font-size: 0.8rem;
+  text-align: center;
+}
+
+.rv-chart__empty-state strong {
+  color: var(--rv-forest);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.rv-chart__empty-state span {
+  max-width: 360px;
+  line-height: 1.6;
 }
 
 .rv-split {
@@ -1402,6 +1443,10 @@ a.rv-list__row:hover {
 
 .rv-split--charts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rv-split--charts > .rv-card--chart-wide {
+  grid-column: 1 / -1;
 }
 
 .rv-list {
@@ -1865,6 +1910,10 @@ a.rv-list__row:hover {
 
   .rv-dashboard-section__heading {
     align-items: flex-start;
+  }
+
+  .rv-dashboard-section__actions {
+    justify-content: flex-start;
   }
 }
 

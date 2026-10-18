@@ -63,6 +63,11 @@ export class ProductVariantDto {
   @Min(0)
   stockQuantity: number;
 
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  workshopStockQuantity?: number;
+
   @IsInt()
   @Min(0)
   weightGram: number;
@@ -159,6 +164,19 @@ export class CreateProductDto {
   @IsInt()
   @Min(0)
   stockQuantity?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  sellOnWeb?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sellInWorkshop?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  workshopStockQuantity?: number;
 
   @IsInt()
   @Min(0)

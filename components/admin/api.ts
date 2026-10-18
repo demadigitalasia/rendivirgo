@@ -206,6 +206,15 @@ export const formatUSD = (amount: number | null | undefined, options?: { maximum
     maximumFractionDigits: options?.maximumFractionDigits ?? 2,
   }).format(Number(amount ?? 0));
 
+export const formatCurrency = (amount: number | null | undefined, currency = "USD") => {
+  const code = currency.toUpperCase();
+  return new Intl.NumberFormat(code === "IDR" ? "id-ID" : "en-US", {
+    style: "currency",
+    currency: code,
+    maximumFractionDigits: code === "IDR" ? 0 : 2,
+  }).format(Number(amount ?? 0));
+};
+
 export const formatNumber = (value: number | null | undefined) => new Intl.NumberFormat("en-US").format(Number(value ?? 0));
 
 export const formatDate = (value: string | Date | null | undefined) => {

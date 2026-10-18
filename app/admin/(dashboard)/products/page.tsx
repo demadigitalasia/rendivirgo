@@ -255,52 +255,79 @@ export default function AdminProductsPage() {
         }
       />
 
-      <div className="rv-content">
-        <Card flush>
-          <div className="rv-toolbar">
-            <TextInput value={list.searchInput} onChange={list.setSearchInput} placeholder="Search name, SKU, origin…" />
-            <Select
-              value={String(params.category ?? "")}
-              onChange={(value) => setFilter({ category: value || undefined })}
-              options={(categoriesState.data ?? []).map((category) => ({ value: category.slug, label: category.name }))}
-              placeholder="All categories"
-            />
-            <Select
-              value={String(params.status ?? "")}
-              onChange={(value) => setFilter({ status: value || undefined })}
-              options={statusOptions}
-              placeholder="All statuses"
-            />
-            <Select
-              value={String(params.featured ?? "")}
-              onChange={(value) => setFilter({ featured: value || undefined })}
-              options={flagOptions}
-              placeholder="Featured: any"
-            />
-            <Select
-              value={String(params.inStock ?? "")}
-              onChange={(value) => setFilter({ inStock: value || undefined })}
-              options={flagOptions}
-              placeholder="Stock: any"
-            />
-            <Select
-              value={String(params.sort ?? "newest")}
-              onChange={(value) => list.update({ sort: value })}
-              options={sortOptions}
-            />
-            <Button
-              size="sm"
-              onClick={() => {
-                setSelectedIds([]);
-                list.reset();
-              }}
-            >
-              Reset
-            </Button>
+      <div className="rv-content rv-products-content">
+        <Card
+          className="rv-card--products"
+          title="Catalog inventory"
+          description="Filter, sort, and select products for batch updates."
+          flush
+        >
+          <div className="rv-products-toolbar">
+            <div className="rv-products-toolbar__search-row">
+              <Field label="Search products" className="rv-products-toolbar__search-field">
+                <TextInput value={list.searchInput} onChange={list.setSearchInput} placeholder="Name, SKU, or origin…" />
+              </Field>
+              <div className="rv-products-results" role="status" aria-live="polite">
+                <strong>{list.data ? formatNumber(list.data.total) : "—"}</strong>
+                <span>matching products</span>
+              </div>
+            </div>
+
+            <div className="rv-products-toolbar__filters">
+              <Field label="Category">
+                <Select
+                  value={String(params.category ?? "")}
+                  onChange={(value) => setFilter({ category: value || undefined })}
+                  options={(categoriesState.data ?? []).map((category) => ({ value: category.slug, label: category.name }))}
+                  placeholder="All categories"
+                />
+              </Field>
+              <Field label="Status">
+                <Select
+                  value={String(params.status ?? "")}
+                  onChange={(value) => setFilter({ status: value || undefined })}
+                  options={statusOptions}
+                  placeholder="All statuses"
+                />
+              </Field>
+              <Field label="Featured">
+                <Select
+                  value={String(params.featured ?? "")}
+                  onChange={(value) => setFilter({ featured: value || undefined })}
+                  options={flagOptions}
+                  placeholder="Any"
+                />
+              </Field>
+              <Field label="Stock">
+                <Select
+                  value={String(params.inStock ?? "")}
+                  onChange={(value) => setFilter({ inStock: value || undefined })}
+                  options={flagOptions}
+                  placeholder="Any"
+                />
+              </Field>
+              <Field label="Sort by">
+                <Select
+                  value={String(params.sort ?? "newest")}
+                  onChange={(value) => list.update({ sort: value })}
+                  options={sortOptions}
+                />
+              </Field>
+              <Button
+                className="rv-products-reset"
+                size="sm"
+                onClick={() => {
+                  setSelectedIds([]);
+                  list.reset();
+                }}
+              >
+                Reset filters
+              </Button>
+            </div>
           </div>
 
           {selectedIds.length ? (
-            <div className="rv-toolbar rv-toolbar--bulk">
+            <div className="rv-toolbar rv-toolbar--bulk rv-products-bulk">
               <Badge tone="blue">{selectedIds.length} selected</Badge>
               {bulkActions.map((action) => (
                 <Button key={action} size="sm" disabled={bulkBusy} onClick={() => runBulk(action)}>
@@ -313,25 +340,27 @@ export default function AdminProductsPage() {
             </div>
           ) : null}
 
-          <DataTable
-            columns={columns}
-            items={items}
-            loading={list.loading && !list.data}
-            rowKey={(product) => product.id}
-            getRowLabel={(product) => product.name}
-            ariaLabel="Products"
-            selectable
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelect}
-            onToggleSelectAll={toggleSelectAll}
-            emptyTitle="No products found"
-            emptyDescription="Adjust the filters or create a new product."
-            emptyAction={
-              <Button variant="primary" href="/admin/products/new">
-                New product
-              </Button>
-            }
-          />
+          <div className="rv-products-table">
+            <DataTable
+              columns={columns}
+              items={items}
+              loading={list.loading && !list.data}
+              rowKey={(product) => product.id}
+              getRowLabel={(product) => product.name}
+              ariaLabel="Products"
+              selectable
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+              emptyTitle="No products found"
+              emptyDescription="Adjust the filters or create a new product."
+              emptyAction={
+                <Button variant="primary" href="/admin/products/new">
+                  New product
+                </Button>
+              }
+            />
+          </div>
 
           {list.data && list.data.total > 0 ? (
             <TablePagination

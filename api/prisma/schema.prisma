@@ -80,6 +80,19 @@ enum PaymentMethod {
   PayPal
   BankTransfer
   Manual
+  Cash
+  QRIS
+}
+
+enum OrderSource {
+  Online
+  POS
+  Wholesale
+}
+
+enum FulfillmentMethod {
+  Shipping
+  WorkshopPickup
 }
 
 enum ContentStatus {
@@ -260,6 +273,11 @@ model Product {
   unit           ProductUnit   @default(piece)
   stockModel     StockModel    @default(Unique)
   stockQuantity  Int?
+  sellOnWeb      Boolean       @default(true)
+  sellInWorkshop Boolean       @default(true)
+  workshopStockQuantity Int    @default(0)
+  // Legacy storage from the initial POS pricing draft; cart prices are saved on OrderItem.
+  workshopPriceIdr Decimal?    @db.Decimal(12, 2)
   weightGram     Int
   weightCarat    Float?
   lengthMm       Int?
@@ -321,6 +339,9 @@ model ProductVariant {
   name              String
   price             Decimal  @db.Decimal(12, 2)
   stockQuantity     Int      @default(1)
+  workshopStockQuantity Int  @default(0)
+  // Legacy storage from the initial POS pricing draft; cart prices are saved on OrderItem.
+  workshopPriceIdr  Decimal? @db.Decimal(12, 2)
   weightGram        Int
   lengthMm          Int?
   widthMm           Int?
@@ -421,21 +442,27 @@ model Order {
   checkoutKey     String?       @unique
   checkoutFingerprint String?
   customerId      String?
-  email           String
+  email           String?
   customerName    String
   phone           String?
   status          OrderStatus   @default(New)
   paymentStatus   PaymentStatus @default(Pending)
   paymentMethod   PaymentMethod @default(PayPal)
+  source          OrderSource   @default(Online)
+  fulfillmentMethod FulfillmentMethod @default(Shipping)
   paymentRef      String?
   paypalOrderId   String?       @unique
   paymentProofPath String?
   paymentProofMime String?
   paymentProofUploadedAt DateTime?
   currency        String        @default("USD")
+  exchangeRate    Decimal?      @db.Decimal(12, 4)
   subtotal        Decimal       @db.Decimal(12, 2)
   shippingCost    Decimal       @db.Decimal(12, 2)
   discountTotal   Decimal       @default(0) @db.Decimal(12, 2)
+  manualDiscountType DiscountType?
+  manualDiscountValue Decimal?  @db.Decimal(12, 2)
+  discountReason  String?
   taxTotal        Decimal       @default(0) @db.Decimal(12, 2)
   total           Decimal       @db.Decimal(12, 2)
   refundedAmount  Decimal       @default(0) @db.Decimal(12, 2)
@@ -476,6 +503,7 @@ model Order {
   @@index([paymentStatus])
   @@index([paymentMethod, paymentStatus, paymentProofUploadedAt])
   @@index([placedAt])
+  @@index([source, placedAt])
   @@index([email])
   @@index([customerId])
   @@index([customerId, placedAt])
@@ -532,6 +560,7 @@ model OrderItem {
   sku         String
   unitPrice   Decimal @db.Decimal(12, 2)
   quantity    Int     @default(1)
+  workshopAllocatedQuantity Int @default(0)
   weightGram  Int     @default(0)
   lineTotal   Decimal @db.Decimal(12, 2)
   imageUrl    String?

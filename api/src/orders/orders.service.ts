@@ -106,6 +106,12 @@ export class OrdersService {
       status: order.status,
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
+      source: order.source,
+      fulfillmentMethod: order.fulfillmentMethod,
+      exchangeRate: order.exchangeRate,
+      manualDiscountType: order.manualDiscountType,
+      manualDiscountValue: order.manualDiscountValue,
+      discountReason: order.discountReason,
       paymentRef: order.paymentRef,
       paymentProofUploadedAt: order.paymentProofUploadedAt,
       currency: order.currency,
@@ -167,6 +173,7 @@ export class OrdersService {
       weightGram: item.weightGram,
       lineTotal: item.lineTotal,
       imageUrl: item.imageUrl,
+      workshopAllocatedQuantity: item.workshopAllocatedQuantity,
     };
   }
 
@@ -390,7 +397,10 @@ export class OrdersService {
     for (const item of dto.items) {
       const product = productById.get(item.productId);
       if (!product) throw new BadRequestException(`Product "${item.productId}" was not found`);
-      if (product.status !== "Published") throw new BadRequestException(`"${product.name}" is not available`);
+      if (product.status !== "Published" || !product.sellOnWeb) throw new BadRequestException(`"${product.name}" is not available`);
+      if (product.stockModel === "Unique" && product.workshopStockQuantity > 0) {
+        throw new BadRequestException(`"${product.name}" is allocated to workshop stock`);
+      }
 
       const variant = item.variantId ? (product.variants.find((entry) => entry.id === item.variantId) ?? null) : null;
       if (item.variantId && !variant) throw new BadRequestException(`The selected variant of "${product.name}" was not found`);
@@ -667,7 +677,7 @@ export class OrdersService {
 
   async track(orderNumber: string, email?: string) {    const normalized = email?.trim().toLowerCase();
     const order = await this.prisma.order.findUnique({ where: { orderNumber }, include: { items: true } });
-    if (!order || !normalized || order.email.toLowerCase() !== normalized) {
+    if (!order || !normalized || !order.email || order.email.toLowerCase() !== normalized) {
       throw new NotFoundException("Order not found");
     }
 
@@ -718,6 +728,7 @@ export class OrdersService {
 
     if (query.status) where.status = query.status;
     if (query.paymentStatus) where.paymentStatus = query.paymentStatus;
+    if (query.source) where.source = query.source;
     if (query.proofQueue === "true") {
       where.paymentMethod = "BankTransfer";
       where.paymentStatus = "Pending";
@@ -751,19 +762,23 @@ export class OrdersService {
     const paidWhere: Prisma.OrderWhereInput = { AND: [where, { paymentStatus: { in: ["Paid", "PartiallyRefunded"] } }] };
     const pendingWhere: Prisma.OrderWhereInput = { AND: [where, { paymentStatus: "Pending" }] };
 
-    const [total, orders, paidAggregate, pending, paid] = await this.prisma.$transaction([
+    const [total, orders, pending, paid, paidGroups] = await this.prisma.$transaction([
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({ where, orderBy, include: orderListInclude, ...skipTake(query.page, query.pageSize) }),
-      this.prisma.order.aggregate({ where: paidWhere, _sum: { total: true, refundedAmount: true } }),
       this.prisma.order.count({ where: pendingWhere }),
       this.prisma.order.count({ where: paidWhere }),
+      this.prisma.order.groupBy({ by: ["currency"], where: paidWhere, _sum: { total: true, refundedAmount: true } }),
     ]);
 
-    const revenue = Number(paidAggregate._sum.total ?? 0) - Number(paidAggregate._sum.refundedAmount ?? 0);
+    const revenueByCurrency = Object.fromEntries(paidGroups.map((group) => [
+      group.currency,
+      Number(group._sum.total ?? 0) - Number(group._sum.refundedAmount ?? 0),
+    ]));
+    const revenue = revenueByCurrency.USD ?? 0;
 
     return {
       ...paginated(orders.map((order) => this.toApiOrderSummary(order)), total, query.page, query.pageSize),
-      summary: { count: total, revenue, pending, paid },
+      summary: { count: total, revenue, revenueByCurrency, pending, paid },
     };
   }
 
@@ -901,7 +916,10 @@ export class OrdersService {
       orderNumber: order.orderNumber,
       issuedAt: new Date(),
       placedAt: order.placedAt,
+      source: order.source,
+      fulfillmentMethod: order.fulfillmentMethod,
       currency: order.currency,
+      exchangeRate: order.exchangeRate,
       seller: {
         name: text("store.name", SELLER_FALLBACK.name),
         address: text("store.address", SELLER_FALLBACK.address),
@@ -931,6 +949,7 @@ export class OrdersService {
       })),
       subtotal: order.subtotal,
       discountCode: order.discountCode,
+      discountReason: order.discountReason,
       discountTotal: order.discountTotal,
       shippingName: order.shippingName,
       shippingCost: order.shippingCost,
@@ -939,11 +958,17 @@ export class OrdersService {
       refundedAmount: order.refundedAmount,
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
+      paymentRef: order.paymentRef,
       paidAt: order.paidAt,
     };
   }
 
   async refund(id: string, dto: RefundOrderDto, context: AuditContext) {
+    const orderForRefund = await this.prisma.order.findUnique({ where: { id }, select: { currency: true } });
+    if (!orderForRefund) throw new NotFoundException("Order not found");
+    if (orderForRefund.currency === "IDR" && !Number.isInteger(dto.amount)) {
+      throw new BadRequestException("IDR refunds must use whole rupiah amounts");
+    }
     const updated = await this.lifecycle.recordRefund({
       orderId: id,
       amount: dto.amount,

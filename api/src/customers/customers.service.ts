@@ -10,6 +10,7 @@ import { CustomerQueryDto, UpdateCustomerDto } from "./dto/customer.dto";
 type CustomerStats = {
   orderCount: number;
   totalSpent: number;
+  totalSpentByCurrency: Record<string, number>;
   lastOrderAt: Date | null;
 };
 
@@ -42,6 +43,7 @@ export class CustomersService {
       },
       orderCount: stats?.orderCount ?? 0,
       totalSpent: stats?.totalSpent ?? 0,
+      totalSpentByCurrency: stats?.totalSpentByCurrency ?? {},
       lastOrderAt: stats?.lastOrderAt ?? null,
       createdAt: customer.createdAt,
       updatedAt: customer.updatedAt,
@@ -81,7 +83,7 @@ export class CustomersService {
         _max: { placedAt: true },
       }),
       this.prisma.order.groupBy({
-        by: ["customerId"],
+        by: ["customerId", "currency"],
         where: { customerId: { in: customerIds }, paymentStatus: { in: ["Paid", "PartiallyRefunded"] } },
         _sum: { total: true, refundedAmount: true },
       }),
@@ -89,13 +91,14 @@ export class CustomersService {
 
     for (const row of allOrders) {
       if (!row.customerId) continue;
-      stats.set(row.customerId, { orderCount: row._count._all, totalSpent: 0, lastOrderAt: row._max.placedAt ?? null });
+      stats.set(row.customerId, { orderCount: row._count._all, totalSpent: 0, totalSpentByCurrency: {}, lastOrderAt: row._max.placedAt ?? null });
     }
 
     for (const row of paidOrders) {
       if (!row.customerId) continue;
-      const entry = stats.get(row.customerId) ?? { orderCount: 0, totalSpent: 0, lastOrderAt: null };
-      entry.totalSpent = Number(row._sum.total ?? 0) - Number(row._sum.refundedAmount ?? 0);
+      const entry = stats.get(row.customerId) ?? { orderCount: 0, totalSpent: 0, totalSpentByCurrency: {}, lastOrderAt: null };
+      entry.totalSpentByCurrency[row.currency] = Number(row._sum.total ?? 0) - Number(row._sum.refundedAmount ?? 0);
+      entry.totalSpent = entry.totalSpentByCurrency.USD ?? 0;
       stats.set(row.customerId, entry);
     }
 
@@ -229,7 +232,7 @@ export class CustomersService {
       return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
     };
 
-    const columns = ["name", "email", "phone", "country", "city", "orderCount", "totalSpent", "tags", "createdAt"];
+    const columns = ["name", "email", "phone", "country", "city", "orderCount", "totalSpentUSD", "totalSpentIDR", "tags", "createdAt"];
 
     const rows = customers.map((customer) => {
       const entry = stats.get(customer.id);
@@ -240,7 +243,8 @@ export class CustomersService {
         customer.country ?? "",
         customer.city ?? "",
         entry?.orderCount ?? 0,
-        (entry?.totalSpent ?? 0).toFixed(2),
+        (entry?.totalSpentByCurrency.USD ?? 0).toFixed(2),
+        (entry?.totalSpentByCurrency.IDR ?? 0).toFixed(0),
         customer.tags.join("|"),
         customer.createdAt.toISOString(),
       ]

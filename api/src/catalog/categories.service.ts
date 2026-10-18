@@ -33,7 +33,7 @@ export class CategoriesService {
       where: { isActive: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       include: {
-        _count: { select: { products: { where: { status: "Published" } } } },
+        _count: { select: { products: { where: { status: "Published", sellOnWeb: true } } } },
       },
     });
     return categories.map(({ _count, ...category }) => ({ ...this.toPublic(category, language), productCount: _count.products }));

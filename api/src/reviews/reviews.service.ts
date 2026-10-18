@@ -32,7 +32,7 @@ export class ReviewsService {
 
   private async findPublishedProduct(slug: string) {
     const product = await this.prisma.product.findFirst({
-      where: { slug, status: "Published" },
+      where: { slug, status: "Published", sellOnWeb: true },
       select: { id: true, name: true },
     });
     if (!product) throw new NotFoundException("Product not found");

@@ -462,6 +462,7 @@ export function Modal({
   children,
   footer,
   wide,
+  panelClassName,
 }: {
   open: boolean;
   title: string;
@@ -469,10 +470,14 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  panelClassName?: string;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  const panelClasses = ["rv-modal__panel", wide ? "rv-modal__panel--wide" : "", panelClassName ?? ""]
+    .filter(Boolean)
+    .join(" ");
 
   useEffect(() => {
     if (!open) return;
@@ -524,7 +529,7 @@ export function Modal({
     <div className="rv-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <div className={wide ? "rv-modal__panel rv-modal__panel--wide" : "rv-modal__panel"} ref={panelRef}>
+      <div className={panelClasses} ref={panelRef}>
         <div className="rv-modal__header">
           <h2 id={titleId}>{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close dialog">

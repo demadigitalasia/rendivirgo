@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect } from "react";
-import { formatDate, formatDateTime, formatUSD, useApi } from "@/components/admin/api";
+import { formatCurrency, formatDate, formatDateTime, formatNumber, useApi } from "@/components/admin/api";
 import { Button, Card, Loading } from "@/components/admin/ui";
 import "../../orders.css";
 
@@ -21,12 +21,16 @@ type Invoice = {
   orderNumber: string;
   issuedAt: string;
   placedAt: string;
+  source: string;
+  fulfillmentMethod: string;
   currency: string;
+  exchangeRate: number | null;
   seller: { name: string; address: string; email: string; phone: string };
-  buyer: { name: string; email: string; phone: string | null; address: InvoiceAddress };
+  buyer: { name: string; email: string | null; phone: string | null; address: InvoiceAddress };
   items: Array<{ name: string; sku: string | null; quantity: number; unitPrice: number; lineTotal: number }>;
   subtotal: number;
   discountCode: string | null;
+  discountReason: string | null;
   discountTotal: number;
   shippingName: string | null;
   shippingCost: number;
@@ -35,6 +39,7 @@ type Invoice = {
   refundedAmount: number;
   paymentStatus: string;
   paymentMethod: string | null;
+  paymentRef: string | null;
   paidAt: string | null;
 };
 
@@ -94,7 +99,7 @@ export default function AdminOrderInvoicePage({ params }: { params: Promise<{ id
               </div>
             </div>
             <div className="rv-invoice__meta">
-              <div className="rv-invoice__title">Invoice</div>
+          <div className="rv-invoice__title">{invoice.source === "POS" ? "Workshop receipt" : "Invoice"}</div>
               <div>{invoice.invoiceNumber}</div>
               <div>Issued {formatDate(invoice.issuedAt)}</div>
               <div>Order placed {formatDate(invoice.placedAt)}</div>
@@ -103,18 +108,18 @@ export default function AdminOrderInvoicePage({ params }: { params: Promise<{ id
 
           <section className="rv-invoice__parties">
             <div>
-              <h3>Billed to</h3>
+              <h3>{invoice.source === "POS" ? "Customer" : "Billed to"}</h3>
               <div>{invoice.buyer.name}</div>
-              <div>{invoice.buyer.email}</div>
+              <div>{invoice.buyer.email ?? "Walk-in customer"}</div>
               {invoice.buyer.phone ? <div>{invoice.buyer.phone}</div> : null}
             </div>
-            <div>
+            {invoice.source !== "POS" ? <div>
               <h3>Ship to</h3>
               {invoice.buyer.address.line1 ? <div>{invoice.buyer.address.line1}</div> : null}
               {invoice.buyer.address.line2 ? <div>{invoice.buyer.address.line2}</div> : null}
               {cityLine ? <div>{cityLine}</div> : null}
               {countryLine ? <div>{countryLine}</div> : null}
-            </div>
+            </div> : <div><h3>Fulfilment</h3><div>Collected at workshop</div></div>}
           </section>
 
           <table className="rv-invoice__table">
@@ -133,8 +138,8 @@ export default function AdminOrderInvoicePage({ params }: { params: Promise<{ id
                   <td>{item.name}</td>
                   <td>{item.sku ?? "—"}</td>
                   <td className="is-num">{item.quantity}</td>
-                  <td className="is-num">{formatUSD(item.unitPrice)}</td>
-                  <td className="is-num">{formatUSD(item.lineTotal)}</td>
+                  <td className="is-num">{formatCurrency(item.unitPrice, invoice.currency)}</td>
+                  <td className="is-num">{formatCurrency(item.lineTotal, invoice.currency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -143,32 +148,33 @@ export default function AdminOrderInvoicePage({ params }: { params: Promise<{ id
           <div className="rv-invoice__totals">
             <div className="rv-invoice__totals-row">
               <span>Subtotal</span>
-              <span>{formatUSD(invoice.subtotal)}</span>
+              <span>{formatCurrency(invoice.subtotal, invoice.currency)}</span>
             </div>
             {invoice.discountTotal ? (
               <div className="rv-invoice__totals-row">
                 <span>Discount{invoice.discountCode ? ` (${invoice.discountCode})` : ""}</span>
-                <span>-{formatUSD(invoice.discountTotal)}</span>
+                <span>-{formatCurrency(invoice.discountTotal, invoice.currency)}</span>
               </div>
             ) : null}
+            {invoice.discountReason ? <div className="rv-invoice__totals-row"><span>Discount reason</span><span>{invoice.discountReason}</span></div> : null}
             <div className="rv-invoice__totals-row">
               <span>Shipping{invoice.shippingName ? ` — ${invoice.shippingName}` : ""}</span>
-              <span>{formatUSD(invoice.shippingCost)}</span>
+              <span>{formatCurrency(invoice.shippingCost, invoice.currency)}</span>
             </div>
             {invoice.taxTotal ? (
               <div className="rv-invoice__totals-row">
                 <span>Tax</span>
-                <span>{formatUSD(invoice.taxTotal)}</span>
+                <span>{formatCurrency(invoice.taxTotal, invoice.currency)}</span>
               </div>
             ) : null}
             <div className="rv-invoice__totals-row rv-invoice__totals-row--grand">
               <span>Total</span>
-              <span>{formatUSD(invoice.total)}</span>
+              <span>{formatCurrency(invoice.total, invoice.currency)}</span>
             </div>
             {invoice.refundedAmount ? (
               <div className="rv-invoice__totals-row">
                 <span>Refunded</span>
-                <span>-{formatUSD(invoice.refundedAmount)}</span>
+                <span>-{formatCurrency(invoice.refundedAmount, invoice.currency)}</span>
               </div>
             ) : null}
           </div>
@@ -177,7 +183,9 @@ export default function AdminOrderInvoicePage({ params }: { params: Promise<{ id
             <div>
               Payment: {invoice.paymentStatus}
               {invoice.paymentMethod ? ` · ${invoice.paymentMethod}` : ""}
+              {invoice.paymentRef ? ` · ${invoice.paymentRef}` : ""}
               {invoice.paidAt ? ` · paid ${formatDateTime(invoice.paidAt)}` : ""}
+              {invoice.exchangeRate ? <div>Exchange rate: 1 USD = {formatNumber(invoice.exchangeRate)} IDR</div> : null}
             </div>
             <div>Thank you for shopping with {invoice.seller.name}.</div>
           </footer>

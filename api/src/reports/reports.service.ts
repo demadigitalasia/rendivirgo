@@ -55,7 +55,11 @@ export class ReportsService {
   }
 
   private paidOrderWhere(from: Date, to: Date): Prisma.OrderWhereInput {
-    return { placedAt: { gte: from, lte: to }, paymentStatus: { in: [...PAID_PAYMENT_STATUSES] } };
+    return { placedAt: { gte: from, lte: to }, paymentStatus: { in: [...PAID_PAYMENT_STATUSES] }, currency: "USD" };
+  }
+
+  private paidPosOrderWhere(from: Date, to: Date): Prisma.OrderWhereInput {
+    return { placedAt: { gte: from, lte: to }, paymentStatus: { in: [...PAID_PAYMENT_STATUSES] }, source: "POS", currency: "IDR" };
   }
 
   private parseStart(value: string): Date {
@@ -151,6 +155,8 @@ export class ReportsService {
           total: true,
           status: true,
           paymentStatus: true,
+          currency: true,
+          source: true,
           placedAt: true,
         },
       }),
@@ -211,6 +217,22 @@ export class ReportsService {
       bucket.orders += 1;
     }
     const salesSeries = [...buckets.values()];
+    const [posAggregate, posOrderCount, posSalesOrders] = await Promise.all([
+      this.prisma.order.aggregate({ where: this.paidPosOrderWhere(from, to), _sum: { total: true, refundedAmount: true } }),
+      this.prisma.order.count({ where: this.paidPosOrderWhere(from, to) }),
+      this.prisma.order.findMany({
+        where: this.paidPosOrderWhere(from, to),
+        select: { placedAt: true, total: true, refundedAmount: true },
+      }),
+    ]);
+    const posBuckets = this.buildBuckets(from, to, granularity);
+    for (const order of posSalesOrders) {
+      const bucket = posBuckets.get(bucketKey(order.placedAt, granularity));
+      if (!bucket) continue;
+      bucket.revenue = round2(bucket.revenue + Number(order.total) - Number(order.refundedAmount));
+      bucket.orders += 1;
+    }
+    const posRevenue = round2(Number(posAggregate._sum.total ?? 0) - Number(posAggregate._sum.refundedAmount ?? 0));
 
     const statusCounts = new Map(statusGroups.map((group) => [group.status, group._count._all]));
     const statusBreakdown = (Object.values(OrderStatus) as OrderStatus[]).map((status) => ({
@@ -294,7 +316,9 @@ export class ReportsService {
         lowStockCount,
         soldUniqueCount,
       },
+      posKpis: { revenue: posRevenue, orders: posOrderCount },
       salesSeries,
+      posSalesSeries: [...posBuckets.values()],
       statusBreakdown,
       recentOrders: recentOrders.map((order) => ({ ...order, total: Number(order.total) })),
       topProducts,
@@ -325,6 +349,10 @@ export class ReportsService {
       where: this.paidOrderWhere(from, to),
       select: { placedAt: true, total: true, refundedAmount: true },
     });
+    const posOrders = await this.prisma.order.findMany({
+      where: this.paidPosOrderWhere(from, to),
+      select: { placedAt: true, total: true, refundedAmount: true },
+    });
 
     const buckets = this.buildBuckets(from, to, granularity);
     for (const order of orders) {
@@ -337,16 +365,32 @@ export class ReportsService {
     const series = [...buckets.values()];
     const revenue = round2(series.reduce((sum, bucket) => sum + bucket.revenue, 0));
     const orderCount = series.reduce((sum, bucket) => sum + bucket.orders, 0);
+    const posBuckets = this.buildBuckets(from, to, granularity);
+    for (const order of posOrders) {
+      const bucket = posBuckets.get(bucketKey(order.placedAt, granularity));
+      if (!bucket) continue;
+      bucket.revenue = round2(bucket.revenue + Number(order.total) - Number(order.refundedAmount));
+      bucket.orders += 1;
+    }
+    const posSeries = [...posBuckets.values()];
+    const posRevenue = round2(posSeries.reduce((sum, bucket) => sum + bucket.revenue, 0));
+    const posOrderCount = posSeries.reduce((sum, bucket) => sum + bucket.orders, 0);
 
     return {
       from,
       to,
       groupBy: granularity,
       series,
+      posSeries,
       total: {
         revenue,
         orders: orderCount,
         avgOrderValue: orderCount > 0 ? round2(revenue / orderCount) : 0,
+      },
+      posTotal: {
+        revenue: posRevenue,
+        orders: posOrderCount,
+        avgOrderValue: posOrderCount > 0 ? round2(posRevenue / posOrderCount) : 0,
       },
     };
   }
@@ -520,10 +564,11 @@ export class ReportsService {
 
   async exportSalesCsv(query: SalesReportQueryDto): Promise<string> {
     const report = await this.sales(query);
-    const rows = report.series.map((entry) =>
-      [entry.label, entry.revenue, entry.orders].map((value) => this.escapeCsv(value)).join(","),
-    );
-    return ["bucket,revenue,orders", ...rows].join("\n");
+    const rows = [
+      ...report.series.map((entry) => [entry.label, "USD", entry.revenue, entry.orders]),
+      ...report.posSeries.map((entry) => [entry.label, "IDR", entry.revenue, entry.orders]),
+    ].map((row) => row.map((value) => this.escapeCsv(value)).join(","));
+    return ["bucket,currency,revenue,orders", ...rows].join("\n");
   }
 
   async exportProductsCsv(query: ReportRangeQueryDto): Promise<string> {

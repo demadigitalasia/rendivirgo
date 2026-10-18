@@ -114,6 +114,7 @@ export function AdminShell({
     {
       label: "Sales",
       items: [
+        { href: "/admin/pos", label: "Workshop POS" },
         { href: "/admin/orders", label: "Orders" },
         { href: "/admin/customers", label: "Customers" },
         { href: "/admin/discounts", label: "Discounts" },

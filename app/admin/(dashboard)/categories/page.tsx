@@ -14,10 +14,12 @@ import {
   Modal,
   PageHeader,
   Select,
+  Stat,
   Switch,
   TextArea,
   TextInput,
 } from "@/components/admin/ui";
+import "./categories.css";
 
 type Category = {
   id: string;
@@ -56,6 +58,10 @@ type CategoryFormValues = {
 
 const toneValues = ["moss", "jade", "amber", "ocean", "earth"] as const;
 
+function categoryToneClass(tone: string) {
+  return toneValues.find((value) => value === tone) ?? "moss";
+}
+
 const emptyForm: CategoryFormValues = {
   name: "",
   slug: "",
@@ -89,6 +95,9 @@ export default function AdminCategoriesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [forceCategory, setForceCategory] = useState<Category | null>(null);
   const [forcing, setForcing] = useState(false);
+  const categories = state.data ?? [];
+  const activeCategoryCount = categories.filter((category) => category.isActive).length;
+  const emptyCategoryCount = categories.filter((category) => category.productCount === 0).length;
 
   function setField<K extends keyof CategoryFormValues>(key: K, value: CategoryFormValues[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -199,14 +208,19 @@ export default function AdminCategoriesPage() {
     {
       key: "name",
       header: "Category",
+      width: "34%",
       render: (category) => (
-        <div className="rv-inline">
+        <div className="rv-category-cell">
           {category.imageUrl ? (
-            <img className="rv-table__thumb" src={category.imageUrl} alt={category.name} />
-          ) : null}
-          <div className="rv-product-cell">
+            <img className="rv-category-cell__image" src={category.imageUrl} alt={category.name} />
+          ) : (
+            <span className={`rv-category-mark rv-category-mark--${categoryToneClass(category.tone)}`} aria-hidden="true">
+              {category.name.trim().charAt(0).toUpperCase() || "C"}
+            </span>
+          )}
+          <div className="rv-category-cell__content">
             <strong>{category.name}</strong>
-            <span className="rv-hint">{category.description ?? "—"}</span>
+            <span className="rv-hint">{category.description || "No description added"}</span>
           </div>
         </div>
       ),
@@ -214,29 +228,39 @@ export default function AdminCategoriesPage() {
     {
       key: "slug",
       header: "Slug",
-      render: (category) => <span className="rv-mono">{category.slug}</span>,
+      width: "20%",
+      render: (category) => <span className="rv-category-slug rv-mono">{category.slug}</span>,
     },
     {
       key: "products",
       header: "Products",
-      render: (category) => formatNumber(category.productCount),
+      width: "13%",
+      render: (category) => (
+        <span className="rv-category-product-count">
+          <strong>{formatNumber(category.productCount)}</strong>
+          <span>{category.productCount === 1 ? "item" : "items"}</span>
+        </span>
+      ),
     },
     {
       key: "sortOrder",
-      header: "Sort",
-      render: (category) => category.sortOrder,
+      header: "Order",
+      width: "10%",
+      render: (category) => <span className="rv-category-order">{String(category.sortOrder).padStart(2, "0")}</span>,
     },
     {
       key: "active",
       header: "Active",
+      width: "12%",
       render: (category) => <Badge tone={category.isActive ? "green" : "gray"}>{category.isActive ? "Active" : "Inactive"}</Badge>,
     },
     {
       key: "actions",
       header: "Actions",
+      width: "190px",
       align: "right",
       render: (category) => (
-        <div className="rv-inline" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
+        <div className="rv-inline rv-category-actions">
           <Button size="sm" onClick={() => openEdit(category)}>
             Edit
           </Button>
@@ -270,19 +294,33 @@ export default function AdminCategoriesPage() {
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-categories-content">
         {state.error ? (
           <Card title="Could not load categories">
             <p className="rv-error-text">{state.error}</p>
           </Card>
         ) : null}
 
-        <Card flush>
+        {state.data ? (
+          <section className="rv-stat-grid rv-stat-grid--categories" aria-label="Category summary">
+            <Stat label="Categories" value={formatNumber(categories.length)} hint="In the catalog" tone="primary" />
+            <Stat label="Active categories" value={formatNumber(activeCategoryCount)} hint={`${formatNumber(categories.length - activeCategoryCount)} inactive`} tone="primary" />
+            <Stat label="Categories with products" value={formatNumber(categories.length - emptyCategoryCount)} hint={`${formatNumber(emptyCategoryCount)} empty categories`} tone="primary" />
+          </section>
+        ) : null}
+
+        <Card
+          className="rv-card--categories"
+          title="Category library"
+          description="Manage storefront groups, product counts, and display order."
+          flush
+        >
           <DataTable
             columns={columns}
-            items={state.data ?? []}
+            items={categories}
             loading={state.loading && !state.data}
             rowKey={(category) => category.id}
+            ariaLabel="Product categories"
             emptyTitle="No categories yet"
             emptyDescription="Create a category to start organizing products."
             emptyAction={
@@ -299,6 +337,7 @@ export default function AdminCategoriesPage() {
         title={editing ? `Edit "${editing.name}"` : "New category"}
         onClose={() => setModalOpen(false)}
         wide
+        panelClassName="rv-category-modal"
         footer={
           <>
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
@@ -308,71 +347,111 @@ export default function AdminCategoriesPage() {
           </>
         }
       >
-        <div className="rv-stack">
-          {formError ? <p className="rv-error-text">{formError}</p> : null}
-          <div className="rv-form-grid">
-            <Field label="Name">
-              <TextInput value={form.name} onChange={(value) => setField("name", value)} placeholder="Cabochons" />
-            </Field>
-            <Field label="Slug" hint="Leave blank to generate from the name">
-              <TextInput
-                value={form.slug}
-                onChange={(value) => setField("slug", value)}
-                placeholder={slugify(form.name) || "auto-generated from name"}
-              />
-            </Field>
-            <Field label="Tone">
-              <Select
-                value={form.tone}
-                onChange={(value) => setField("tone", value)}
-                options={toneValues.map((value) => ({ value, label: value }))}
-              />
-            </Field>
-            <Field label="Sort order">
-              <TextInput value={form.sortOrder} onChange={(value) => setField("sortOrder", value)} type="number" min={0} step="1" />
-            </Field>
-            <Field label="Active">
-              <Switch checked={form.isActive} onChange={(checked) => setField("isActive", checked)} label="Visible on storefront" />
-            </Field>
-            <Field label="Meta title">
-              <TextInput value={form.metaTitle} onChange={(value) => setField("metaTitle", value)} />
-            </Field>
-            <Field label="Meta description" className="rv-span-2">
-              <TextArea value={form.metaDescription} onChange={(value) => setField("metaDescription", value)} rows={3} />
-            </Field>
-            <Field label="Description" className="rv-span-2">
-              <TextArea value={form.description} onChange={(value) => setField("description", value)} rows={3} />
-            </Field>
-            <div className="rv-span-2">
-              <h3>Bahasa Indonesia</h3>
-              <p className="rv-hint">Set status to Ready after reviewing the translated name and description.</p>
+        <div className="rv-category-form">
+          {formError ? <p className="rv-error-text" role="alert">{formError}</p> : null}
+
+          <section className="rv-category-form__section" aria-labelledby="category-details-heading">
+            <div className="rv-category-form__section-heading">
+              <span className="rv-category-form__step">01</span>
+              <div>
+                <h3 id="category-details-heading">Category details</h3>
+                <p>Set the name, URL, and storefront visibility.</p>
+              </div>
             </div>
-            <Field label="Translation status">
-              <Select value={form.idTranslationStatus} onChange={(value) => setField("idTranslationStatus", value as CategoryFormValues["idTranslationStatus"])} options={[
-                { value: "Missing", label: "Missing" }, { value: "Draft", label: "Draft" },
-                { value: "Review", label: "Ready for review" }, { value: "Ready", label: "Ready to publish" },
-              ]} />
-            </Field>
-            <Field label="Name (Indonesian)">
-              <TextInput value={form.nameId} onChange={(value) => setField("nameId", value)} />
-            </Field>
-            <Field label="Description (Indonesian)" className="rv-span-2">
-              <TextArea value={form.descriptionId} onChange={(value) => setField("descriptionId", value)} rows={3} />
-            </Field>
-            <Field label="Meta title (Indonesian)">
-              <TextInput value={form.metaTitleId} onChange={(value) => setField("metaTitleId", value)} />
-            </Field>
-            <Field label="Meta description (Indonesian)" className="rv-span-2">
-              <TextArea value={form.metaDescriptionId} onChange={(value) => setField("metaDescriptionId", value)} rows={3} />
-            </Field>
-          </div>
-          <MediaPicker
-            value={imageUrl ? [imageUrl] : []}
-            onChange={(urls) => setImageUrl(urls[0] ?? "")}
-            folder="misc"
-            multiple={false}
-            label="Category image"
-          />
+            <div className="rv-category-form__grid">
+              <Field label="Name">
+                <TextInput value={form.name} onChange={(value) => setField("name", value)} placeholder="Cabochons" />
+              </Field>
+              <Field label="Slug" hint="Leave blank to generate from the name">
+                <TextInput
+                  value={form.slug}
+                  onChange={(value) => setField("slug", value)}
+                  placeholder={slugify(form.name) || "auto-generated from name"}
+                />
+              </Field>
+              <Field label="Tone">
+                <Select
+                  value={form.tone}
+                  onChange={(value) => setField("tone", value)}
+                  options={toneValues.map((value) => ({ value, label: value }))}
+                />
+              </Field>
+              <Field label="Sort order">
+                <TextInput value={form.sortOrder} onChange={(value) => setField("sortOrder", value)} type="number" min={0} step="1" />
+              </Field>
+              <Field label="Visibility" className="rv-category-form__field-full">
+                <Switch checked={form.isActive} onChange={(checked) => setField("isActive", checked)} label="Visible on storefront" />
+              </Field>
+              <Field label="Description" hint="A short introduction shown with this category." className="rv-category-form__field-full">
+                <TextArea value={form.description} onChange={(value) => setField("description", value)} rows={3} />
+              </Field>
+            </div>
+          </section>
+
+          <section className="rv-category-form__section" aria-labelledby="category-image-heading">
+            <div className="rv-category-form__section-heading">
+              <span className="rv-category-form__step">02</span>
+              <div>
+                <h3 id="category-image-heading">Category image</h3>
+                <p>Choose the image used to represent this group in the storefront.</p>
+              </div>
+            </div>
+            <MediaPicker
+              value={imageUrl ? [imageUrl] : []}
+              onChange={(urls) => setImageUrl(urls[0] ?? "")}
+              folder="misc"
+              multiple={false}
+              label="Choose an image"
+            />
+          </section>
+
+          <section className="rv-category-form__section" aria-labelledby="category-seo-heading">
+            <div className="rv-category-form__section-heading">
+              <span className="rv-category-form__step">03</span>
+              <div>
+                <h3 id="category-seo-heading">Search engine listing</h3>
+                <p>Optional metadata for search results and link previews.</p>
+              </div>
+            </div>
+            <div className="rv-category-form__grid">
+              <Field label="Meta title" className="rv-category-form__field-full">
+                <TextInput value={form.metaTitle} onChange={(value) => setField("metaTitle", value)} />
+              </Field>
+              <Field label="Meta description" className="rv-category-form__field-full">
+                <TextArea value={form.metaDescription} onChange={(value) => setField("metaDescription", value)} rows={3} />
+              </Field>
+            </div>
+          </section>
+
+          <section className="rv-category-form__section" aria-labelledby="category-indonesian-heading">
+            <div className="rv-category-form__section-heading rv-category-form__section-heading--translation">
+              <span className="rv-category-form__step">04</span>
+              <div>
+                <h3 id="category-indonesian-heading">Bahasa Indonesia</h3>
+                <p>Review the translated name and copy before marking it ready.</p>
+              </div>
+              <Field label="Translation status" className="rv-category-form__translation-status">
+                <Select value={form.idTranslationStatus} onChange={(value) => setField("idTranslationStatus", value as CategoryFormValues["idTranslationStatus"])} options={[
+                  { value: "Missing", label: "Missing" }, { value: "Draft", label: "Draft" },
+                  { value: "Review", label: "Ready for review" }, { value: "Ready", label: "Ready to publish" },
+                ]} />
+              </Field>
+            </div>
+            <div className="rv-category-form__grid">
+              <Field label="Name (Indonesian)">
+                <TextInput value={form.nameId} onChange={(value) => setField("nameId", value)} />
+              </Field>
+              <Field label="Meta title (Indonesian)">
+                <TextInput value={form.metaTitleId} onChange={(value) => setField("metaTitleId", value)} />
+              </Field>
+              <Field label="Description (Indonesian)" className="rv-category-form__field-full">
+                <TextArea value={form.descriptionId} onChange={(value) => setField("descriptionId", value)} rows={3} />
+              </Field>
+              <Field label="Meta description (Indonesian)" className="rv-category-form__field-full">
+                <TextArea value={form.metaDescriptionId} onChange={(value) => setField("metaDescriptionId", value)} rows={3} />
+              </Field>
+            </div>
+          </section>
         </div>
       </Modal>
 

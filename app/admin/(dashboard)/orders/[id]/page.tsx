@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
-import { apiFetch, errorMessage, formatDateTime, formatUSD, useApi } from "@/components/admin/api";
+import { apiFetch, errorMessage, formatCurrency, formatDateTime, formatNumber, useApi } from "@/components/admin/api";
 import { allowedOrderStatuses } from "@/components/admin/order-status";
 import { toast } from "@/components/admin/toast";
 import {
@@ -31,6 +31,7 @@ type OrderItem = {
   quantity: number;
   lineTotal: number;
   imageUrl: string | null;
+  workshopAllocatedQuantity: number;
 };
 
 type OrderEvent = {
@@ -68,13 +69,19 @@ type OrderDetail = {
   id: string;
   orderNumber: string;
   customerId: string | null;
-  email: string;
+  email: string | null;
   customerName: string;
   phone: string | null;
   status: string;
   paymentStatus: string;
   settlementOutcome?: "settled" | "late" | "duplicate" | "review";
   paymentMethod: string | null;
+  source: string;
+  fulfillmentMethod: string;
+  exchangeRate: number | null;
+  manualDiscountType: string | null;
+  manualDiscountValue: number | null;
+  discountReason: string | null;
   paymentRef: string | null;
   paymentProofUploadedAt: string | null;
   currency: string;
@@ -292,7 +299,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
       setRefundAmount("");
       setRefundReason("");
       setRefundExternalReference("");
-      toast.success(`Refund record added for ${formatUSD(amount)}`);
+      toast.success(`Refund record added for ${formatCurrency(amount, order?.currency)}`);
     } catch (caught) {
       setRefundError(errorMessage(caught));
     } finally {
@@ -341,7 +348,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
               Back to orders
             </Button>
             <Button size="sm" onClick={() => window.open(`/admin/orders/${id}/invoice`, "_blank", "noopener")}>
-              Print invoice
+              {order?.source === "POS" ? "Print receipt" : "Print invoice"}
             </Button>
             <Button size="sm" variant="danger" disabled={!order || refundable <= 0} onClick={openRefund}>
               Refund
@@ -369,7 +376,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
         {order ? (
           <>
             <div className="rv-stat-grid">
-              <Stat label="Total" value={formatUSD(order.total)} hint={`${order.items.length} line item(s)`} />
+              <Stat label="Total" value={formatCurrency(order.total, order.currency)} hint={`${order.items.length} line item(s) · ${order.source === "POS" ? "Workshop POS" : order.source}`} />
               <Stat
                 label="Payment"
                 value={<StatusBadge status={order.paymentStatus} />}
@@ -377,8 +384,8 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
               />
               <Stat
                 label="Refunded"
-                value={formatUSD(order.refundedAmount)}
-                hint={refundable > 0 ? `${formatUSD(refundable)} refundable` : "Nothing left to refund"}
+                value={formatCurrency(order.refundedAmount, order.currency)}
+                hint={refundable > 0 ? `${formatCurrency(refundable, order.currency)} refundable` : "Nothing left to refund"}
               />
               <Stat
                 label="Status"
@@ -408,8 +415,8 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                               <div className="rv-hint">{item.sku ?? "—"}</div>
                             </td>
                             <td>{item.quantity}</td>
-                            <td>{formatUSD(item.unitPrice)}</td>
-                            <td>{formatUSD(item.lineTotal)}</td>
+                            <td>{formatCurrency(item.unitPrice, order.currency)}</td>
+                            <td>{formatCurrency(item.lineTotal, order.currency)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -420,14 +427,21 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                 <Card title="Cost summary">
                   <KeyValue
                     entries={[
-                      { label: "Subtotal", value: formatUSD(order.subtotal) },
+                      { label: "Subtotal", value: formatCurrency(order.subtotal, order.currency) },
                       {
-                        label: order.discountCode ? `Discount (${order.discountCode})` : "Discount",
-                        value: order.discountTotal ? `-${formatUSD(order.discountTotal)}` : formatUSD(0),
+                        label: order.discountCode
+                          ? `Discount (${order.discountCode})`
+                          : order.manualDiscountType === "Percentage"
+                            ? `Manual discount (${formatNumber(order.manualDiscountValue)}%)`
+                            : "Discount",
+                        value: order.discountTotal ? `-${formatCurrency(order.discountTotal, order.currency)}` : formatCurrency(0, order.currency),
                       },
-                      { label: "Shipping", value: formatUSD(order.shippingCost) },
-                      { label: "Total", value: <strong>{formatUSD(order.total)}</strong> },
-                      { label: "Refunded", value: order.refundedAmount ? `-${formatUSD(order.refundedAmount)}` : formatUSD(0) },
+                      ...(order.discountReason ? [{ label: "Discount reason", value: order.discountReason }] : []),
+                      ...(order.source === "POS" && order.exchangeRate ? [{ label: "USD–IDR rate snapshot", value: `1 USD = ${formatNumber(order.exchangeRate)} IDR` }] : []),
+                      ...(order.source === "POS" ? [{ label: "Fulfillment", value: "Collected at workshop" }] : []),
+                      { label: "Shipping", value: formatCurrency(order.shippingCost, order.currency) },
+                      { label: "Total", value: <strong>{formatCurrency(order.total, order.currency)}</strong> },
+                      { label: "Refunded", value: order.refundedAmount ? `-${formatCurrency(order.refundedAmount, order.currency)}` : formatCurrency(0, order.currency) },
                     ]}
                   />
                 </Card>
@@ -562,7 +576,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                   <KeyValue
                     entries={[
                       { label: "Name", value: order.customerName },
-                      { label: "Email", value: <a href={`mailto:${order.email}`}>{order.email}</a> },
+                      { label: "Email", value: order.email ? <a href={`mailto:${order.email}`}>{order.email}</a> : "—" },
                       { label: "Phone", value: order.phone ?? "—" },
                       {
                         label: "Marketing",
@@ -623,15 +637,15 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
         }
       >
         <div className="rv-stack">
-          <p className="rv-hint">This records a refund amount on the order. It does not send money to PayPal or your bank. {formatUSD(refundable)} remains available to record.</p>
-          <Field label="Amount" hint="USD">
+          <p className="rv-hint">This records a refund amount on the order. It does not send money to PayPal or your bank. {formatCurrency(refundable, order?.currency)} remains available to record.</p>
+          <Field label="Amount" hint={order?.currency ?? "USD"}>
             <TextInput
               type="number"
               value={refundAmount}
               onChange={setRefundAmount}
-              min={0.01}
+              min={order?.currency === "IDR" ? 1 : 0.01}
               max={refundable}
-              step="0.01"
+              step={order?.currency === "IDR" ? 1 : 0.01}
             />
           </Field>
           <Field label="Reason">

@@ -24,7 +24,10 @@ export class TestimonialsService {
 
   async listPublic(language: StorefrontLanguage = "en") {
     const testimonials = await this.prisma.testimonial.findMany({
-      where: { isPublished: true },
+      where: {
+        isPublished: true,
+        OR: [{ productId: null }, { product: { is: { sellOnWeb: true } } }],
+      },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       include: testimonialInclude,
     });

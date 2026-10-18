@@ -16,7 +16,7 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { OrderStatus, PaymentMethod, PaymentStatus } from "../../../generated/prisma";
+import { OrderSource, OrderStatus, PaymentMethod, PaymentStatus } from "../../../generated/prisma";
 import { PaginationQueryDto } from "../../common/dto/pagination.dto";
 
 export class ShippingAddressDto {
@@ -156,6 +156,10 @@ export class ReviewReturnRequestDto {
 }
 
 export class OrderQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsEnum(OrderSource)
+  source?: OrderSource;
+
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;

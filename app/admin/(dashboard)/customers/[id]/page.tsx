@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
-import { apiFetch, errorMessage, formatDate, formatDateTime, formatNumber, formatUSD, useApi } from "@/components/admin/api";
+import { apiFetch, errorMessage, formatCurrency, formatDate, formatDateTime, formatNumber, useApi } from "@/components/admin/api";
 import { toast } from "@/components/admin/toast";
 import {
   Badge,
@@ -52,6 +52,7 @@ type CustomerDetail = {
   };
   orderCount: number;
   totalSpent: number;
+  totalSpentByCurrency: Record<string, number>;
   lastOrderAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -200,7 +201,11 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
           <>
             <div className="rv-stat-grid">
               <Stat label="Orders" value={formatNumber(customer.orderCount)} hint="Lifetime orders" />
-              <Stat label="Total spent" value={formatUSD(customer.totalSpent)} hint="Paid orders, net of refunds" />
+              <Stat
+                label="Total spent"
+                value={<span>{formatCurrency(customer.totalSpentByCurrency?.USD ?? customer.totalSpent, "USD")}{customer.totalSpentByCurrency?.IDR !== undefined ? <><br />{formatCurrency(customer.totalSpentByCurrency.IDR, "IDR")}</> : null}</span>}
+                hint="Paid orders, net of refunds · grouped by currency"
+              />
               <Stat
                 label="Last order"
                 value={customer.lastOrderAt ? formatDate(customer.lastOrderAt) : "—"}
@@ -345,7 +350,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
                           </td>
                           <td>{formatDate(order.placedAt)}</td>
                           <td>{formatNumber(order.itemCount)}</td>
-                          <td>{formatUSD(order.total)}</td>
+                          <td>{formatCurrency(order.total, order.currency)}</td>
                           <td>
                             <StatusBadge status={order.status} />
                           </td>

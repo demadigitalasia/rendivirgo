@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { apiUrl, formatDate, formatNumber, formatUSD, useList } from "@/components/admin/api";
+import { apiUrl, formatCurrency, formatDate, formatNumber, useList } from "@/components/admin/api";
 import { DataTable, TablePagination, type Column } from "@/components/admin/data-table";
 import { Badge, Button, Card, PageHeader, TextInput } from "@/components/admin/ui";
 
@@ -24,6 +24,7 @@ type CustomerRow = {
   };
   orderCount: number;
   totalSpent: number;
+  totalSpentByCurrency: Record<string, number>;
   lastOrderAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -79,7 +80,12 @@ export default function AdminCustomersPage() {
       key: "totalSpent",
       header: "Total spent",
       align: "right",
-      render: (customer) => formatUSD(customer.totalSpent),
+      render: (customer) => (
+        <div>
+          {formatCurrency(customer.totalSpentByCurrency?.USD ?? customer.totalSpent, "USD")}
+          {customer.totalSpentByCurrency?.IDR !== undefined ? <div className="rv-hint">{formatCurrency(customer.totalSpentByCurrency.IDR, "IDR")}</div> : null}
+        </div>
+      ),
     },
     {
       key: "lastOrderAt",
