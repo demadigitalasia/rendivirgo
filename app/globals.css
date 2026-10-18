@@ -823,7 +823,7 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .about-owner__intro p + p { margin-top: 8px; }
 .about-owner__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .about-owner__card { display: grid; grid-template-columns: 1fr; overflow: hidden; min-width: 0; background: var(--ivory); border: 1px solid var(--line); border-top: 2px solid var(--bronze); }
-.about-owner__portrait { position: relative; min-height: clamp(270px, 30vw, 360px); overflow: hidden; background: radial-gradient(ellipse at 50% 25%, #285446 0%, #173e32 48%, #0c2c24 100%); }
+.about-owner__portrait { position: relative; height: clamp(300px, 38vw, 420px); min-height: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 25%, #285446 0%, #173e32 48%, #0c2c24 100%); }
 .about-owner__portrait img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; padding: 18px 24px 0; transition: transform .5s ease; }
 .about-owner__copy { display: grid; justify-items: center; gap: 6px; padding: 22px 26px 24px; text-align: center; }
 .about-owner__copy h3 { margin: 0; color: var(--forest); font-size: clamp(1.45rem, 2.3vw, 2rem); line-height: 1.12; font-weight: 400; letter-spacing: -.02em; overflow-wrap: anywhere; }
@@ -859,6 +859,6 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
   .about-values__grid { grid-template-columns: 1fr; }
   .about-steps { grid-template-columns: 1fr; }
   .about-owner__grid { grid-template-columns: 1fr; gap: 16px; }
-  .about-owner__portrait { min-height: min(78vw, 340px); }
+  .about-owner__portrait { height: min(78vw, 340px); min-height: 0; }
   .about-owner__copy { padding: 20px 22px 22px; }
 }
