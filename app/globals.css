@@ -760,7 +760,8 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .contact-side__card a { color: var(--forest); border-bottom: 1px solid currentColor; }
 .contact-side__card a:hover { color: var(--bronze); }
 .contact-socialgrid { display: flex; flex-wrap: wrap; gap: 10px; }
-.contact-socialgrid a { padding: 8px 14px; border: 1px solid var(--line); background: var(--white); }
+.contact-socialgrid a { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--forest); font-size: 20px; transition: color .2s, border-color .2s, background-color .2s; }
+.contact-socialgrid a:hover { border-color: var(--bronze); background: rgba(126, 92, 45, .08); color: var(--bronze); }
 @media (max-width: 980px) {
   .contact-hero__inner { grid-template-columns: 1fr; padding: 64px 0 44px; }
   .contact-channels { grid-template-columns: 1fr; }
@@ -814,14 +815,20 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 .about-steps__index { color: var(--bronze-light); font-family: var(--font-display); font-size: 2rem; }
 .about-steps h3 { font-size: 1.3rem; font-weight: 400; }
 .about-steps p { color: rgba(247,244,238,.75); font-size: .95rem; }
-.about-owner { padding: 64px 0 8px; }
-.about-owner__card { display: grid; grid-template-columns: 320px 1fr; overflow: hidden; background: var(--ivory); border: 1px solid var(--line); border-top: 2px solid var(--bronze); }
-.about-owner__portrait { position: relative; min-height: 380px; background: var(--forest-deep); }
-.about-owner__portrait img { width: 100%; height: 100%; object-fit: cover; }
-.about-owner__copy { padding: clamp(24px, 4vw, 48px); display: grid; gap: 12px; align-content: center; }
-.about-owner__copy h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 400; }
-.about-owner__role { color: var(--bronze); letter-spacing: .12em; text-transform: uppercase; font-size: .78rem; }
-.about-owner__copy p { color: var(--muted); font-family: var(--font-display); font-size: 1.1rem; }
+.about-owner { padding: clamp(64px, 7vw, 96px) 0 12px; display: grid; gap: 28px; }
+.about-owner__heading { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.about-owner__heading h2 { max-width: 900px; margin: 8px 0 0; font-size: clamp(2.2rem, 4vw, 3.5rem); line-height: 1.08; font-weight: 400; letter-spacing: -.025em; }
+.about-owner__intro { max-width: 760px; padding-left: 16px; border-left: 1px solid var(--bronze); }
+.about-owner__intro p { margin: 0; color: var(--muted); font-family: var(--font-display); font-size: 1.08rem; line-height: 1.75; }
+.about-owner__intro p + p { margin-top: 8px; }
+.about-owner__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.about-owner__card { display: grid; grid-template-columns: 1fr; overflow: hidden; min-width: 0; background: var(--ivory); border: 1px solid var(--line); border-top: 2px solid var(--bronze); }
+.about-owner__portrait { position: relative; min-height: clamp(270px, 30vw, 360px); overflow: hidden; background: radial-gradient(ellipse at 50% 25%, #285446 0%, #173e32 48%, #0c2c24 100%); }
+.about-owner__portrait img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; padding: 18px 24px 0; transition: transform .5s ease; }
+.about-owner__copy { display: grid; justify-items: center; gap: 6px; padding: 22px 26px 24px; text-align: center; }
+.about-owner__copy h3 { margin: 0; color: var(--forest); font-size: clamp(1.45rem, 2.3vw, 2rem); line-height: 1.12; font-weight: 400; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.about-owner__role { margin: 0; color: var(--bronze); letter-spacing: .12em; text-transform: uppercase; font: 500 .7rem/1.5 var(--font-ui); }
+.about-owner__card:hover .about-owner__portrait img { transform: scale(1.025); }
 .about-owner__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 8px; }
 .about-promise { padding: 48px 0 8px; }
 .about-promise__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -843,7 +850,6 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
   .about-story__head { position: static; }
   .about-values__grid { grid-template-columns: repeat(2, 1fr); }
   .about-steps { grid-template-columns: repeat(2, 1fr); }
-  .about-owner__card { grid-template-columns: 1fr; }
   .about-owner__portrait { min-height: 280px; }
   .about-promise__grid { grid-template-columns: 1fr; }
 }
@@ -852,4 +858,7 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
   .about-hero__facts > div + div { border-left: 0; border-top: 1px solid rgba(247,244,238,.16); }
   .about-values__grid { grid-template-columns: 1fr; }
   .about-steps { grid-template-columns: 1fr; }
+  .about-owner__grid { grid-template-columns: 1fr; gap: 16px; }
+  .about-owner__portrait { min-height: min(78vw, 340px); }
+  .about-owner__copy { padding: 20px 22px 22px; }
 }

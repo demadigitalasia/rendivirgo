@@ -4,6 +4,8 @@ import Link from "@/components/localized-link";
 import { ContactForm } from "@/components/contact-form";
 import { ArrowIcon, GlobeIcon, LeafIcon, SparkleIcon } from "@/components/icons";
 import { useCopy } from "@/components/providers";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFacebook, faInstagram } from "@fortawesome/free-brands-svg-icons";
 
 export type ContactContentProps = {
   email: string;
@@ -117,11 +119,18 @@ export function ContactContent({ email, whatsapp, whatsappHref, address, hours, 
             <div className="contact-side__card reveal">
               <h3>{t.follow}</h3>
               <div className="contact-socialgrid">
-                {socials.map((social) => (
-                  <a key={social.network} href={social.url} target="_blank" rel="noreferrer noopener">
-                    {social.network.charAt(0).toUpperCase() + social.network.slice(1)}
-                  </a>
-                ))}
+                {socials.map((social) => {
+                  const network = social.network.toLowerCase();
+                  const icon = network.includes("facebook") ? faFacebook : network.includes("instagram") ? faInstagram : null;
+                  const label = icon === faFacebook ? "Facebook" : icon === faInstagram ? "Instagram" : social.network;
+
+                  return (
+                    <a key={social.network} href={social.url} target="_blank" rel="noreferrer noopener"
+                      aria-label={label} title={label}>
+                      {icon ? <FontAwesomeIcon icon={icon} aria-hidden="true" /> : social.network}
+                    </a>
+                  );
+                })}
               </div>
             </div>
           ) : null}

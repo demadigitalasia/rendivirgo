@@ -4,7 +4,16 @@ import Image from "next/image";
 import Link from "@/components/localized-link";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFacebook, faInstagram, faTiktok, faXTwitter, faYoutube } from "@fortawesome/free-brands-svg-icons";
+import {
+  faFacebook,
+  faInstagram,
+  faTiktok,
+  faXTwitter,
+  faYoutube,
+  faPaypal,
+  faCcMastercard,
+  faCcVisa,
+} from "@fortawesome/free-brands-svg-icons";
 import { useCopy, useLanguage } from "@/components/providers";
 
 const socialLabels: Record<string, string> = {
@@ -117,6 +126,32 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
           ) : null}
         </div>
       </div>
+      <section className="page-container site-footer__payments" aria-labelledby="footer-payments-heading">
+        <h2 id="footer-payments-heading">{t.footer.paymentMethods}</h2>
+        <div className="site-footer__payment-options">
+          <ul className="site-footer__payment-list">
+            <li className="site-footer__payment-mark" aria-label="PayPal">
+              <FontAwesomeIcon icon={faPaypal} aria-hidden="true" />
+              <span>PayPal</span>
+            </li>
+            <li className="site-footer__payment-mark site-footer__payment-mark--visa" aria-label="Visa, via PayPal">
+              <FontAwesomeIcon icon={faCcVisa} aria-hidden="true" />
+              <span>Visa</span>
+            </li>
+            <li className="site-footer__payment-mark" aria-label="Mastercard, via PayPal">
+              <FontAwesomeIcon icon={faCcMastercard} aria-hidden="true" />
+              <span>Mastercard</span>
+            </li>
+            <li className="site-footer__payment-mark site-footer__payment-mark--bank" aria-label="Bank transfer">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 9h18M5 9v9m4-9v9m6-9v9m4-9v9M3 21h18M12 3 2 8h20L12 3Z" />
+              </svg>
+              <span>{t.footer.bankTransfer}</span>
+            </li>
+          </ul>
+          <p className="site-footer__payment-note">{t.footer.cardsViaPaypal}</p>
+        </div>
+      </section>
       <div className="page-container site-footer__bottom">
         <div className="site-footer__copyright"><span>© {new Date().getFullYear()} RENDI VIRGO</span><span>{t.footer.fromTo}</span></div>
         <nav className="footer-legal" aria-label={t.footer.legal}>

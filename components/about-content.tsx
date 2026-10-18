@@ -34,6 +34,24 @@ export function AboutContent({
   const copy = t.about;
   const valueIcons = [LeafIcon, SparkleIcon, HeartIcon, BagIcon];
   const promiseIcons = [GlobeIcon, SparkleIcon, LeafIcon];
+  const owners = [
+    {
+      key: "rendi",
+      name: ownerName,
+      image: ownerImage,
+      role: ownerRole,
+      alt: `${ownerName}, ${ownerRole}`,
+    },
+    {
+      key: "pajar",
+      name: "PAJAR AGUNG",
+      image: "/images/pajar-agung-owner-cutout.png",
+      role: ownerRole,
+      alt: copy.pajarPortrait,
+    },
+  ];
+  const localizedOwnerRole = (role: string) =>
+    language === "id" && role === "Founder & Curator" ? "Pendiri & kurator" : role;
   return (
     <div>
       <section className="about-hero">
@@ -133,29 +151,38 @@ export function AboutContent({
       </section>
 
       <section className="page-container about-owner">
-        <div className="about-owner__card reveal">
-          <div className="about-owner__portrait">
-            {ownerImage.startsWith("/") ? (
-              <Image src={ownerImage} alt={ownerName} fill sizes="(max-width: 720px) 100vw, 320px" />
-            ) : (
-              <img src={ownerImage} alt={ownerName} />
-            )}
-          </div>
-          <div className="about-owner__copy">
+        <div className="about-owner__heading reveal">
+          <div>
             <div className="eyebrow">{copy.curator}</div>
-            <h2>{ownerName}</h2>
-            {ownerRole ? <p className="about-owner__role">{language === "id" && ownerRole === "Founder & Curator" ? "Pendiri & kurator" : ownerRole}</p> : null}
-            {language === "id" && ownerBioLanguage === "en" && ownerBio ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
-            <p lang={ownerBioLanguage}>{ownerBio}</p>
-            <div className="about-owner__actions">
-              <Link href="/shop" className="button">
-                {copy.browse} <ArrowIcon />
-              </Link>
-              <a href={`mailto:${email}`} className="text-button">
-                {email}
-              </a>
-            </div>
+            <h2>{copy.ownersTitle}</h2>
           </div>
+          <div className="about-owner__intro">
+            {language === "id" && ownerBioLanguage === "en" && ownerBio ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
+            {ownerBio ? <p lang={ownerBioLanguage}>{ownerBio}</p> : null}
+          </div>
+        </div>
+        <div className="about-owner__grid">
+          {owners.map((owner) => (
+            <article className="about-owner__card reveal" key={owner.key}>
+              <div className="about-owner__portrait">
+                {owner.image.startsWith("/") ? (
+                  <Image src={owner.image} alt={owner.alt} fill sizes="(max-width: 720px) 100vw, (max-width: 980px) 46vw, 560px" />
+                ) : (
+                  <img src={owner.image} alt={owner.alt} />
+                )}
+              </div>
+              <div className="about-owner__copy">
+                <h3>{owner.name}</h3>
+                {owner.role ? <p className="about-owner__role">{localizedOwnerRole(owner.role)}</p> : null}
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="about-owner__actions reveal">
+          <Link href="/shop" className="button">
+            {copy.browse} <ArrowIcon />
+          </Link>
+          <a href={`mailto:${email}`} className="text-button">{email}</a>
         </div>
       </section>
 
