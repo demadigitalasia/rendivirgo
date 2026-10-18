@@ -27,11 +27,17 @@ async function bootstrap() {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const developmentOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+  ];
   const origins = Array.from(
     new Set(
-      isProduction
-        ? configuredOrigins
-        : [...configuredOrigins, "http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
+      isProduction ? configuredOrigins : [...configuredOrigins, ...developmentOrigins],
     ),
   );
   const allowedOrigins = new Set(origins);
