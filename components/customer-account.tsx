@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { useCart, useCopy } from "@/components/providers";
 import { LocalizedLink as Link } from "@/components/localized-link";
+import { CountryDropdown } from "@/components/country-dropdown";
 import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
+import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
 
 type AccessMode = "login" | "register" | "verify" | "forgot" | "reset";
 type CustomerProfile = {
@@ -230,6 +232,7 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
   const { clearCart } = useCart();
   const t = useCopy();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [profileCountryCode, setProfileCountryCode] = useState("");
   const [orders, setOrders] = useState<AccountOrder[]>([]);
   const [summary, setSummary] = useState<OrderSummaryStats>({ total: 0, pendingPayment: 0, activeOrders: 0 });
   const [pageCount, setPageCount] = useState(1);
@@ -252,6 +255,11 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
     const list = await orderResponse.json().catch(() => ({}));
     if (!meResponse.ok || !orderResponse.ok) throw new Error(me?.message || "Could not load your account");
     setProfile(me);
+    setProfileCountryCode(
+      countryCodeForName(me.address?.countryCode) ??
+      countryCodeForName(me.address?.country) ??
+      (me.address?.country ? OTHER_COUNTRY_VALUE : ""),
+    );
     setOrders(Array.isArray(list?.orders) ? list.orders : []);
     setSummary(list?.summary ?? { total: list?.total ?? 0, pendingPayment: 0, activeOrders: 0 });
     setPageCount(Math.max(1, Number(list?.pageCount) || 1));
@@ -269,6 +277,8 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
     setMessage("");
     setError("");
     try {
+      const submittedCountryCode = String(form.get("countryCode") ?? "");
+      const countryIsOther = submittedCountryCode === OTHER_COUNTRY_VALUE;
       const response = await fetch("/api/customer-account/profile", {
         method: "PATCH",
         credentials: "same-origin",
@@ -277,13 +287,16 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
           name: form.get("name"), phone: form.get("phone") || null,
           addressLine1: form.get("addressLine1") || null, addressLine2: form.get("addressLine2") || null,
           city: form.get("city") || null, state: form.get("state") || null,
-          postalCode: form.get("postalCode") || null, country: form.get("country") || null,
-          countryCode: form.get("countryCode") || null, acceptsMarketing: form.get("acceptsMarketing") === "on",
+          postalCode: form.get("postalCode") || null,
+          country: countryIsOther ? form.get("country") || null : countryNameForCode(submittedCountryCode, "en"),
+          countryCode: countryIsOther ? null : submittedCountryCode || null,
+          acceptsMarketing: form.get("acceptsMarketing") === "on",
         }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.message || "Profile could not be updated");
       setProfile(payload);
+      setProfileCountryCode(submittedCountryCode);
       setMessage("Profile updated. Changes apply to future orders.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Profile could not be updated");
@@ -384,8 +397,23 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
                   <label>City<input name="city" autoComplete="address-level2" defaultValue={profile.address.city ?? ""} /></label>
                   <label>State / Province<input name="state" autoComplete="address-level1" defaultValue={profile.address.state ?? ""} /></label>
                   <label>Postal code<input name="postalCode" autoComplete="postal-code" defaultValue={profile.address.postalCode ?? ""} /></label>
-                  <label>Country<input name="country" autoComplete="country-name" defaultValue={profile.address.country ?? ""} /></label>
-                  <label>Country code<input name="countryCode" maxLength={8} defaultValue={profile.address.countryCode ?? ""} /></label>
+                  <div>
+                    <label htmlFor="customer-profile-country">Country</label>
+                    <CountryDropdown
+                      id="customer-profile-country"
+                      value={profileCountryCode}
+                      onChange={setProfileCountryCode}
+                      includeOther
+                      name="countryCode"
+                      placeholder="Select a country"
+                      ariaLabel="Country"
+                    />
+                    {profileCountryCode === OTHER_COUNTRY_VALUE ? (
+                      <label>Country name<input name="country" autoComplete="country-name" defaultValue={profile.address.country ?? ""} /></label>
+                    ) : (
+                      <input type="hidden" name="country" value={countryNameForCode(profileCountryCode, "en") ?? ""} readOnly />
+                    )}
+                  </div>
                 </div>
                 <label className="customer-account__checkbox customer-dashboard__marketing"><input name="acceptsMarketing" type="checkbox" defaultChecked={profile.acceptsMarketing} /> I agree to receive marketing emails</label>
                 {message ? <p className="customer-account__message" role="status">{message}</p> : null}

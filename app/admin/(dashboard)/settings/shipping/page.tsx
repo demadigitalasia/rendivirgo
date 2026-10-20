@@ -4,6 +4,7 @@ import { useState } from "react";
 import { apiFetch, errorMessage, formatNumber, formatUSD, useApi, type ApiState } from "@/components/admin/api";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { toast } from "@/components/admin/toast";
+import { CountryDropdown } from "@/components/country-dropdown";
 import {
   Badge,
   Button,
@@ -18,6 +19,7 @@ import {
   Switch,
   TextInput,
 } from "@/components/admin/ui";
+import { countryCodeForName, WORLDWIDE_REGION_VALUE } from "@/lib/countries";
 
 type ShippingRate = {
   id: string;
@@ -115,7 +117,7 @@ type QuoteForm = {
 const emptyRateForm: RateForm = {
   name: "",
   carrier: "",
-  region: "Worldwide",
+  region: WORLDWIDE_REGION_VALUE,
   minWeightGram: "0",
   maxWeightGram: "",
   deliveryMinDays: "3",
@@ -225,7 +227,9 @@ export default function AdminShippingPage() {
     setRateForm({
       name: rate.name,
       carrier: rate.carrier ?? "",
-      region: rate.region,
+      region: rate.region.trim().toLowerCase() === "worldwide"
+        ? WORLDWIDE_REGION_VALUE
+        : countryCodeForName(rate.region) ?? rate.region,
       minWeightGram: String(rate.minWeightGram),
       maxWeightGram: rate.maxWeightGram === null ? "" : String(rate.maxWeightGram),
       deliveryMinDays: String(rate.deliveryMinDays),
@@ -294,7 +298,7 @@ export default function AdminShippingPage() {
     const payload = {
       name,
       carrier: rateForm.carrier.trim() || null,
-      region: rateForm.region.trim() || "Worldwide",
+      region: rateForm.region.trim() || WORLDWIDE_REGION_VALUE,
       minWeightGram,
       maxWeightGram,
       deliveryMinDays,
@@ -739,8 +743,14 @@ export default function AdminShippingPage() {
                   onChange={(value) => setQuoteField("subtotal", value)}
                 />
               </Field>
-              <Field label="Country code" hint="ISO code, e.g. ID or US">
-                <TextInput value={quoteForm.countryCode} onChange={(value) => setQuoteField("countryCode", value)} />
+              <Field label="Destination country">
+                <CountryDropdown
+                  id="shipping-quote-country"
+                  variant="admin"
+                  value={quoteForm.countryCode}
+                  onChange={(value) => setQuoteField("countryCode", value)}
+                  ariaLabel="Destination country"
+                />
               </Field>
               <Field label="Shipping class">
                 <Select
@@ -854,8 +864,16 @@ export default function AdminShippingPage() {
               <Field label="Carrier" hint="Optional">
                 <TextInput value={rateForm.carrier} onChange={(value) => setRateField("carrier", value)} placeholder="JNE, DHL…" />
               </Field>
-              <Field label="Destination" hint="Country code or Worldwide">
-                <TextInput value={rateForm.region} onChange={(value) => setRateField("region", value)} required />
+              <Field label="Destination">
+                <CountryDropdown
+                  id="shipping-rate-destination"
+                  variant="admin"
+                  value={rateForm.region}
+                  onChange={(value) => setRateField("region", value)}
+                  includeWorldwide
+                  ariaLabel="Shipping rate destination"
+                  required
+                />
               </Field>
               <Field label="Base rate (USD)">
                 <TextInput type="number" min={0} step="0.01" value={rateForm.price} onChange={(value) => setRateField("price", value)} required />

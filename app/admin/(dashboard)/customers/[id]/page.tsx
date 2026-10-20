@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { apiFetch, errorMessage, formatCurrency, formatDate, formatDateTime, formatNumber, useApi } from "@/components/admin/api";
 import { toast } from "@/components/admin/toast";
+import { CountryDropdown } from "@/components/country-dropdown";
+import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
 import {
   Badge,
   Button,
@@ -90,7 +92,9 @@ function toFormState(customer: CustomerDetail): FormState {
     state: customer.address.state ?? "",
     postalCode: customer.address.postalCode ?? "",
     country: customer.address.country ?? "",
-    countryCode: customer.address.countryCode ?? "",
+    countryCode: countryCodeForName(customer.address.countryCode) ??
+      countryCodeForName(customer.address.country) ??
+      (customer.address.country ? OTHER_COUNTRY_VALUE : ""),
   };
 }
 
@@ -137,8 +141,10 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
           city: form.city.trim() || null,
           state: form.state.trim() || null,
           postalCode: form.postalCode.trim() || null,
-          country: form.country.trim() || null,
-          countryCode: form.countryCode.trim() || null,
+          country: form.countryCode === OTHER_COUNTRY_VALUE
+            ? form.country.trim() || null
+            : countryNameForCode(form.countryCode, "en"),
+          countryCode: form.countryCode === OTHER_COUNTRY_VALUE ? null : form.countryCode || null,
         },
       });
       state.setData((current) => (current ? { ...current, ...updated } : { ...updated, orders: [] }));
@@ -294,15 +300,25 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
                         <TextInput value={form.postalCode} onChange={(value) => setField("postalCode", value)} />
                       </Field>
                       <Field label="Country">
-                        <TextInput value={form.country} onChange={(value) => setField("country", value)} />
-                      </Field>
-                      <Field label="Country code">
-                        <TextInput
+                        <CountryDropdown
+                          id="customer-address-country"
+                          variant="admin"
                           value={form.countryCode}
-                          onChange={(value) => setField("countryCode", value)}
-                          placeholder="US"
+                          onChange={(value) => setForm((current) => current ? ({
+                            ...current,
+                            countryCode: value,
+                            country: value === OTHER_COUNTRY_VALUE ? current.country : countryNameForCode(value, "en") ?? "",
+                          }) : current)}
+                          includeOther
+                          placeholder="Select a country"
+                          ariaLabel="Customer address country"
                         />
                       </Field>
+                      {form.countryCode === OTHER_COUNTRY_VALUE ? (
+                        <Field label="Country name">
+                          <TextInput value={form.country} onChange={(value) => setField("country", value)} />
+                        </Field>
+                      ) : null}
                     </div>
 
                     <div className="rv-inline">

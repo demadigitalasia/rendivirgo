@@ -4,7 +4,7 @@ import Link from "@/components/localized-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
-import { FilterDropdown } from "@/components/filter-dropdown";
+import { CountryDropdown } from "@/components/country-dropdown";
 import { formatUSD } from "@/lib/catalog";
 import { CheckoutOrderSummary } from "@/components/checkout/order-summary";
 import { CheckoutPaymentResult } from "@/components/checkout/payment-result";
@@ -12,6 +12,7 @@ import { CheckoutPriceReview } from "@/components/checkout/price-review";
 import type { CheckoutPriceQuote, Discount, PaymentResult } from "@/components/checkout/types";
 import { usePaymentAvailability } from "@/components/checkout/use-payment-availability";
 import { useShippingQuote } from "@/components/checkout/use-shipping-quote";
+import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
 import {
   checkoutRequest,
   clearCheckoutAttempt,
@@ -22,62 +23,11 @@ import {
   type StoredOrder,
 } from "@/lib/checkout-recovery";
 
-const countries: Array<{ name: string; code: string }> = [
-  { name: "United States", code: "US" },
-  { name: "Canada", code: "CA" },
-  { name: "United Kingdom", code: "GB" },
-  { name: "Ireland", code: "IE" },
-  { name: "Germany", code: "DE" },
-  { name: "France", code: "FR" },
-  { name: "Netherlands", code: "NL" },
-  { name: "Belgium", code: "BE" },
-  { name: "Spain", code: "ES" },
-  { name: "Portugal", code: "PT" },
-  { name: "Italy", code: "IT" },
-  { name: "Switzerland", code: "CH" },
-  { name: "Austria", code: "AT" },
-  { name: "Sweden", code: "SE" },
-  { name: "Norway", code: "NO" },
-  { name: "Denmark", code: "DK" },
-  { name: "Finland", code: "FI" },
-  { name: "Poland", code: "PL" },
-  { name: "Czech Republic", code: "CZ" },
-  { name: "Greece", code: "GR" },
-  { name: "Turkey", code: "TR" },
-  { name: "United Arab Emirates", code: "AE" },
-  { name: "Saudi Arabia", code: "SA" },
-  { name: "India", code: "IN" },
-  { name: "Singapore", code: "SG" },
-  { name: "Malaysia", code: "MY" },
-  { name: "Thailand", code: "TH" },
-  { name: "Vietnam", code: "VN" },
-  { name: "Philippines", code: "PH" },
-  { name: "Japan", code: "JP" },
-  { name: "South Korea", code: "KR" },
-  { name: "China", code: "CN" },
-  { name: "Hong Kong", code: "HK" },
-  { name: "Taiwan", code: "TW" },
-  { name: "Australia", code: "AU" },
-  { name: "New Zealand", code: "NZ" },
-  { name: "Brazil", code: "BR" },
-  { name: "Argentina", code: "AR" },
-  { name: "Chile", code: "CL" },
-  { name: "Mexico", code: "MX" },
-  { name: "South Africa", code: "ZA" },
-  { name: "Egypt", code: "EG" },
-  { name: "Indonesia", code: "ID" },
-  { name: "Other", code: "" },
-];
-
 const CHECKOUT_DRAFT_KEY = "rv.checkoutDraft";
 
 export function CheckoutView() {
   const t = useCopy();
   const { language } = useLanguage();
-  const countryNames = useMemo(
-    () => new Intl.DisplayNames([language === "id" ? "id-ID" : "en-GB"], { type: "region" }),
-    [language],
-  );
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const isWholesaleCheckout = pathname.endsWith("/wholesale/checkout");
@@ -90,7 +40,7 @@ export function CheckoutView() {
   const clearCart = useCallback(() => cart.clearCart(isWholesaleCheckout ? "wholesale" : "retail"), [cart.clearCart, isWholesaleCheckout]);
   const checkoutDraftKey = isWholesaleCheckout ? `${CHECKOUT_DRAFT_KEY}:wholesale` : CHECKOUT_DRAFT_KEY;
 
-  const [country, setCountry] = useState("United States");
+  const [country, setCountry] = useState("US");
   const [otherCountryName, setOtherCountryName] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -119,7 +69,7 @@ export function CheckoutView() {
   );
   const [wholesaleAccessRetry, setWholesaleAccessRetry] = useState(0);
   const handledReturn = useRef(false);
-  const countryCode = useMemo(() => countries.find((item) => item.name === country)?.code ?? "", [country]);
+  const countryCode = country === OTHER_COUNTRY_VALUE ? "" : country;
   const hasFragile = lines.some((line) => line.fragile);
   const hasOversized = lines.some((line) => line.shipping.shippingClass === "Oversized");
   const {
@@ -171,10 +121,13 @@ export function CheckoutView() {
         if (typeof address.city === "string") setCity((value) => value || address.city);
         if (typeof address.state === "string") setState((value) => value || address.state);
         if (typeof address.postalCode === "string") setPostalCode((value) => value || address.postalCode);
-        if (typeof address.countryCode === "string") {
-          const match = countries.find((entry) => entry.code === address.countryCode);
-          if (match) setCountry((value) => value === "United States" ? match.name : value);
-          else if (typeof address.country === "string") { setCountry("Other"); setOtherCountryName(address.country); }
+        if (typeof address.countryCode === "string" || typeof address.country === "string") {
+          const savedCountry = countryCodeForName(address.countryCode) ?? countryCodeForName(address.country);
+          if (savedCountry) setCountry((value) => value === "US" ? savedCountry : value);
+          else if (typeof address.country === "string") {
+            setCountry(OTHER_COUNTRY_VALUE);
+            setOtherCountryName(address.country);
+          }
         }
       })
       .catch(() => {
@@ -189,8 +142,12 @@ export function CheckoutView() {
       if (raw) {
         const draft = JSON.parse(raw) as Record<string, unknown>;
         const value = (key: string) => (typeof draft[key] === "string" ? (draft[key] as string) : "");
-        setCountry(value("country") || "United States");
-        setOtherCountryName(value("otherCountryName"));
+        const savedCountry = value("country");
+        const normalizedCountry = savedCountry.toLowerCase() === "other"
+          ? OTHER_COUNTRY_VALUE
+          : countryCodeForName(savedCountry) ?? (savedCountry ? OTHER_COUNTRY_VALUE : "US");
+        setCountry(normalizedCountry);
+        setOtherCountryName(value("otherCountryName") || (normalizedCountry === OTHER_COUNTRY_VALUE && savedCountry.toLowerCase() !== "other" ? savedCountry : ""));
         setFullName(value("fullName"));
         setEmail(value("email"));
         setPhone(value("phone"));
@@ -438,7 +395,7 @@ export function CheckoutView() {
           city,
           state: state || undefined,
           postalCode: postalCode || undefined,
-          country: country === "Other" ? otherCountryName.trim() : country,
+          country: country === OTHER_COUNTRY_VALUE ? otherCountryName.trim() : countryNameForCode(country, "en") ?? country,
           countryCode: countryCode || undefined,
         },
         customerNote: notes || undefined,
@@ -677,23 +634,19 @@ export function CheckoutView() {
             </div>
             <div className="field">
               <label htmlFor="country">{t.checkout.country}</label>
-              <FilterDropdown
+              <CountryDropdown
                 id="country"
                 name="country"
                 ariaLabel={t.checkout.country}
                 value={country}
-                searchable
-                searchPlaceholder={language === "id" ? "Cari negara…" : "Search countries…"}
-                emptyMessage={language === "id" ? "Negara tidak ditemukan." : "No countries found."}
                 onChange={setCountry}
-                options={countries.map((item) => ({
-                  value: item.name,
-                  label: item.code ? countryNames.of(item.code) ?? item.name : t.checkout.otherCountryOption,
-                }))}
+                locale={language === "id" ? "id-ID" : "en-GB"}
+                includeOther
+                required
               />
             </div>
           </div>
-          {country === "Other" ? (
+          {country === OTHER_COUNTRY_VALUE ? (
             <div className="field">
               <label htmlFor="other-country">{t.checkout.otherCountry}</label>
               <input id="other-country" name="otherCountry" autoComplete="country-name" required value={otherCountryName} onChange={(event) => setOtherCountryName(event.target.value)} />
