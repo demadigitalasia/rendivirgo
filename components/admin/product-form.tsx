@@ -20,6 +20,8 @@ export type ApiProductVariant = {
   sku: string;
   name: string;
   price: number;
+  wholesalePrice: number | null;
+  wholesalePiecesPerUnit: number | null;
   stockQuantity: number;
   workshopStockQuantity: number;
   weightGram: number;
@@ -48,6 +50,9 @@ export type ApiProduct = {
   workshopStockQuantity: number;
   sellOnWeb: boolean;
   sellInWorkshop: boolean;
+  sellInWholesale: boolean;
+  wholesalePrice: number | null;
+  wholesalePiecesPerUnit: number | null;
   weightGram: number;
   weightCarat: number | null;
   dimensionsMm: { length: number; width: number; height: number };
@@ -90,6 +95,8 @@ type VariantRow = {
   sku: string;
   name: string;
   price: string;
+  wholesalePrice: string;
+  wholesalePiecesPerUnit: string;
   stockQuantity: string;
   workshopStockQuantity: string;
   weightGram: string;
@@ -116,6 +123,9 @@ type FormValues = {
   workshopStockQuantity: string;
   sellOnWeb: boolean;
   sellInWorkshop: boolean;
+  sellInWholesale: boolean;
+  wholesalePrice: string;
+  wholesalePiecesPerUnit: string;
   weightGram: string;
   weightCarat: string;
   lengthMm: string;
@@ -166,6 +176,8 @@ function toVariantRow(variant: ApiProductVariant): VariantRow {
     sku: variant.sku,
     name: variant.name,
     price: String(variant.price),
+    wholesalePrice: variant.wholesalePrice != null ? String(variant.wholesalePrice) : "",
+    wholesalePiecesPerUnit: variant.wholesalePiecesPerUnit != null ? String(variant.wholesalePiecesPerUnit) : "",
     stockQuantity: String(variant.stockQuantity ?? 0),
     workshopStockQuantity: String(variant.workshopStockQuantity ?? 0),
     weightGram: String(variant.weightGram ?? 0),
@@ -194,6 +206,9 @@ function valuesFromProduct(product?: ApiProduct | null): FormValues {
     workshopStockQuantity: product ? String(product.workshopStockQuantity ?? 0) : "0",
     sellOnWeb: product?.sellOnWeb ?? true,
     sellInWorkshop: product?.sellInWorkshop ?? true,
+    sellInWholesale: product?.sellInWholesale ?? false,
+    wholesalePrice: product?.wholesalePrice != null ? String(product.wholesalePrice) : "",
+    wholesalePiecesPerUnit: product?.wholesalePiecesPerUnit != null ? String(product.wholesalePiecesPerUnit) : "",
     weightGram: product ? String(product.weightGram) : "",
     weightCarat: product?.weightCarat != null ? String(product.weightCarat) : "",
     lengthMm: product?.dimensionsMm?.length ? String(product.dimensionsMm.length) : "",
@@ -322,6 +337,8 @@ export function ProductForm({
         sku: "",
         name: "",
         price: values.price.trim() || "0",
+        wholesalePrice: "",
+        wholesalePiecesPerUnit: "",
         stockQuantity: "1",
         workshopStockQuantity: "0",
         weightGram: values.weightGram.trim() || "0",
@@ -368,16 +385,8 @@ export function ProductForm({
       setError("Weight in grams is required.");
       return;
     }
-    if (!values.sellOnWeb && !values.sellInWorkshop) {
+    if (!values.sellOnWeb && !values.sellInWorkshop && !values.sellInWholesale) {
       setError("Select at least one sales channel.");
-      return;
-    }
-    if (!values.sellInWorkshop && (toNumber(values.workshopStockQuantity) > 0 || variants.some((variant) => toNumber(variant.workshopStockQuantity) > 0))) {
-      setError("Workshop stock must be zero when Workshop POS is disabled.");
-      return;
-    }
-    if (values.stockModel === "Unique" && toNumber(values.workshopStockQuantity) > 1) {
-      setError("A unique product can allocate at most one item to workshop stock.");
       return;
     }
 
@@ -397,7 +406,10 @@ export function ProductForm({
       stockQuantity: values.stockModel === "Quantity" ? Math.max(0, Math.trunc(toNumber(values.stockQuantity))) : null,
       sellOnWeb: values.sellOnWeb,
       sellInWorkshop: values.sellInWorkshop,
-      workshopStockQuantity: Math.max(0, Math.trunc(toNumber(values.workshopStockQuantity))),
+      sellInWholesale: values.sellInWholesale,
+      wholesalePrice: toNumberOrNull(values.wholesalePrice),
+      wholesalePiecesPerUnit: toIntOrNull(values.wholesalePiecesPerUnit),
+      workshopStockQuantity: 0,
       weightGram: Math.max(0, Math.trunc(toNumber(values.weightGram))),
       weightCarat: toNumberOrNull(values.weightCarat),
       lengthMm: toIntOrNull(values.lengthMm),
@@ -425,8 +437,10 @@ export function ProductForm({
           sku: row.sku.trim(),
           name: row.name.trim(),
           price: toNumber(row.price),
+          wholesalePrice: toNumberOrNull(row.wholesalePrice),
+          wholesalePiecesPerUnit: toIntOrNull(row.wholesalePiecesPerUnit),
           stockQuantity: Math.max(0, Math.trunc(toNumber(row.stockQuantity))),
-          workshopStockQuantity: Math.max(0, Math.trunc(toNumber(row.workshopStockQuantity))),
+          workshopStockQuantity: 0,
           weightGram: Math.max(0, Math.trunc(toNumber(row.weightGram))),
           lengthMm: toIntOrNull(row.lengthMm),
           widthMm: toIntOrNull(row.widthMm),
@@ -520,13 +534,14 @@ export function ProductForm({
             <div className="rv-inline">
               <Switch checked={values.sellOnWeb} onChange={(checked) => update("sellOnWeb", checked)} label="Website" />
               <Switch checked={values.sellInWorkshop} onChange={(checked) => update("sellInWorkshop", checked)} label="Workshop POS" />
+              <Switch checked={values.sellInWholesale} onChange={(checked) => update("sellInWholesale", checked)} label="Wholesale" />
             </div>
-            <div className="rv-hint">Choose whether customers can buy this product online, at the workshop, or both.</div>
+            <div className="rv-hint">Choose the sales channels where this product can be purchased.</div>
           </Field>
         </div>
       </Card>
 
-      <Card title="Pricing & stock" description="Set the price, inventory model, and workshop allocation." className="rv-product-edit-section">
+      <Card title="Pricing & stock" description="Retail and POS share one inventory pool. Set a Wholesale price when the Wholesale channel is enabled." className="rv-product-edit-section">
         <div className="rv-form-grid">
           <Field label="Price (USD)">
             <TextInput value={values.price} onChange={(value) => update("price", value)} type="number" min={0} step="0.01" />
@@ -540,6 +555,12 @@ export function ProductForm({
               step="0.01"
             />
           </Field>
+          <Field label="Wholesale price (USD)" hint="Leave blank when variants set their own prices. This price is private to approved accounts.">
+            <TextInput value={values.wholesalePrice} onChange={(value) => update("wholesalePrice", value)} type="number" min={0} step="0.01" />
+          </Field>
+          <Field label="Pieces per sellable unit" hint={values.unit === "piece" ? "Defaults to one piece for this product unit." : "Used to calculate the 100-piece Wholesale minimum. Leave blank if this unit does not count toward the piece minimum."}>
+            <TextInput value={values.wholesalePiecesPerUnit} onChange={(value) => update("wholesalePiecesPerUnit", value)} type="number" min={1} step="1" />
+          </Field>
           <Field label="Stock model">
             <Select
               value={values.stockModel}
@@ -552,19 +573,6 @@ export function ProductForm({
               <TextInput value={values.stockQuantity} onChange={(value) => update("stockQuantity", value)} type="number" min={0} step="1" />
             </Field>
           ) : null}
-          {!variants.length ? (
-            <Field label={values.stockModel === "Unique" ? "Workshop allocation (0 or 1)" : "Workshop allocated stock"}>
-              <TextInput
-                value={values.workshopStockQuantity}
-                onChange={(value) => update("workshopStockQuantity", value)}
-                type="number"
-                min={0}
-                max={values.stockModel === "Unique" ? 1 : undefined}
-                step="1"
-              />
-              <div className="rv-hint">Workshop POS uses this allocation first, then available shared stock.</div>
-            </Field>
-          ) : <div className="rv-hint rv-span-2">Allocate workshop stock on each variant below. Shared stock remains available after allocations.</div>}
           <Field label="Weight (g)">
             <TextInput value={values.weightGram} onChange={(value) => update("weightGram", value)} type="number" min={0} step="1" />
           </Field>
@@ -682,8 +690,9 @@ export function ProductForm({
                 <th>SKU</th>
                 <th>Name</th>
                 <th>Price</th>
+                <th>Wholesale</th>
+                <th>Pieces / unit</th>
                 <th>Stock</th>
-                <th>Workshop</th>
                 <th>Weight (g)</th>
                 <th>L (mm)</th>
                 <th>W (mm)</th>
@@ -706,18 +715,15 @@ export function ProductForm({
                       <TextInput value={row.price} onChange={(value) => updateVariant(index, { price: value })} type="number" min={0} step="0.01" />
                     </td>
                     <td>
-                      <TextInput
-                        value={row.stockQuantity}
-                        onChange={(value) => updateVariant(index, { stockQuantity: value })}
-                        type="number"
-                        min={0}
-                        step="1"
-                      />
+                      <TextInput value={row.wholesalePrice} onChange={(value) => updateVariant(index, { wholesalePrice: value })} type="number" min={0} step="0.01" aria-label="Wholesale price" />
+                    </td>
+                    <td>
+                      <TextInput value={row.wholesalePiecesPerUnit} onChange={(value) => updateVariant(index, { wholesalePiecesPerUnit: value })} type="number" min={1} step="1" aria-label="Wholesale pieces per unit" />
                     </td>
                     <td>
                       <TextInput
-                        value={row.workshopStockQuantity}
-                        onChange={(value) => updateVariant(index, { workshopStockQuantity: value })}
+                        value={row.stockQuantity}
+                        onChange={(value) => updateVariant(index, { stockQuantity: value })}
                         type="number"
                         min={0}
                         step="1"
@@ -757,7 +763,7 @@ export function ProductForm({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={11}>
+                  <td colSpan={12}>
                     <div className="rv-empty">No variants. Variants are optional.</div>
                   </td>
                 </tr>

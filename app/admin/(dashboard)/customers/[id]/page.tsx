@@ -41,6 +41,9 @@ type CustomerDetail = {
   tags: string[];
   notes: string | null;
   acceptsMarketing: boolean;
+  emailVerifiedAt: string | null;
+  wholesaleAccess: boolean;
+  wholesaleApprovedAt: string | null;
   address: {
     line1: string | null;
     line2: string | null;
@@ -99,6 +102,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
 
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [wholesaleSaving, setWholesaleSaving] = useState(false);
 
   useEffect(() => {
     if (!customer) return;
@@ -154,6 +158,23 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
       router.refresh();
     } catch (caught) {
       toast.error(errorMessage(caught));
+    }
+  };
+
+  const setWholesaleAccess = async (enabled: boolean) => {
+    if (!customer) return;
+    setWholesaleSaving(true);
+    try {
+      const updated = await apiFetch<Omit<CustomerDetail, "orders">>(`/api/admin/customers/${id}`, {
+        method: "PATCH",
+        json: { wholesaleAccess: enabled },
+      });
+      state.setData((current) => (current ? { ...current, ...updated } : { ...updated, orders: [] }));
+      toast.success(enabled ? "Wholesale access granted" : "Wholesale access revoked");
+    } catch (caught) {
+      toast.error(errorMessage(caught));
+    } finally {
+      setWholesaleSaving(false);
     }
   };
 
@@ -320,6 +341,24 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
                       { label: "Country", value: customer.address.country ?? "—" },
                     ]}
                   />
+                </Card>
+
+                <Card title="Wholesale access" description="Wholesale orders require a verified customer account.">
+                  <div className="rv-stack">
+                    <KeyValue entries={[
+                      { label: "Account email", value: customer.emailVerifiedAt ? "Verified" : "Not verified" },
+                      { label: "Access", value: customer.wholesaleAccess ? "Enabled" : "Not enabled" },
+                      { label: "Granted", value: customer.wholesaleApprovedAt ? formatDateTime(customer.wholesaleApprovedAt) : "—" },
+                    ]} />
+                    <Button
+                      variant={customer.wholesaleAccess ? undefined : "primary"}
+                      loading={wholesaleSaving}
+                      disabled={!customer.wholesaleAccess && !customer.emailVerifiedAt}
+                      onClick={() => void setWholesaleAccess(!customer.wholesaleAccess)}
+                    >
+                      {customer.wholesaleAccess ? "Revoke Wholesale access" : "Grant Wholesale access"}
+                    </Button>
+                  </div>
                 </Card>
 
                 <Card title="Notes">

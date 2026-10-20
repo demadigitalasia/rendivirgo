@@ -25,11 +25,12 @@ const LAST_ORDER_KEY = "rv.lastOrder";
 const CHECKOUT_DRAFT_KEY = "rv.checkoutDraft";
 const CHECKOUT_REQUEST_KEY = "rv.checkoutRequestKey";
 const CHECKOUT_REQUEST_EMAIL_KEY = "rv.checkoutRequestEmail";
+const scopedKey = (key: string, scope?: string) => scope ? `${key}:${scope}` : key;
 
-export function readLastOrder(): StoredOrder | null {
+export function readLastOrder(scope?: string): StoredOrder | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(LAST_ORDER_KEY);
+    const raw = window.localStorage.getItem(scopedKey(LAST_ORDER_KEY, scope));
     if (!raw) return null;
     const stored = JSON.parse(raw) as Partial<StoredOrder>;
     if (
@@ -44,17 +45,19 @@ export function readLastOrder(): StoredOrder | null {
   }
 }
 
-export function writeLastOrder(order: StoredOrder): void {
+export function writeLastOrder(order: StoredOrder, scope?: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(order));
+  window.localStorage.setItem(scopedKey(LAST_ORDER_KEY, scope), JSON.stringify(order));
 }
 
-export function checkoutRequest(email: string): string {
+export function checkoutRequest(email: string, scope?: string): string {
   try {
-    const key = window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY) ?? window.crypto.randomUUID();
-    window.sessionStorage.setItem(CHECKOUT_REQUEST_KEY, key);
-    if (!window.sessionStorage.getItem(CHECKOUT_REQUEST_EMAIL_KEY)) {
-      window.sessionStorage.setItem(CHECKOUT_REQUEST_EMAIL_KEY, email.trim().toLowerCase());
+    const requestKey = scopedKey(CHECKOUT_REQUEST_KEY, scope);
+    const emailKey = scopedKey(CHECKOUT_REQUEST_EMAIL_KEY, scope);
+    const key = window.sessionStorage.getItem(requestKey) ?? window.crypto.randomUUID();
+    window.sessionStorage.setItem(requestKey, key);
+    if (!window.sessionStorage.getItem(emailKey)) {
+      window.sessionStorage.setItem(emailKey, email.trim().toLowerCase());
     }
     return key;
   } catch {
@@ -62,31 +65,31 @@ export function checkoutRequest(email: string): string {
   }
 }
 
-export function hasCheckoutAttempt(): boolean {
+export function hasCheckoutAttempt(scope?: string): boolean {
   try {
-    return Boolean(window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY));
+    return Boolean(window.sessionStorage.getItem(scopedKey(CHECKOUT_REQUEST_KEY, scope)));
   } catch {
     return false;
   }
 }
 
-export function clearCheckoutAttempt(): void {
+export function clearCheckoutAttempt(scope?: string): void {
   try {
-    window.sessionStorage.removeItem(CHECKOUT_REQUEST_KEY);
-    window.sessionStorage.removeItem(CHECKOUT_REQUEST_EMAIL_KEY);
-    window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+    window.sessionStorage.removeItem(scopedKey(CHECKOUT_REQUEST_KEY, scope));
+    window.sessionStorage.removeItem(scopedKey(CHECKOUT_REQUEST_EMAIL_KEY, scope));
+    window.sessionStorage.removeItem(scopedKey(CHECKOUT_DRAFT_KEY, scope));
   } catch {
     // The saved order remains available through the local last-order record.
   }
 }
 
-export async function recoverCheckoutAttempt(): Promise<CheckoutRecoveryResult> {
-  const stored = readLastOrder();
+export async function recoverCheckoutAttempt(scope?: string): Promise<CheckoutRecoveryResult> {
+  const stored = readLastOrder(scope);
   let checkoutKey: string | undefined;
   let attemptEmail: string | undefined;
   try {
-    checkoutKey = window.sessionStorage.getItem(CHECKOUT_REQUEST_KEY) ?? undefined;
-    attemptEmail = window.sessionStorage.getItem(CHECKOUT_REQUEST_EMAIL_KEY) ?? undefined;
+    checkoutKey = window.sessionStorage.getItem(scopedKey(CHECKOUT_REQUEST_KEY, scope)) ?? undefined;
+    attemptEmail = window.sessionStorage.getItem(scopedKey(CHECKOUT_REQUEST_EMAIL_KEY, scope)) ?? undefined;
   } catch {
     // A saved order below can still be recovered without session storage.
   }
@@ -124,8 +127,8 @@ export async function recoverCheckoutAttempt(): Promise<CheckoutRecoveryResult> 
     paymentMethod: payload.paymentMethod ?? stored?.paymentMethod ?? "PayPal",
     paymentProofUploadedAt: payload.paymentProofUploadedAt ?? stored?.paymentProofUploadedAt ?? null,
   };
-  writeLastOrder(order);
-  clearCheckoutAttempt();
+  writeLastOrder(order, scope);
+  clearCheckoutAttempt(scope);
   return {
     kind: "recovered",
     order,

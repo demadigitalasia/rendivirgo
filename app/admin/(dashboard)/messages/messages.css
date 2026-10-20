@@ -17,10 +17,12 @@
   width: 100%;
   padding: 13px 18px 13px 26px;
   border: 0;
+  border-inline-start: 2px solid transparent;
   border-bottom: 1px solid var(--rv-line-soft);
   background: transparent;
   text-align: left;
   cursor: pointer;
+  transition: background .16s ease, border-color .16s ease;
 }
 
 .rv-inbox__item:last-child {
@@ -32,7 +34,14 @@
 }
 
 .rv-inbox__item.is-selected {
-  background: #f4efe4;
+  border-inline-start-color: var(--rv-jade);
+  background: linear-gradient(100deg, #edf3e9, #fffefa 88%);
+}
+
+.rv-inbox__item:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--rv-jade);
+  outline-offset: -3px;
 }
 
 .rv-inbox__item.is-unread::before {

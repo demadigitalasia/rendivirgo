@@ -83,6 +83,10 @@ export default function AdminPosPage() {
   const [discountValue, setDiscountValue] = useState("");
   const [discountReason, setDiscountReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reserving, setReserving] = useState(false);
+  const [refreshingReservation, setRefreshingReservation] = useState(false);
+  const [reservationId, setReservationId] = useState("");
+  const [reservationExpiresAt, setReservationExpiresAt] = useState<string | null>(null);
   const [saleRequestId, setSaleRequestId] = useState("");
   const [saleError, setSaleError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -127,6 +131,7 @@ export default function AdminPosPage() {
       return;
     }
     setSavingRate(true);
+    if (reservationId) await releaseStockHold();
     setRateError(null);
     setRateMessage(null);
     try {
@@ -142,7 +147,66 @@ export default function AdminPosPage() {
     }
   };
 
+  const releaseStockHold = async () => {
+    const currentReservationId = reservationId;
+    setReservationId("");
+    setReservationExpiresAt(null);
+    setSaleRequestId("");
+    if (!currentReservationId) return;
+    try {
+      await apiFetch(`/api/admin/pos/reservations/${encodeURIComponent(currentReservationId)}`, { method: "DELETE" });
+      catalog.refresh();
+    } catch {
+      // Server expiry releases a hold if this request cannot reach the API.
+    }
+  };
+
+  const refreshStockHold = async () => {
+    if (!reservationId || refreshingReservation) return;
+    setRefreshingReservation(true);
+    setSaleError(null);
+    try {
+      const result = await apiFetch<{ reservationId: string; expiresAt: string }>(
+        `/api/admin/pos/reservations/${encodeURIComponent(reservationId)}/refresh`,
+        { method: "PATCH" },
+      );
+      setReservationExpiresAt(result.expiresAt);
+    } catch (error) {
+      setSaleError(errorMessage(error));
+      if (errorMessage(error).toLowerCase().includes("expired")) {
+        setReservationId("");
+        setReservationExpiresAt(null);
+        setSaleRequestId("");
+        catalog.refresh();
+      }
+    } finally {
+      setRefreshingReservation(false);
+    }
+  };
+
+  const reserveStock = async () => {
+    if (!cart.length || !exchangeRate || reservationId || reserving || submitting) return;
+    setReserving(true);
+    setSaleError(null);
+    try {
+      const requestId = saleRequestId || crypto.randomUUID();
+      setSaleRequestId(requestId);
+      const result = await apiFetch<{ reservationId: string; expiresAt: string }>("/api/admin/pos/reservations", {
+        json: { requestId, items: cart.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })) },
+      });
+      setReservationId(result.reservationId);
+      setReservationExpiresAt(result.expiresAt);
+      catalog.refresh();
+    } catch (error) {
+      setSaleError(errorMessage(error));
+      catalog.refresh();
+    } finally {
+      setReserving(false);
+    }
+  };
+
   const addProduct = (product: PosProduct) => {
+    if (reservationId || reserving || submitting) return;
     setSaleRequestId("");
     const variant = product.variants.length
       ? product.variants.find((item) => item.id === selectedVariants[product.id]) ?? product.variants[0]
@@ -164,6 +228,7 @@ export default function AdminPosPage() {
   };
 
   const updateQuantity = (key: string, value: number) => {
+    if (reservationId || reserving || submitting) return;
     setSaleRequestId("");
     setCart((current) => current.flatMap((item) => {
       if (item.key !== key) return [item];
@@ -180,6 +245,10 @@ export default function AdminPosPage() {
 
   const completeSale = async () => {
     if (!cart.length) return;
+    if (!reservationId) {
+      setSaleError("Reserve the stock before confirming payment.");
+      return;
+    }
     if (!exchangeRate) {
       setSaleError("Set the USD–IDR exchange rate first.");
       return;
@@ -199,6 +268,7 @@ export default function AdminPosPage() {
       setSaleRequestId(requestId);
       const payload = {
         requestId,
+        reservationId,
         exchangeRate,
         customerId: selectedCustomerId || null,
         paymentMethod,
@@ -220,6 +290,8 @@ export default function AdminPosPage() {
       };
       const result = await apiFetch<Receipt>("/api/admin/pos/sales", { method: "POST", json: payload });
       setReceipt(result);
+      setReservationId("");
+      setReservationExpiresAt(null);
       setSaleRequestId("");
       setCart([]);
       setPaymentRef("");
@@ -229,6 +301,11 @@ export default function AdminPosPage() {
       catalog.refresh();
     } catch (error) {
       setSaleError(errorMessage(error));
+      if (errorMessage(error).toLowerCase().includes("hold expired")) {
+        setReservationId("");
+        setReservationExpiresAt(null);
+        setSaleRequestId("");
+      }
       catalog.refresh();
     } finally {
       setSubmitting(false);
@@ -284,12 +361,15 @@ export default function AdminPosPage() {
                         <Select
                           value={variantId}
                           onChange={(value) => setSelectedVariants((current) => ({ ...current, [product.id]: value }))}
+                          disabled={Boolean(reservationId) || reserving || submitting}
+                          compact
+                          ariaLabel={`Variant for ${product.name}`}
                           options={product.variants.map((item) => ({ value: item.id, label: `${item.name} (${item.sku}) · ${formatNumber(item.availableQuantity)} available` }))}
                         />
                       ) : null}
                       <span className="rv-pos-product__price">{exchangeRate ? formatCurrency(idr(price, exchangeRate), "IDR") : "Set exchange rate"}</span>
                     </div>
-                    <Button size="sm" variant="primary" disabled={!exchangeRate || stock <= 0} onClick={() => addProduct(product)}>Add</Button>
+                    <Button size="sm" variant="primary" disabled={!exchangeRate || stock <= 0 || Boolean(reservationId) || reserving || submitting} onClick={() => addProduct(product)}>Add</Button>
                   </article>
                 );
               })}
@@ -314,18 +394,19 @@ export default function AdminPosPage() {
                                 <TextInput
                                   value={item.unitPriceOverrideIdr ?? String(idr(item.usdPrice, exchangeRate))}
                                   onChange={(value) => updateUnitPrice(item.key, value)}
+                                  disabled={Boolean(reservationId) || reserving || submitting}
                                   type="number"
                                   min={0}
                                   max={9_999_999_999}
                                   step={1}
                                 />
                               </Field>
-                              {item.unitPriceOverrideIdr != null ? <Button size="sm" variant="ghost" onClick={() => updateUnitPrice(item.key, null)}>Use converted</Button> : null}
+                              {item.unitPriceOverrideIdr != null ? <Button size="sm" variant="ghost" disabled={Boolean(reservationId) || reserving || submitting} onClick={() => updateUnitPrice(item.key, null)}>Use converted</Button> : null}
                             </div>
                           </td>
-                          <td><TextInput value={item.quantity} onChange={(value) => updateQuantity(item.key, Number(value) || 0)} type="number" min={1} max={item.availableQuantity} step={1} /></td>
+                          <td><TextInput value={item.quantity} onChange={(value) => updateQuantity(item.key, Number(value) || 0)} disabled={Boolean(reservationId) || reserving || submitting} type="number" min={1} max={item.availableQuantity} step={1} /></td>
                           <td className="is-num">{formatCurrency(posUnitPriceIdr(item.usdPrice, exchangeRate, item.unitPriceOverrideIdr) * item.quantity, "IDR")}</td>
-                          <td><Button size="sm" variant="danger" onClick={() => updateQuantity(item.key, 0)}>Remove</Button></td>
+                          <td><Button size="sm" variant="danger" disabled={Boolean(reservationId) || reserving || submitting} onClick={() => updateQuantity(item.key, 0)}>Remove</Button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -361,10 +442,24 @@ export default function AdminPosPage() {
             </Card>
 
             {saleError ? <div className="rv-pos-error" role="alert">{saleError}</div> : null}
-            <Button variant="primary" loading={submitting} disabled={!cart.length || !exchangeRate || totals.total < 0 || hasInvalidPriceOverride} onClick={() => void completeSale()}>
-              Confirm full payment · {formatCurrency(totals.total, "IDR")}
-            </Button>
-            <div className="rv-hint">Confirm only after the full amount has been received. Stock is checked and reduced when the sale is saved.</div>
+            {reservationId ? (
+              <div className="rv-inline">
+                <Button disabled={submitting || reserving} onClick={() => void releaseStockHold()}>Release stock hold</Button>
+                <Button loading={refreshingReservation} disabled={submitting || reserving || refreshingReservation} onClick={() => void refreshStockHold()}>Extend hold 5 minutes</Button>
+                <Button variant="primary" loading={submitting} disabled={!cart.length || !exchangeRate || totals.total < 0 || hasInvalidPriceOverride} onClick={() => void completeSale()}>
+                  Confirm full payment · {formatCurrency(totals.total, "IDR")}
+                </Button>
+              </div>
+            ) : (
+              <Button variant="primary" loading={reserving} disabled={!cart.length || !exchangeRate || totals.total < 0 || hasInvalidPriceOverride || submitting} onClick={() => void reserveStock()}>
+                Reserve stock for 5 minutes
+              </Button>
+            )}
+            <div className="rv-hint">
+              {reservationId && reservationExpiresAt
+                ? `Stock is held until ${formatDateTime(reservationExpiresAt)}. Confirm only after full payment has been received.`
+                : "Reserve stock before taking payment. A hold expires after 5 minutes unless extended."}
+            </div>
           </div>
         </div>
 

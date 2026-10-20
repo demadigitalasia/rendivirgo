@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -96,6 +97,18 @@ export class CreateShippingRateDto {
   @IsInt()
   @Min(0)
   maxWeightGram?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  deliveryMinDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  deliveryMaxDays?: number;
 
   @IsNumber()
   @Min(0)

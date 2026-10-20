@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { FilterDropdown } from "@/components/filter-dropdown";
 
 export function PageHeader({
   title,
@@ -189,6 +190,7 @@ export function Field({
             id: controlId,
             ariaDescribedBy: childProps.ariaDescribedBy ?? describedBy,
             ariaInvalid: childProps.ariaInvalid ?? (error ? true : undefined),
+            ...(child.type === Select ? { ariaLabel: childProps.ariaLabel ?? label } : {}),
           });
     }
   }
@@ -311,6 +313,8 @@ export function Select({
   required,
   ariaInvalid,
   ariaDescribedBy,
+  ariaLabel,
+  compact,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -322,26 +326,30 @@ export function Select({
   required?: boolean;
   ariaInvalid?: boolean;
   ariaDescribedBy?: string;
+  ariaLabel?: string;
+  compact?: boolean;
 }) {
+  const generatedId = `rv-select-${useId().replace(/:/g, "")}`;
+  const controlId = id ?? generatedId;
   return (
-    <select
-      id={id}
-      className="rv-select"
+    <FilterDropdown
+      id={controlId}
+      variant="admin"
+      compact={compact}
       value={value}
       name={name}
-      disabled={disabled}
       required={required}
-      aria-invalid={ariaInvalid || undefined}
-      aria-describedby={ariaDescribedBy}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      {placeholder ? <option value="">{placeholder}</option> : null}
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+      disabled={disabled}
+      ariaInvalid={ariaInvalid}
+      ariaDescribedBy={ariaDescribedBy}
+      ariaLabel={ariaLabel}
+      placeholder={placeholder}
+      searchable={options.length > 10}
+      searchPlaceholder="Search options…"
+      emptyMessage="No matching options."
+      onChange={onChange}
+      options={options}
+    />
   );
 }
 
@@ -384,14 +392,21 @@ export function Tabs({
 }) {
   const id = useId().replace(/:/g, "");
   const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.value === value));
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const move = (index: number) => onChange(tabs[(index + tabs.length) % tabs.length].value);
+  const move = (index: number) => {
+    if (!tabs.length) return;
+    const nextIndex = (index + tabs.length) % tabs.length;
+    onChange(tabs[nextIndex].value);
+    requestAnimationFrame(() => tabRefs.current[nextIndex]?.focus());
+  };
 
   return (
     <div className="rv-tabs" role="tablist" aria-label={ariaLabel}>
       {tabs.map((tab, index) => (
         <button
           key={tab.value}
+          ref={(element) => { tabRefs.current[index] = element; }}
           id={`${id}-${tab.value}`}
           type="button"
           role="tab"
@@ -474,10 +489,15 @@ export function Modal({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const titleId = useId();
   const panelClasses = ["rv-modal__panel", wide ? "rv-modal__panel--wide" : "", panelClassName ?? ""]
     .filter(Boolean)
     .join(" ");
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -496,7 +516,7 @@ export function Modal({
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !panelRef.current) return;
@@ -521,18 +541,18 @@ export function Modal({
       document.body.style.overflow = previousOverflow;
       returnFocusRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
   return (
     <div className="rv-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
+      if (event.target === event.currentTarget) onCloseRef.current();
     }}>
       <div className={panelClasses} ref={panelRef}>
         <div className="rv-modal__header">
           <h2 id={titleId}>{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close dialog">
+          <button type="button" onClick={() => onCloseRef.current()} aria-label="Close dialog">
             ×
           </button>
         </div>

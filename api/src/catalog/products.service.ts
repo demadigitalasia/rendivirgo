@@ -61,7 +61,7 @@ export class ProductsService {
       : product.stockModel === "Unique" ? 1 : (product.stockQuantity ?? 0);
     const webAvailable = product.variants.length
       ? stockQuantity > 0
-      : product.stockModel === "Unique" ? product.workshopStockQuantity === 0 : stockQuantity > 0;
+      : product.stockModel === "Unique" ? product.status === "Published" : stockQuantity > 0;
     const inStock = product.status === "Published" && product.sellOnWeb && webAvailable;
 
     const idReady = language === "id" && product.idTranslationStatus === "Ready" && Boolean(product.nameId?.trim()) &&
@@ -86,6 +86,11 @@ export class ProductsService {
       mohsHardness: product.mohsHardness,
       condition: product.condition,
       price: Number(product.price),
+      ...(includeTranslations ? {
+        sellInWholesale: product.sellInWholesale,
+        wholesalePrice: product.wholesalePrice === null ? null : Number(product.wholesalePrice),
+        wholesalePiecesPerUnit: product.wholesalePiecesPerUnit,
+      } : {}),
       compareAtPrice: product.compareAtPrice === null ? null : Number(product.compareAtPrice),
       currency: product.currency,
       unit: product.unit,
@@ -116,6 +121,10 @@ export class ProductsService {
         sku: variant.sku,
         name: variant.name,
         price: Number(variant.price),
+        ...(includeTranslations ? {
+          wholesalePrice: variant.wholesalePrice === null ? null : Number(variant.wholesalePrice),
+          wholesalePiecesPerUnit: variant.wholesalePiecesPerUnit,
+        } : {}),
         stockQuantity: variant.stockQuantity,
         ...(includeTranslations ? { workshopStockQuantity: variant.workshopStockQuantity } : {}),
         weightGram: variant.weightGram,
@@ -363,7 +372,8 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto, context: AuditContext) {
-    this.validateSalesChannels(dto.sellOnWeb ?? true, dto.sellInWorkshop ?? true, dto.workshopStockQuantity ?? 0, dto.stockModel ?? "Unique", dto.variants ?? []);
+    this.validateSalesChannels(dto.sellOnWeb ?? true, dto.sellInWorkshop ?? true, dto.workshopStockQuantity ?? 0, dto.stockModel ?? "Unique", dto.variants ?? [], dto.sellInWholesale ?? false);
+    this.validateWholesaleChannel(dto.sellInWholesale ?? false, dto.wholesalePrice, dto.variants ?? []);
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new BadRequestException("Category not found");
 
@@ -404,6 +414,9 @@ export class ProductsService {
         stockQuantity: stockModel === "Unique" ? null : Math.max(0, dto.stockQuantity ?? 0),
         sellOnWeb: dto.sellOnWeb ?? true,
         sellInWorkshop: dto.sellInWorkshop ?? true,
+        sellInWholesale: dto.sellInWholesale ?? false,
+        wholesalePrice: dto.wholesalePrice === undefined || dto.wholesalePrice === null ? null : new Prisma.Decimal(dto.wholesalePrice),
+        wholesalePiecesPerUnit: dto.wholesalePiecesPerUnit ?? null,
         workshopStockQuantity: Math.max(0, dto.workshopStockQuantity ?? 0),
         weightGram: dto.weightGram,
         weightCarat: dto.weightCarat ?? null,
@@ -440,6 +453,8 @@ export class ProductsService {
             sku: variant.sku,
             name: variant.name,
             price: new Prisma.Decimal(variant.price),
+            wholesalePrice: variant.wholesalePrice === undefined || variant.wholesalePrice === null ? null : new Prisma.Decimal(variant.wholesalePrice),
+            wholesalePiecesPerUnit: variant.wholesalePiecesPerUnit ?? null,
             stockQuantity: variant.stockQuantity,
             workshopStockQuantity: Math.max(0, variant.workshopStockQuantity ?? 0),
             weightGram: variant.weightGram,
@@ -474,16 +489,29 @@ export class ProductsService {
     workshopStockQuantity: number,
     stockModel: string,
     variants: Array<{ workshopStockQuantity?: number | null }>,
+    sellInWholesale = false,
   ): void {
-    if (!sellOnWeb && !sellInWorkshop) throw new BadRequestException("Select at least one sales channel");
-    if (variants.length > 0 && workshopStockQuantity > 0) {
-      throw new BadRequestException("Allocate workshop stock on individual variants, not the parent product");
+    if (!sellOnWeb && !sellInWorkshop && !sellInWholesale) throw new BadRequestException("Select at least one sales channel");
+    if (workshopStockQuantity > 0 || variants.some((variant) => (variant.workshopStockQuantity ?? 0) > 0)) {
+      throw new BadRequestException("Inventory is shared across Retail, Wholesale and POS. Workshop stock allocation is no longer supported.");
     }
-    if (!sellInWorkshop && (workshopStockQuantity > 0 || variants.some((variant) => (variant.workshopStockQuantity ?? 0) > 0))) {
-      throw new BadRequestException("Workshop stock cannot be allocated when Workshop POS is disabled");
+    if (stockModel === "Unique" && variants.length > 0) {
+      throw new BadRequestException("Unique-piece products cannot have variants. Use quantity-based stock for products with variants.");
     }
-    if (stockModel === "Unique" && workshopStockQuantity > 1) {
-      throw new BadRequestException("A unique product can allocate at most one item to workshop stock");
+  }
+
+  private validateWholesaleChannel(
+    sellInWholesale: boolean,
+    wholesalePrice: number | Prisma.Decimal | null | undefined,
+    variants: Array<{ name: string; wholesalePrice?: number | Prisma.Decimal | null }>,
+  ): void {
+    if (!sellInWholesale) return;
+    if (!variants.length && (wholesalePrice === undefined || wholesalePrice === null)) {
+      throw new BadRequestException("Set a wholesale price before enabling Wholesale for this product");
+    }
+    const missingVariant = variants.find((variant) => variant.wholesalePrice == null && wholesalePrice == null);
+    if (missingVariant) {
+      throw new BadRequestException(`Set a wholesale price for variant "${missingVariant.name}" or the product before enabling Wholesale`);
     }
   }
 
@@ -500,6 +528,8 @@ export class ProductsService {
       const payload = {
         name: variant.name,
         price: new Prisma.Decimal(variant.price),
+        wholesalePrice: variant.wholesalePrice === undefined || variant.wholesalePrice === null ? null : new Prisma.Decimal(variant.wholesalePrice),
+        wholesalePiecesPerUnit: variant.wholesalePiecesPerUnit ?? null,
         stockQuantity: variant.stockQuantity,
         workshopStockQuantity: Math.max(0, variant.workshopStockQuantity ?? 0),
         weightGram: variant.weightGram,
@@ -558,6 +588,12 @@ export class ProductsService {
       nextWorkshopStock,
       nextStockModel,
       dto.variants ?? existing.variants,
+      dto.sellInWholesale ?? existing.sellInWholesale,
+    );
+    this.validateWholesaleChannel(
+      dto.sellInWholesale ?? existing.sellInWholesale,
+      dto.wholesalePrice !== undefined ? dto.wholesalePrice : existing.wholesalePrice === null ? null : Number(existing.wholesalePrice),
+      dto.variants ?? existing.variants,
     );
     const priceChanged = dto.price !== undefined && Number(existing.price) !== Number(dto.price);
     const stockChanged = dto.stockQuantity !== undefined && existing.stockQuantity !== dto.stockQuantity;
@@ -591,6 +627,9 @@ export class ProductsService {
           ...(dto.stockModel === "Unique" ? { stockQuantity: null } : dto.stockQuantity !== undefined ? { stockQuantity: Math.max(0, dto.stockQuantity ?? 0) } : {}),
           ...(dto.sellOnWeb !== undefined ? { sellOnWeb: dto.sellOnWeb } : {}),
           ...(dto.sellInWorkshop !== undefined ? { sellInWorkshop: dto.sellInWorkshop } : {}),
+          ...(dto.sellInWholesale !== undefined ? { sellInWholesale: dto.sellInWholesale } : {}),
+          ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice === null ? null : new Prisma.Decimal(dto.wholesalePrice) } : {}),
+          ...(dto.wholesalePiecesPerUnit !== undefined ? { wholesalePiecesPerUnit: dto.wholesalePiecesPerUnit } : {}),
           ...(dto.workshopStockQuantity !== undefined ? { workshopStockQuantity: Math.max(0, dto.workshopStockQuantity) } : {}),
           ...(dto.weightGram !== undefined ? { weightGram: dto.weightGram } : {}),
           ...(dto.weightCarat !== undefined ? { weightCarat: dto.weightCarat } : {}),
@@ -753,6 +792,7 @@ export class ProductsService {
         stockQuantity: source.stockQuantity,
         sellOnWeb: source.sellOnWeb,
         sellInWorkshop: source.sellInWorkshop,
+        sellInWholesale: false,
         workshopStockQuantity: 0,
         weightGram: source.weightGram,
         weightCarat: source.weightCarat,

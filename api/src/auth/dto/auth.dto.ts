@@ -16,7 +16,7 @@ export class ChangePasswordDto {
   currentPassword: string;
 
   @IsString()
-  @MinLength(10)
+  @MinLength(12)
   @MaxLength(200)
   newPassword: string;
 }

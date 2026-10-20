@@ -160,6 +160,7 @@ export default function AdminMessagesPage() {
                 onChange={(value) => state.update({ status: value || undefined, page: 1 })}
                 options={statusOptions}
                 placeholder="All statuses"
+                ariaLabel="Filter messages by status"
               />
               {hasFilters ? (
                 <Button size="sm" onClick={state.reset}>
@@ -183,6 +184,7 @@ export default function AdminMessagesPage() {
                     ]
                       .filter(Boolean)
                       .join(" ")}
+                    aria-current={selectedId === message.id ? "true" : undefined}
                     onClick={() => openMessage(message)}
                   >
                     <div className="rv-inbox__row">

@@ -10,6 +10,8 @@ export type ProductVariant = {
   sku: string;
   name: string;
   price: number;
+  wholesale?: boolean;
+  wholesalePiecesPerUnit?: number | null;
   stockQuantity: number;
   weightGram: number;
   dimensionsMm: DimensionsMm;
@@ -43,6 +45,8 @@ export type Product = {
   origin: string;
   mohsHardness?: number | null;
   price: number;
+  wholesale?: boolean;
+  wholesalePiecesPerUnit?: number | null;
   currency: "USD";
   unit: Unit;
   stockModel: StockModel;

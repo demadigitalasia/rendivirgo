@@ -201,7 +201,7 @@
   margin-top: 3px;
 }
 
-.rv-pos-product__info select.rv-select {
+.rv-pos-product__info .rv-select-dropdown .rv-select {
   min-height: 36px;
   padding-top: 6px;
   padding-bottom: 6px;

@@ -7,6 +7,9 @@ import { useCart, useCopy, useLanguage } from "@/components/providers";
 import { ArrowIcon, BagIcon, CloseIcon, GlobeIcon, HeartIcon, MenuIcon, SearchIcon } from "@/components/icons";
 import { LocalizedLink as Link } from "@/components/localized-link";
 import { localizedPath, stripLocalePrefix, type Language } from "@/lib/locale";
+import { isStorefrontRouteActive, storefrontRoutes } from "@/lib/navigation";
+
+type ShopNavCategory = { slug: string; name: string };
 
 function LanguageSwitch({
   className = "",
@@ -29,19 +32,21 @@ function LanguageSwitch({
   );
 }
 
-export function SiteHeader({ languages }: { languages: Language[] }) {
+export function SiteHeader({ languages, categories }: { languages: Language[]; categories: ShopNavCategory[] }) {
   const t = useCopy();
   const { itemCount } = useCart();
   const { language, setLanguage } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shopMenuOpen, setShopMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const headerRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const shopMenuButtonRef = useRef<HTMLButtonElement>(null);
   const selectLanguage = async (nextLanguage: Language) => {
     if (nextLanguage === language) return;
     const response = await fetch("/api/language", {
@@ -54,29 +59,33 @@ export function SiteHeader({ languages }: { languages: Language[] }) {
     router.replace(`${localizedPath(window.location.pathname, nextLanguage)}${window.location.search}`, { scroll: false });
   };
   const navItems = [
-    { href: "/", label: t.nav.home },
-    { href: "/shop", label: t.nav.shop },
-    { href: "/about-us", label: t.nav.about },
-    { href: "/blog", label: t.nav.blog },
-    { href: "/contact", label: t.nav.contact },
+    { href: storefrontRoutes.home, label: t.nav.home },
+    { href: storefrontRoutes.about, label: t.nav.about },
+    { href: storefrontRoutes.journal, label: t.nav.blog },
+    { href: storefrontRoutes.contact, label: t.nav.contact },
+    { href: storefrontRoutes.account, label: t.nav.account },
   ];
   const routePath = stripLocalePrefix(pathname);
+  const shopActive = isStorefrontRouteActive(routePath, storefrontRoutes.shop);
+  const shopCategories = categories.slice(0, 6);
 
   useEffect(() => {
     if (menuOpen) navRef.current?.querySelector<HTMLAnchorElement>("a")?.focus({ preventScroll: true });
   }, [menuOpen]);
 
   useEffect(() => {
-    if (!menuOpen && !searchOpen) return;
+    if (!menuOpen && !shopMenuOpen && !searchOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
       if (searchOpen) { setSearchOpen(false); searchButtonRef.current?.focus({ preventScroll: true }); }
+      if (shopMenuOpen) { setShopMenuOpen(false); shopMenuButtonRef.current?.focus({ preventScroll: true }); }
       if (menuOpen) { setMenuOpen(false); menuButtonRef.current?.focus({ preventScroll: true }); }
     };
     const onPointerDown = (event: PointerEvent) => {
       if (event.target instanceof Node && !headerRef.current?.contains(event.target)) {
         setMenuOpen(false);
+        setShopMenuOpen(false);
         setSearchOpen(false);
       }
     };
@@ -86,14 +95,15 @@ export function SiteHeader({ languages }: { languages: Language[] }) {
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [menuOpen, searchOpen]);
+  }, [menuOpen, searchOpen, shopMenuOpen]);
 
-  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
+  useEffect(() => { setMenuOpen(false); setShopMenuOpen(false); setSearchOpen(false); }, [pathname]);
 
   useEffect(() => {
     const compact = window.matchMedia("(max-width: 980px)");
     const onResize = () => {
       setMenuOpen(false);
+      setShopMenuOpen(false);
       if (!compact.matches && document.activeElement?.closest(".mobile-nav-language")) {
         navRef.current?.querySelector<HTMLAnchorElement>("a")?.focus({ preventScroll: true });
       }
@@ -112,7 +122,7 @@ export function SiteHeader({ languages }: { languages: Language[] }) {
 
   return (
     <header className="storefront-header" ref={headerRef} onBlur={(event) => {
-      if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) { setMenuOpen(false); setSearchOpen(false); }
+      if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) { setMenuOpen(false); setShopMenuOpen(false); setSearchOpen(false); }
     }}>
       <div className="announcement-bar">
         <div className="announcement-message"><span>{t.announcement.authentic}</span><i aria-hidden="true" /><span>{t.announcement.worldwide}</span></div>
@@ -124,24 +134,62 @@ export function SiteHeader({ languages }: { languages: Language[] }) {
             sizes="(max-width: 370px) 136px, (max-width: 980px) 144px, 184px" loading="eager" />
         </Link>
         <nav ref={navRef} id="primary-navigation" className={`main-nav ${menuOpen ? "is-open" : ""}`} aria-label={t.nav.primary}>
-          {navItems.map(({ href, label }) => {
-            const active = href === "/" ? routePath === "/" : routePath === href || routePath.startsWith(`${href}/`);
+          <Link href={navItems[0].href} className={`nav-link ${isStorefrontRouteActive(routePath, navItems[0].href) ? "is-active" : ""}`}
+            aria-current={isStorefrontRouteActive(routePath, navItems[0].href) ? "page" : undefined}
+            onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{navItems[0].label}</Link>
+          <div className={`main-nav__shop${shopMenuOpen ? " is-open" : ""}`}>
+            <Link href={storefrontRoutes.shop} className={`nav-link${shopActive ? " is-active" : ""}`}
+              aria-current={shopActive ? "page" : undefined}
+              onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.shop}</Link>
+            <button
+              ref={shopMenuButtonRef}
+              type="button"
+              className="main-nav__shop-toggle"
+              aria-label={shopMenuOpen ? t.nav.closeShopCategories : t.nav.openShopCategories}
+              aria-expanded={shopMenuOpen}
+              aria-controls="shop-category-navigation"
+              onClick={() => setShopMenuOpen((open) => !open)}
+            >
+              <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg>
+            </button>
+            <div id="shop-category-navigation" className="main-nav__shop-panel" hidden={!shopMenuOpen}>
+              <div className="main-nav__shop-panel-head">
+                <p className="main-nav__shop-heading">{t.nav.shopCategories}</p>
+                <span className="main-nav__shop-panel-mark" aria-hidden="true">✦</span>
+              </div>
+              <div className="main-nav__shop-links">
+                {shopCategories.map((category) => {
+                  const categoryPath = `${storefrontRoutes.shop}/${category.slug}`;
+                  const active = isStorefrontRouteActive(routePath, categoryPath);
+                  return <Link key={category.slug} href={categoryPath} aria-current={active ? "page" : undefined}
+                    onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}><span>{category.name}</span><span aria-hidden="true">↗</span></Link>;
+                })}
+              </div>
+              <Link className="main-nav__shop-all" href={storefrontRoutes.shop} aria-current={routePath === storefrontRoutes.shop ? "page" : undefined}
+                onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.shopAll}<span aria-hidden="true">→</span></Link>
+            </div>
+          </div>
+          <Link href={storefrontRoutes.wholesaleCatalog} className={`nav-link ${isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleCatalog) ? "is-active" : ""}`}
+            aria-current={isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleCatalog) ? "page" : undefined}
+            onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.wholesale}</Link>
+          {navItems.slice(1).map(({ href, label }) => {
+            const active = isStorefrontRouteActive(routePath, href);
             return <Link key={href} href={href} className={`nav-link ${active ? "is-active" : ""}`}
-              aria-current={active ? "page" : undefined} onClick={() => setMenuOpen(false)}>{label}</Link>;
+              aria-current={active ? "page" : undefined} onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{label}</Link>;
           })}
           <Link className="mobile-wishlist nav-link" href="/wishlist" onClick={() => setMenuOpen(false)}>{t.nav.wishlist}<HeartIcon /></Link>
           <div className="mobile-nav-language"><span>{t.nav.language}</span><LanguageSwitch languages={languages} onSelect={(next) => void selectLanguage(next)} /></div>
         </nav>
         <div className="header-actions">
           <button ref={searchButtonRef} type="button" className="icon-button"
-            onClick={() => { setSearchOpen((value) => !value); setMenuOpen(false); }}
+            onClick={() => { setSearchOpen((value) => !value); setMenuOpen(false); setShopMenuOpen(false); }}
             aria-label={t.nav.search} aria-expanded={searchOpen} aria-controls="site-search"><SearchIcon /></button>
           <Link className="icon-button header-wishlist" href="/wishlist" aria-label={t.nav.wishlist}><HeartIcon /></Link>
           <Link className="icon-button icon-button--bag" href="/cart" aria-label={itemCount > 0 ? `${t.nav.cart} (${itemCount})` : t.nav.cart}>
             <BagIcon />{itemCount > 0 && <span aria-hidden="true">{itemCount}</span>}
           </Link>
           <button ref={menuButtonRef} type="button" className="mobile-menu-button"
-            onClick={() => { setMenuOpen((value) => !value); setSearchOpen(false); }}
+            onClick={() => { setMenuOpen((value) => !value); setSearchOpen(false); setShopMenuOpen(false); }}
             aria-label={menuOpen ? t.nav.closeMenu : t.nav.openMenu} aria-expanded={menuOpen} aria-controls="primary-navigation">
             {menuOpen ? <CloseIcon /> : <MenuIcon />}
           </button>

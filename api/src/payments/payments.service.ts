@@ -317,6 +317,7 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
     const shippingAddress = this.paypalShippingAddress(order);
 
     const origin = this.appOrigin(requestOrigin);
+    const checkoutPath = order.source === "Wholesale" ? "/wholesale/checkout" : "/checkout";
     const existingPaypalOrderId = order.paypalOrderId ?? (order.paymentStatus === "Pending" ? order.paymentRef : null);
     if (existingPaypalOrderId) {
       const existingPaypalOrder = await this.paypal.getOrder(existingPaypalOrderId);
@@ -348,8 +349,8 @@ export class PaymentsService implements OnModuleInit, OnModuleDestroy {
       currency: order.currency,
       referenceId: order.orderNumber,
       shippingAddress,
-      returnUrl: `${origin}/checkout?paypal=return&orderId=${encodeURIComponent(order.id)}`,
-      cancelUrl: `${origin}/checkout?paypal=cancel&orderId=${encodeURIComponent(order.id)}`,
+      returnUrl: `${origin}${checkoutPath}?paypal=return&orderId=${encodeURIComponent(order.id)}`,
+      cancelUrl: `${origin}${checkoutPath}?paypal=cancel&orderId=${encodeURIComponent(order.id)}`,
       ...(retryKey ? { idempotencyKey: retryKey } : {}),
     });
 

@@ -93,14 +93,14 @@ export default async function BlogPage({
           </div>
           {tags.length ? (
             <div className="journal-filters" role="navigation" aria-label={journal.filterByTopic}>
-              <Link href="/blog" className={`journal-chip ${!activeTag ? "is-active" : ""}`}>
+              <Link href="/blog" aria-current={!activeTag ? "page" : undefined} className={`journal-chip ${!activeTag ? "is-active" : ""}`}>
                 {journal.all}
               </Link>
               {tags.map((tag) => (
                 <Link
                   key={tag}
                   href={tag === activeTag ? "/blog" : `/blog?tag=${encodeURIComponent(tag)}`}
-                  aria-pressed={tag === activeTag}
+                  aria-current={tag === activeTag ? "page" : undefined}
                   className={`journal-chip ${tag === activeTag ? "is-active" : ""}`}
                 >
                   {tag}

@@ -102,7 +102,7 @@ Setelah sukses, salin **Internal URL** aplikasi `api` dari halaman aplikasi (for
 **Resend** (resend.com):
 
 1. Verifikasi domain pengirim (mis. `rendivirgo.com`) di Resend → API Keys → buat key.
-2. Isi `RESEND_API_KEY` dan `EMAIL_FROM` (harus dari domain terverifikasi). Tanpa key, email dilewati dengan peringatan di log (order tetap dibuat).
+2. Isi `RESEND_API_KEY` dan `EMAIL_FROM` (harus dari domain terverifikasi). Email verifikasi dan reset masuk antrean database terenkripsi dan dicoba ulang sampai token kedaluwarsa; tanpa key, antrean menunggu konfigurasi dan API mencatat error. Pastikan `SESSION_SECRET` stabil dan minimal 32 karakter di produksi karena dipakai untuk mengenkripsi antrean email autentikasi dan membuat kunci rate-limit bersama.
 
 **Stok tertahan:** order yang belum dibayar melepas stok otomatis setelah `ORDER_RESERVATION_MINUTES` (default 60 menit).
 

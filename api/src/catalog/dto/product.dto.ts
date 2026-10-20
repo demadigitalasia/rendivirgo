@@ -59,6 +59,16 @@ export class ProductVariantDto {
   @Min(0)
   price: number;
 
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  wholesalePiecesPerUnit?: number | null;
+
   @IsInt()
   @Min(0)
   stockQuantity: number;
@@ -172,6 +182,20 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   sellInWorkshop?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sellInWholesale?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  wholesalePrice?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  wholesalePiecesPerUnit?: number | null;
 
   @IsOptional()
   @IsInt()

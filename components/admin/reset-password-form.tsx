@@ -9,7 +9,7 @@ import { Button, Field, TextInput } from "@/components/admin/ui";
 
 export function ResetPasswordForm() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+  const [token] = useState(() => searchParams.get("token") ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +37,7 @@ export function ResetPasswordForm() {
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
+      window.history.replaceState(window.history.state, "", window.location.pathname);
       setLoading(false);
     }
   };

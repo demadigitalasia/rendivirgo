@@ -8,7 +8,7 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Prisma, type OrderStatus, type PaymentMethod } from "../../generated/prisma";
+import { Prisma, type OrderSource, type OrderStatus, type PaymentMethod } from "../../generated/prisma";
 import { EmailService } from "../email/email.service";
 import {
   renderOrderCancelledEmail,
@@ -56,6 +56,8 @@ export type PreparedOrderItem = {
 export type PreparedOrder = {
   checkoutKey?: string;
   checkoutFingerprint?: string | null;
+  source?: OrderSource;
+  customerId?: string | null;
   email: string;
   customerName: string;
   phone?: string | null;
@@ -161,12 +163,13 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
       }
 
       for (const reservation of quantityReservations.values()) {
+        const isWholesale = input.source === "Wholesale";
         if (reservation.variantId) {
           const result = await tx.productVariant.updateMany({
             where: {
               id: reservation.variantId,
               productId: reservation.productId,
-              product: { is: { status: "Published", sellOnWeb: true } },
+              product: { is: { status: "Published", ...(isWholesale ? { sellInWholesale: true } : { sellOnWeb: true }) } },
               stockQuantity: { gte: reservation.quantity },
             },
             data: { stockQuantity: { decrement: reservation.quantity } },
@@ -180,7 +183,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
               id: reservation.productId,
               stockModel: "Quantity",
               status: "Published",
-              sellOnWeb: true,
+              ...(isWholesale ? { sellInWholesale: true } : { sellOnWeb: true }),
               stockQuantity: { gte: reservation.quantity },
             },
             data: { stockQuantity: { decrement: reservation.quantity } },
@@ -193,8 +196,9 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
 
       const uniqueProductIds = [...new Set(input.items.filter((item) => item.stockModel === "Unique").map((item) => item.productId))];
       if (uniqueProductIds.length) {
+        const isWholesale = input.source === "Wholesale";
         const reserved = await tx.product.updateMany({
-          where: { id: { in: uniqueProductIds }, stockModel: "Unique", status: "Published", sellOnWeb: true, workshopStockQuantity: 0 },
+          where: { id: { in: uniqueProductIds }, stockModel: "Unique", status: "Published", ...(isWholesale ? { sellInWholesale: true } : { sellOnWeb: true }) },
           data: { status: "Reserved" },
         });
         if (reserved.count !== uniqueProductIds.length) {
@@ -204,35 +208,45 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
 
       const email = input.email.trim().toLowerCase();
       const existingCustomer = await tx.customer.findUnique({ where: { email } });
-      const customer = existingCustomer
-        ? await tx.customer.update({
-            where: { id: existingCustomer.id },
-            data: {
-              name: input.customerName,
-              ...(input.phone !== undefined ? { phone: input.phone } : {}),
-              addressLine1: input.shippingAddress.line1,
-              addressLine2: input.shippingAddress.line2 ?? existingCustomer.addressLine2,
-              city: input.shippingAddress.city,
-              state: input.shippingAddress.state ?? existingCustomer.state,
-              postalCode: input.shippingAddress.postalCode ?? existingCustomer.postalCode,
-              country: input.shippingAddress.country,
-              countryCode: input.shippingAddress.countryCode ?? existingCustomer.countryCode,
-            },
-          })
-        : await tx.customer.create({
-            data: {
-              email,
-              name: input.customerName,
-              phone: input.phone ?? null,
-              addressLine1: input.shippingAddress.line1,
-              addressLine2: input.shippingAddress.line2 ?? null,
-              city: input.shippingAddress.city,
-              state: input.shippingAddress.state ?? null,
-              postalCode: input.shippingAddress.postalCode ?? null,
-              country: input.shippingAddress.country,
-              countryCode: input.shippingAddress.countryCode ?? null,
-            },
-          });
+      const linkedCustomer = input.customerId ? await tx.customer.findUnique({ where: { id: input.customerId } }) : null;
+      if (input.customerId && (!linkedCustomer || linkedCustomer.email !== email || !linkedCustomer.emailVerifiedAt)) {
+        throw new BadRequestException("The signed-in customer account no longer matches this checkout");
+      }
+      let customer = linkedCustomer;
+      if (!customer && existingCustomer?.emailVerifiedAt) {
+        customer = existingCustomer;
+      } else if (!customer && existingCustomer) {
+        customer = await tx.customer.update({
+          where: { id: existingCustomer.id },
+          data: {
+            name: input.customerName,
+            ...(input.phone !== undefined ? { phone: input.phone } : {}),
+            addressLine1: input.shippingAddress.line1,
+            addressLine2: input.shippingAddress.line2 ?? existingCustomer.addressLine2,
+            city: input.shippingAddress.city,
+            state: input.shippingAddress.state ?? existingCustomer.state,
+            postalCode: input.shippingAddress.postalCode ?? existingCustomer.postalCode,
+            country: input.shippingAddress.country,
+            countryCode: input.shippingAddress.countryCode ?? existingCustomer.countryCode,
+          },
+        });
+      } else if (!customer) {
+        customer = await tx.customer.create({
+          data: {
+            email,
+            name: input.customerName,
+            phone: input.phone ?? null,
+            addressLine1: input.shippingAddress.line1,
+            addressLine2: input.shippingAddress.line2 ?? null,
+            city: input.shippingAddress.city,
+            state: input.shippingAddress.state ?? null,
+            postalCode: input.shippingAddress.postalCode ?? null,
+            country: input.shippingAddress.country,
+            countryCode: input.shippingAddress.countryCode ?? null,
+          },
+        });
+      }
+      const orderCustomerId = linkedCustomer?.id ?? (customer.emailVerifiedAt ? null : customer.id);
 
       const now = new Date();
       const dateKey =
@@ -252,7 +266,8 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
           ...(input.checkoutKey && input.checkoutFingerprint
             ? { checkoutKey: input.checkoutKey, checkoutFingerprint: input.checkoutFingerprint }
             : {}),
-          customerId: customer.id,
+          customerId: orderCustomerId,
+          source: input.source ?? "Online",
           email,
           customerName: input.customerName,
           phone: input.phone ?? null,
@@ -358,25 +373,36 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async transitionStatus(orderId: string, nextStatus: OrderStatus, adminId?: string): Promise<OrderWithRelations> {
-    const existing = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!existing) throw new NotFoundException("Order not found");
-    if (existing.status === nextStatus) {
-      return this.prisma.order.findUniqueOrThrow({ where: { id: orderId }, include: orderInclude });
-    }
-    if (!canTransitionOrderStatus(existing.status, nextStatus)) {
-      throw new BadRequestException("Cannot change order status from " + existing.status + " to " + nextStatus);
-    }
-
     const result = await this.prisma.$transaction(async (tx): Promise<TransitionResult> => {
+      await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+      const existing = await tx.order.findUnique({ where: { id: orderId } });
+      if (!existing) throw new NotFoundException("Order not found");
+      if (existing.status === nextStatus) {
+        return { order: await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: orderInclude }), changed: false, previousStatus: nextStatus, nextStatus };
+      }
+      if (!canTransitionOrderStatus(existing.status, nextStatus)) {
+        throw new BadRequestException("Cannot change order status from " + existing.status + " to " + nextStatus);
+      }
+      if (["Processing", "Packed", "Shipped", "Completed"].includes(nextStatus) && existing.paymentStatus !== "Paid") {
+        throw new BadRequestException("Payment must be confirmed before order fulfilment can continue");
+      }
+      if (
+        nextStatus === "Cancelled" &&
+        (existing.paymentStatus === "Paid" || existing.paymentStatus === "PartiallyRefunded")
+      ) {
+        throw new BadRequestException("Record the full refund before cancelling a paid order");
+      }
+
       const now = new Date();
       const data: Prisma.OrderUpdateManyMutationInput = { status: nextStatus };
       if (nextStatus === "Packed" && !existing.packedAt) data.packedAt = now;
       if (nextStatus === "Shipped" && !existing.shippedAt) data.shippedAt = now;
       if (nextStatus === "Completed" && !existing.completedAt) data.completedAt = now;
       if (nextStatus === "Cancelled" && !existing.cancelledAt) data.cancelledAt = now;
+      if (nextStatus === "Cancelled" && existing.paymentStatus === "Pending") data.paymentStatus = "Failed";
 
       const claimed = await tx.order.updateMany({
-        where: { id: orderId, status: existing.status },
+        where: { id: orderId, status: existing.status, paymentStatus: existing.paymentStatus },
         data,
       });
       if (claimed.count === 0) {
@@ -387,7 +413,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
         throw new ConflictException("The order changed while its status was being updated");
       }
 
-      if (nextStatus === "Cancelled" || nextStatus === "Returned") {
+      if (nextStatus === "Cancelled") {
         await this.releaseOrderInventory(tx, orderId);
       }
       if (nextStatus === "Cancelled") await this.releaseDiscountUsage(tx, orderId);
@@ -406,6 +432,67 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
 
     if (result.changed) await this.notifyStatusChange(result.order, result.previousStatus, result.nextStatus);
     return result.order;
+  }
+
+  async restockReturnedInventory(orderId: string, adminId?: string): Promise<OrderWithRelations> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: {
+            include: {
+              product: { select: { id: true, stockModel: true, stockQuantity: true } },
+            },
+          },
+        },
+      });
+      if (!order) throw new NotFoundException("Order not found");
+      if (order.status !== "Returned") throw new BadRequestException("Only returned orders can be restocked");
+
+      const alreadyRestocked = await tx.orderEvent.findFirst({
+        where: { orderId, type: "inventory-restock" },
+        select: { id: true },
+      });
+      if (alreadyRestocked) throw new ConflictException("Inventory for this returned order has already been restocked");
+
+      for (const item of order.items) {
+        if (!item.productId || !item.product) {
+          throw new ConflictException(`Cannot restock "${item.name}" because its product record is missing`);
+        }
+
+        let changed = 0;
+        if (item.product.stockModel === "Unique" && item.variantId) {
+          throw new ConflictException(`Cannot restock "${item.name}" because its unique-piece product has a legacy variant configuration`);
+        } else if (item.variantId) {
+          changed = (await tx.productVariant.updateMany({
+            where: { id: item.variantId, productId: item.productId },
+            data: { stockQuantity: { increment: item.quantity } },
+          })).count;
+        } else if (item.product.stockModel === "Quantity") {
+          changed = (await tx.product.updateMany({
+            where: { id: item.productId, stockModel: "Quantity", stockQuantity: { not: null } },
+            data: { stockQuantity: { increment: item.quantity } },
+          })).count;
+        } else {
+          changed = (await tx.product.updateMany({
+            where: { id: item.productId, stockModel: "Unique", status: "Sold" },
+            data: { status: "Published" },
+          })).count;
+        }
+        if (changed !== 1) throw new ConflictException(`Could not restock "${item.name}"; review its current inventory first`);
+      }
+
+      await tx.orderEvent.create({
+        data: {
+          orderId,
+          adminId: adminId ?? null,
+          type: "inventory-restock",
+          message: "Returned items were inspected and added back to inventory",
+        },
+      });
+      return tx.order.findUniqueOrThrow({ where: { id: orderId }, include: orderInclude });
+    });
   }
 
   async settlePayment(input: SettlementInput): Promise<SettlementResult> {
@@ -735,8 +822,12 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
     if (amount.lessThanOrEqualTo(0)) throw new BadRequestException("Refund amount must be greater than zero");
 
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Order" WHERE "id" = ${input.orderId} FOR UPDATE`;
       const order = await tx.order.findUnique({ where: { id: input.orderId } });
       if (!order) throw new NotFoundException("Order not found");
+      if (order.paymentStatus !== "Paid" && order.paymentStatus !== "PartiallyRefunded") {
+        throw new BadRequestException("Only settled payments can be refunded");
+      }
       const refundable = order.total.minus(order.refundedAmount);
       if (amount.greaterThan(refundable)) {
         throw new BadRequestException("Refund exceeds the remaining refundable amount of " + refundable.toFixed(2));
@@ -779,7 +870,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
     const expired = await this.prisma.order.findMany({
       where: {
         paymentStatus: "Pending",
-        status: { in: ["New", "Processing"] },
+        status: { in: ["New", "Processing", "Packed"] },
         OR: [
           { paymentMethod: { not: "BankTransfer" }, placedAt: { lt: paypalCutoff } },
           { paymentMethod: "BankTransfer", paymentProofUploadedAt: null, placedAt: { lt: bankTransferCutoff } },
@@ -798,7 +889,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
           where: {
             id: order.id,
             paymentStatus: "Pending",
-            status: { in: ["New", "Processing"] },
+            status: { in: ["New", "Processing", "Packed"] },
             OR: [
               { paymentMethod: { not: "BankTransfer" }, placedAt: { lt: paypalCutoff } },
               { paymentMethod: "BankTransfer", paymentProofUploadedAt: null, placedAt: { lt: bankTransferCutoff } },
@@ -837,32 +928,21 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
     for (const item of items) {
       if (!item.productId || !item.product) continue;
       if (item.variantId) {
-        const sharedQuantity = item.quantity - item.workshopAllocatedQuantity;
         await tx.productVariant.updateMany({
           where: { id: item.variantId },
-          data: {
-            ...(sharedQuantity > 0 ? { stockQuantity: { increment: sharedQuantity } } : {}),
-            ...(item.workshopAllocatedQuantity > 0 ? { workshopStockQuantity: { increment: item.workshopAllocatedQuantity } } : {}),
-          },
+          data: { stockQuantity: { increment: item.quantity } },
         });
       } else if (item.product.stockModel === "Quantity") {
         if (item.product.stockQuantity !== null) {
-          const sharedQuantity = item.quantity - item.workshopAllocatedQuantity;
           await tx.product.updateMany({
             where: { id: item.productId },
-            data: {
-              ...(sharedQuantity > 0 ? { stockQuantity: { increment: sharedQuantity } } : {}),
-              ...(item.workshopAllocatedQuantity > 0 ? { workshopStockQuantity: { increment: item.workshopAllocatedQuantity } } : {}),
-            },
+            data: { stockQuantity: { increment: item.quantity } },
           });
         }
       } else {
         await tx.product.updateMany({
           where: { id: item.productId, status: { in: ["Reserved", "Sold"] } },
-          data: {
-            status: "Published",
-            ...(item.workshopAllocatedQuantity > 0 ? { workshopStockQuantity: { increment: item.workshopAllocatedQuantity } } : {}),
-          },
+          data: { status: "Published" },
         });
       }
     }

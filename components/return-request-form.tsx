@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { FilterDropdown } from "@/components/filter-dropdown";
 import { useCopy, useLanguage } from "@/components/providers";
 
 type FormStatus = "idle" | "sending" | "success" | "error";
@@ -73,11 +74,11 @@ export function ReturnRequestForm() {
       </div>
       <div className="field">
         <label htmlFor="return-reason">{t.reason}</label>
-        <select id="return-reason" value={reason} onChange={(event) => setReason(event.target.value)}>
-          <option value="Damaged">{t.damaged}</option>
-          <option value="NotAsDescribed">{t.notAsDescribed}</option>
-          <option value="Other">{t.other}</option>
-        </select>
+        <FilterDropdown id="return-reason" ariaLabel={t.reason} value={reason} onChange={setReason} options={[
+          { value: "Damaged", label: t.damaged },
+          { value: "NotAsDescribed", label: t.notAsDescribed },
+          { value: "Other", label: t.other },
+        ]} />
       </div>
       <div className="field">
         <label htmlFor="return-details">{t.details}</label>

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "@/components/localized-link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
+import { FilterDropdown } from "@/components/filter-dropdown";
 import { formatUSD } from "@/lib/catalog";
 import { CheckoutOrderSummary } from "@/components/checkout/order-summary";
 import { CheckoutPaymentResult } from "@/components/checkout/payment-result";
@@ -78,7 +79,16 @@ export function CheckoutView() {
     [language],
   );
   const searchParams = useSearchParams();
-  const { lines, hydrated: cartHydrated, subtotal, totalWeight, clearCart } = useCart();
+  const pathname = usePathname();
+  const isWholesaleCheckout = pathname.endsWith("/wholesale/checkout");
+  const checkoutScope = isWholesaleCheckout ? "wholesale" : undefined;
+  const cart = useCart();
+  const lines = useMemo(() => cart.lines.filter((line) => isWholesaleCheckout ? line.wholesale === true : line.wholesale !== true), [cart.lines, isWholesaleCheckout]);
+  const subtotal = useMemo(() => lines.reduce((sum, line) => sum + line.price * line.quantity, 0), [lines]);
+  const totalWeight = useMemo(() => lines.reduce((sum, line) => sum + line.weightGram * line.quantity, 0), [lines]);
+  const cartHydrated = cart.hydrated;
+  const clearCart = useCallback(() => cart.clearCart(isWholesaleCheckout ? "wholesale" : "retail"), [cart.clearCart, isWholesaleCheckout]);
+  const checkoutDraftKey = isWholesaleCheckout ? `${CHECKOUT_DRAFT_KEY}:wholesale` : CHECKOUT_DRAFT_KEY;
 
   const [country, setCountry] = useState("United States");
   const [otherCountryName, setOtherCountryName] = useState("");
@@ -104,6 +114,10 @@ export function CheckoutView() {
   const [capturing, setCapturing] = useState(false);
   const [result, setResult] = useState<PaymentResult | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<"waiting" | "checking" | "done" | "error">("waiting");
+  const [wholesaleAccessStatus, setWholesaleAccessStatus] = useState<"checking" | "approved" | "guest" | "pending" | "unavailable">(
+    isWholesaleCheckout ? "checking" : "approved",
+  );
+  const [wholesaleAccessRetry, setWholesaleAccessRetry] = useState(0);
   const handledReturn = useRef(false);
   const countryCode = useMemo(() => countries.find((item) => item.name === country)?.code ?? "", [country]);
   const hasFragile = lines.some((line) => line.fragile);
@@ -133,8 +147,45 @@ export function CheckoutView() {
   } = usePaymentAvailability();
 
   useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          if (isWholesaleCheckout) {
+            setWholesaleAccessStatus(response.status === 401 ? "guest" : response.status === 403 ? "pending" : "unavailable");
+          }
+          return;
+        }
+        const customer = await response.json();
+        if (isWholesaleCheckout && customer?.wholesaleAccess !== true) {
+          setWholesaleAccessStatus("pending");
+          return;
+        }
+        if (isWholesaleCheckout) setWholesaleAccessStatus("approved");
+        if (typeof customer.name === "string") setFullName((value) => value || customer.name);
+        if (typeof customer.email === "string") setEmail((value) => value || customer.email);
+        if (typeof customer.phone === "string") setPhone((value) => value || customer.phone);
+        const address = customer.address ?? {};
+        if (typeof address.line1 === "string") setAddress((value) => value || address.line1);
+        if (typeof address.line2 === "string") setAddressLine2((value) => value || address.line2);
+        if (typeof address.city === "string") setCity((value) => value || address.city);
+        if (typeof address.state === "string") setState((value) => value || address.state);
+        if (typeof address.postalCode === "string") setPostalCode((value) => value || address.postalCode);
+        if (typeof address.countryCode === "string") {
+          const match = countries.find((entry) => entry.code === address.countryCode);
+          if (match) setCountry((value) => value === "United States" ? match.name : value);
+          else if (typeof address.country === "string") { setCountry("Other"); setOtherCountryName(address.country); }
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted && isWholesaleCheckout) setWholesaleAccessStatus("unavailable");
+      });
+    return () => controller.abort();
+  }, [isWholesaleCheckout, wholesaleAccessRetry]);
+
+  useEffect(() => {
     try {
-      const raw = window.sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+      const raw = window.sessionStorage.getItem(checkoutDraftKey);
       if (raw) {
         const draft = JSON.parse(raw) as Record<string, unknown>;
         const value = (key: string) => (typeof draft[key] === "string" ? (draft[key] as string) : "");
@@ -151,28 +202,28 @@ export function CheckoutView() {
         setNotes(value("notes"));
       }
     } catch {
-      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      window.sessionStorage.removeItem(checkoutDraftKey);
     } finally {
       setDraftHydrated(true);
     }
-  }, []);
+  }, [checkoutDraftKey]);
 
   useEffect(() => {
     if (!draftHydrated) return;
     const draft = { country, otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes };
     if ([otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes].some((value) => value.trim())) {
       try {
-        window.sessionStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify(draft));
+        window.sessionStorage.setItem(checkoutDraftKey, JSON.stringify(draft));
       } catch {
         // Checkout remains usable when session storage is unavailable.
       }
     } else {
-      window.sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      window.sessionStorage.removeItem(checkoutDraftKey);
     }
-  }, [draftHydrated, country, otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes]);
+  }, [draftHydrated, checkoutDraftKey, country, otherCountryName, fullName, email, phone, address, addressLine2, city, state, postalCode, notes]);
 
-  const shippingCost = discount?.freeShipping ? 0 : (selectedOption?.price ?? 0);
-  const discountTotal = discount?.valid ? discount.discountAmount : 0;
+  const shippingCost = !isWholesaleCheckout && discount?.freeShipping ? 0 : (selectedOption?.price ?? 0);
+  const discountTotal = !isWholesaleCheckout && discount?.valid ? discount.discountAmount : 0;
   const total = Math.max(0, subtotal - discountTotal) + shippingCost;
   const totalIsKnown = quoteStatus === "ready" && selectedOption !== null;
 
@@ -214,11 +265,11 @@ export function CheckoutView() {
     if (!mode) return;
     handledReturn.current = true;
 
-    const orderId = searchParams.get("orderId") ?? readLastOrder()?.orderId ?? "";
+    const orderId = searchParams.get("orderId") ?? readLastOrder(checkoutScope)?.orderId ?? "";
     const token = searchParams.get("token") ?? "";
 
     if (mode === "cancel") {
-      const stored = readLastOrder();
+      const stored = readLastOrder(checkoutScope);
       if (orderId && stored && stored.orderId === orderId) {
         setResult({
           orderId: stored.orderId,
@@ -255,10 +306,10 @@ export function CheckoutView() {
         };
         if (!response.ok) throw new Error(payload?.message ?? "capture failed");
 
-        const stored = readLastOrder();
+        const stored = readLastOrder(checkoutScope);
         const paid = payload.status === "Paid";
         if (stored && stored.orderId === (payload.orderId ?? orderId)) {
-          writeLastOrder({ ...stored, paymentStatus: paid ? "Paid" : "Pending" });
+          writeLastOrder({ ...stored, paymentStatus: paid ? "Paid" : "Pending" }, checkoutScope);
         }
         setResult({
           orderId: payload.orderId ?? orderId,
@@ -270,7 +321,7 @@ export function CheckoutView() {
         });
         clearCart();
       } catch {
-        const stored = readLastOrder();
+        const stored = readLastOrder(checkoutScope);
         setPaymentError(t.checkout.paymentFailed);
         setResult({
           orderId: stored?.orderId ?? orderId,
@@ -284,12 +335,12 @@ export function CheckoutView() {
         setCapturing(false);
       }
     })();
-  }, [searchParams, clearCart, t]);
+  }, [searchParams, clearCart, checkoutScope, t]);
 
   const recoverCheckout = useCallback(async () => {
     setRecoveryStatus("checking");
     try {
-      const recovery = await recoverCheckoutAttempt();
+      const recovery = await recoverCheckoutAttempt(checkoutScope);
       if (recovery.kind === "missing") {
         setRecoveryStatus("done");
         return;
@@ -312,7 +363,7 @@ export function CheckoutView() {
     } catch {
       setRecoveryStatus("error");
     }
-  }, [clearCart]);
+  }, [clearCart, checkoutScope]);
 
   useEffect(() => {
     if (!cartHydrated || !draftHydrated || recoveryStatus !== "waiting") return;
@@ -321,16 +372,17 @@ export function CheckoutView() {
       return;
     }
 
-    const hasAttempt = hasCheckoutAttempt();
-    const stored = readLastOrder();
+    const hasAttempt = hasCheckoutAttempt(checkoutScope);
+    const stored = readLastOrder(checkoutScope);
     if (hasAttempt || (!lines.length && stored?.paymentStatus !== "Paid" && stored?.orderId)) {
       void recoverCheckout();
       return;
     }
     setRecoveryStatus("done");
-  }, [cartHydrated, draftHydrated, lines.length, recoveryStatus, searchParams, recoverCheckout]);
+  }, [cartHydrated, draftHydrated, lines.length, recoveryStatus, searchParams, recoverCheckout, checkoutScope]);
 
   const applyDiscount = async () => {
+    if (isWholesaleCheckout) return;
     const code = discountInput.trim();
     if (!code) return;
     setDiscountLoading(true);
@@ -365,6 +417,7 @@ export function CheckoutView() {
   };
 
   const placeOrder = async (acceptedQuote?: CheckoutPriceQuote) => {
+    if (isWholesaleCheckout && wholesaleAccessStatus !== "approved") return;
     if (paymentAvailability !== "available" || !selectedMethodAvailable || !totalIsKnown || !selectedOption) return;
     if (selectedPaymentMethod === "PayPal" && !/^[A-Z]{2}$/.test(countryCode)) {
       setOrderError(t.checkout.paypalAddressCountryRequired);
@@ -374,7 +427,7 @@ export function CheckoutView() {
     setOrderError(null);
     try {
       const input = {
-        checkoutKey: checkoutRequest(email),
+        checkoutKey: checkoutRequest(email, checkoutScope),
         paymentMethod: selectedPaymentMethod,
         email,
         customerName: fullName.trim(),
@@ -390,7 +443,7 @@ export function CheckoutView() {
         },
         customerNote: notes || undefined,
         shippingRateId: selectedOption?.id || undefined,
-        discountCode: discount?.valid ? discount.code : undefined,
+        discountCode: !isWholesaleCheckout && discount?.valid ? discount.code : undefined,
         items: lines.map((line) => ({ productId: line.id, variantId: line.variantId, quantity: line.quantity })),
       };
       const postJson = async (path: string, body: unknown) => fetch(path, {
@@ -400,7 +453,7 @@ export function CheckoutView() {
       });
       let serverQuote = acceptedQuote;
       if (!serverQuote) {
-        const quoteResponse = await postJson("/api/orders/quote", input);
+        const quoteResponse = await postJson(isWholesaleCheckout ? "/api/wholesale/quote" : "/api/orders/quote", input);
         const quoted = (await quoteResponse.json().catch(() => ({}))) as CheckoutPriceQuote & { message?: string | string[] };
         if (!quoteResponse.ok || !quoted.quoteToken || typeof quoted.total !== "number") {
           const raw = quoted?.message;
@@ -414,7 +467,8 @@ export function CheckoutView() {
         }
       }
 
-      let response = await postJson("/api/orders", { ...input, quoteToken: serverQuote.quoteToken });
+      const createPath = isWholesaleCheckout ? "/api/wholesale/orders" : "/api/orders";
+      let response = await postJson(createPath, { ...input, quoteToken: serverQuote.quoteToken });
       let payload = (await response.json().catch(() => ({}))) as {
         id?: string;
         orderNumber?: string;
@@ -429,7 +483,7 @@ export function CheckoutView() {
           return;
         }
         serverQuote = payload.quote;
-        response = await postJson("/api/orders", { ...input, quoteToken: serverQuote.quoteToken });
+        response = await postJson(createPath, { ...input, quoteToken: serverQuote.quoteToken });
         payload = (await response.json().catch(() => ({}))) as typeof payload;
       }
       if (!response.ok || !payload.id || !payload.orderNumber) {
@@ -454,8 +508,8 @@ export function CheckoutView() {
         paymentStatus: "Pending",
         paymentMethod: selectedPaymentMethod,
       };
-      writeLastOrder(stored);
-      clearCheckoutAttempt();
+      writeLastOrder(stored, checkoutScope);
+      clearCheckoutAttempt(checkoutScope);
       clearCart();
       if (selectedPaymentMethod === "PayPal") {
         await startPayment(stored.orderId, stored.orderNumber, stored.total);
@@ -494,11 +548,47 @@ export function CheckoutView() {
         result={result}
         paymentMethods={paymentMethods}
         paymentError={paymentError}
+        scope={checkoutScope}
+        continueHref={isWholesaleCheckout ? "/wholesale" : "/shop"}
         onStartPayment={(orderId, orderNumber, total) => void startPayment(orderId, orderNumber, total)}
         onProofUploaded={(uploadedAt) => {
           setResult((current) => current ? { ...current, paymentProofUploadedAt: uploadedAt, notice: undefined } : current);
         }}
       />
+    );
+  }
+
+  if (isWholesaleCheckout && wholesaleAccessStatus !== "approved") {
+    const accessCopy = t.wholesaleAccess;
+    const pending = wholesaleAccessStatus === "pending";
+    const unavailable = wholesaleAccessStatus === "unavailable";
+    return (
+      <section className="wholesale-access page-container" aria-labelledby="wholesale-checkout-access-title">
+        <div className="wholesale-access__panel">
+          <p className="wholesale-access__eyebrow"><span aria-hidden="true" />{accessCopy.eyebrow}</p>
+          <h1 id="wholesale-checkout-access-title">
+            {wholesaleAccessStatus === "checking" ? accessCopy.checking : unavailable ? accessCopy.unavailableTitle : pending ? accessCopy.pendingTitle : accessCopy.title}
+          </h1>
+          {wholesaleAccessStatus !== "checking" ? <p className="wholesale-access__description">{unavailable ? accessCopy.unavailableBody : pending ? accessCopy.pendingBody : accessCopy.body}</p> : null}
+          {wholesaleAccessStatus === "checking" ? (
+            <p className="wholesale-access__checking" role="status">{accessCopy.checking}</p>
+          ) : (
+            <div className="wholesale-access__actions">
+              {unavailable ? (
+                <button className="button button--light" type="button" onClick={() => { setWholesaleAccessStatus("checking"); setWholesaleAccessRetry((key) => key + 1); }}>{accessCopy.retry}<span aria-hidden="true">↻</span></button>
+              ) : pending ? (
+                <Link className="button button--light" href="/contact">{accessCopy.contact}<span aria-hidden="true">→</span></Link>
+              ) : (
+                <>
+                  <Link className="button button--light" href="/account/login?next=%2Fwholesale%2Fcheckout">{accessCopy.signIn}<span aria-hidden="true">→</span></Link>
+                  <Link className="button button--outline" href="/account/register">{accessCopy.register}</Link>
+                </>
+              )}
+              <Link className="wholesale-access__shop-link" href="/wholesale">{accessCopy.shopLink}<span aria-hidden="true">↗</span></Link>
+            </div>
+          )}
+        </div>
+      </section>
     );
   }
 
@@ -514,7 +604,7 @@ export function CheckoutView() {
         {recoveryStatus === "error" ? (
           <button type="button" className="button" onClick={() => void recoverCheckout()}>{t.checkout.retryRecovery}</button>
         ) : null}
-        {!isRecovering && recoveryStatus !== "error" ? <Link href="/shop" className="button">{t.checkout.browse}</Link> : null}
+        {!isRecovering && recoveryStatus !== "error" ? <Link href={isWholesaleCheckout ? "/wholesale" : "/shop"} className="button">{t.checkout.browse}</Link> : null}
       </div>
     );
   }
@@ -547,6 +637,7 @@ export function CheckoutView() {
               shippingCost={shippingCost}
               total={total}
               totalIsKnown={totalIsKnown}
+              editHref={isWholesaleCheckout ? "/wholesale" : "/cart"}
             />
           </details>
           <div className="field">
@@ -555,7 +646,7 @@ export function CheckoutView() {
           </div>
           <div className="field">
             <label htmlFor="email">{t.checkout.email}</label>
-            <input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input id="email" name="email" type="email" autoComplete="email" required readOnly={isWholesaleCheckout} value={email} onChange={(event) => setEmail(event.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="phone">{t.checkout.phone}</label>
@@ -586,13 +677,20 @@ export function CheckoutView() {
             </div>
             <div className="field">
               <label htmlFor="country">{t.checkout.country}</label>
-              <select id="country" name="country" value={country} onChange={(event) => setCountry(event.target.value)}>
-                {countries.map((item) => (
-                  <option key={item.name} value={item.name}>
-                    {item.code ? countryNames.of(item.code) ?? item.name : t.checkout.otherCountryOption}
-                  </option>
-                ))}
-              </select>
+              <FilterDropdown
+                id="country"
+                name="country"
+                ariaLabel={t.checkout.country}
+                value={country}
+                searchable
+                searchPlaceholder={language === "id" ? "Cari negara…" : "Search countries…"}
+                emptyMessage={language === "id" ? "Negara tidak ditemukan." : "No countries found."}
+                onChange={setCountry}
+                options={countries.map((item) => ({
+                  value: item.name,
+                  label: item.code ? countryNames.of(item.code) ?? item.name : t.checkout.otherCountryOption,
+                }))}
+              />
             </div>
           </div>
           {country === "Other" ? (
@@ -619,6 +717,11 @@ export function CheckoutView() {
                     <span className="shipping-option__details">
                       <strong>{option.name}</strong>
                       {option.carrier ? <span className="muted">· {option.carrier}</span> : null}
+                      {option.deliveryMinDays !== null && option.deliveryMaxDays !== null ? (
+                        <span className="shipping-option__estimate">
+                          {t.checkout.deliveryEstimate(option.deliveryMinDays, option.deliveryMaxDays)}
+                        </span>
+                      ) : null}
                     </span>
                     <strong className="shipping-option__price">
                       {option.price === 0 ? t.checkout.freeShipping : formatUSD(option.price, language)}
@@ -641,7 +744,7 @@ export function CheckoutView() {
             <textarea id="notes" name="notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
           </div>
 
-          <div className="field">
+          {!isWholesaleCheckout ? <div className="field">
             <label htmlFor="discount">{t.checkout.discount}</label>
             <div className="discount-row">
               <input
@@ -673,7 +776,7 @@ export function CheckoutView() {
               </span>
             ) : null}
             {discountError ? <span className="form-status form-status--error">{discountError}</span> : null}
-          </div>
+          </div> : null}
 
           <fieldset className="payment-box" disabled={paymentAvailability === "loading" || paymentAvailability === "error"}>
             <legend>{t.checkout.paymentMethodTitle}</legend>
@@ -743,6 +846,7 @@ export function CheckoutView() {
           shippingCost={shippingCost}
           total={total}
           totalIsKnown={totalIsKnown}
+          editHref={isWholesaleCheckout ? "/wholesale" : "/cart"}
         />
       </div>
     </div>

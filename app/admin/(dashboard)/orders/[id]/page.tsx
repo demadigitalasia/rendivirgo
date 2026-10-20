@@ -143,8 +143,15 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const order = state.data;
 
   const statusOptions = useMemo(
-    () => allowedOrderStatuses(order?.status ?? "New").map((value) => ({ value, label: labelize(value) })),
-    [order?.status],
+    () => allowedOrderStatuses(order?.status ?? "New")
+      .filter((value) => {
+        if (!order || value === order.status) return true;
+        if (["Processing", "Packed", "Shipped", "Completed"].includes(value)) return order.paymentStatus === "Paid";
+        if (value === "Cancelled" && ["Paid", "PartiallyRefunded"].includes(order.paymentStatus)) return false;
+        return true;
+      })
+      .map((value) => ({ value, label: labelize(value) })),
+    [order?.status, order?.paymentStatus],
   );
 
   const [status, setStatus] = useState("");
@@ -154,6 +161,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
   const [internalNote, setInternalNote] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [restockingReturnedInventory, setRestockingReturnedInventory] = useState(false);
   const [savingFulfilment, setSavingFulfilment] = useState(false);
   const [eventMessage, setEventMessage] = useState("");
   const [eventType, setEventType] = useState("note");
@@ -217,6 +225,19 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
       toast.error(errorMessage(caught));
     } finally {
       setConfirmingPayment(false);
+    }
+  };
+
+  const restockReturnedItems = async () => {
+    setRestockingReturnedInventory(true);
+    try {
+      const updated = await apiFetch<OrderDetail>(`/api/admin/orders/${id}/restock-return`, { method: "POST" });
+      state.setData(updated);
+      toast.success("Inspected returned items added back to inventory");
+    } catch (caught) {
+      toast.error(errorMessage(caught));
+    } finally {
+      setRestockingReturnedInventory(false);
     }
   };
 
@@ -492,6 +513,12 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                     <Field label="Status">
                       <Select value={status} onChange={setStatus} options={statusOptions} />
                     </Field>
+                    {order.paymentStatus !== "Paid" && !["Cancelled", "Returned"].includes(order.status) ? (
+                      <p className="rv-hint">Confirm payment before moving this order into fulfilment.</p>
+                    ) : null}
+                    {["Paid", "PartiallyRefunded"].includes(order.paymentStatus) && !["Cancelled", "Returned"].includes(order.status) ? (
+                      <p className="rv-hint">Record the full refund before cancelling a paid order.</p>
+                    ) : null}
                     <Button variant="primary" loading={savingStatus} onClick={saveStatus}>
                       Save status
                     </Button>
@@ -499,6 +526,18 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                       <Button loading={confirmingPayment} onClick={confirmManualPayment}>
                         {order?.status === "Cancelled" ? "Record late payment for review" : "Confirm payment"}
                       </Button>
+                    ) : null}
+                    {order.status === "Returned" ? (
+                      order.events.some((event) => event.type === "inventory-restock") ? (
+                        <p className="rv-hint">Returned items were inspected and restocked.</p>
+                      ) : (
+                        <>
+                          <p className="rv-hint">Returned items remain unavailable until they are inspected. Restock only after confirming their condition.</p>
+                          <Button loading={restockingReturnedInventory} onClick={restockReturnedItems}>
+                            Restock inspected items
+                          </Button>
+                        </>
+                      )
                     ) : null}
                   </div>
                 </Card>

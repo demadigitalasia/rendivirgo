@@ -42,7 +42,7 @@ export function ForgotPasswordForm() {
         {sent ? (
           <>
             <p className="rv-login__footer" role="status">
-              If that email matches an admin account, a reset link is on its way. The link expires in 30 minutes.
+              If that email matches an admin account, we’ll attempt to send a reset link. Check your inbox and spam folder; the link expires in 30 minutes.
             </p>
             <p style={{ marginTop: 12 }}>
               <Link href="/admin/login">Back to sign in</Link>

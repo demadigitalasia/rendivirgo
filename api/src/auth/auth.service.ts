@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import * as bcrypt from "bcryptjs";
-import { EmailService } from "../email/email.service";
+import { AuthEmailOutboxService } from "../email/auth-email-outbox.service";
 import { renderPasswordResetEmail } from "../email/email.templates";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AuthenticatedAdmin } from "../common/types/authenticated-request";
@@ -23,9 +23,12 @@ export class AuthService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    private readonly email: EmailService,
+    private readonly emailOutbox: AuthEmailOutboxService,
   ) {
-    this.ttlHours = Number(this.config.get("SESSION_TTL_HOURS") ?? 12);
+    const configuredTtl = Number(this.config.get("SESSION_TTL_HOURS") ?? 12);
+    this.ttlHours = Number.isFinite(configuredTtl) && configuredTtl > 0
+      ? Math.min(configuredTtl, 24 * 30)
+      : 12;
   }
 
   async onModuleInit() {
@@ -170,18 +173,13 @@ export class AuthService implements OnModuleInit {
   async requestPasswordReset(email: string): Promise<void> {
     const admin = await this.prisma.admin.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!admin) {
-      this.logger.warn(`Password reset requested for unknown email ${email}`);
+      this.logger.log("Admin password reset request processed");
       return;
     }
 
     const token = randomBytes(32).toString("base64url");
-    await this.prisma.admin.update({
-      where: { id: admin.id },
-      data: {
-        resetTokenHash: this.hashToken(token),
-        resetTokenExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000),
-      },
-    });
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000);
 
     const origin = (this.config.get<string>("APP_ORIGIN") ?? "http://localhost:3000")
       .split(",")[0]
@@ -189,38 +187,54 @@ export class AuthService implements OnModuleInit {
       .replace(/\/+$/, "");
     const link = `${origin}/admin/reset-password?token=${encodeURIComponent(token)}`;
 
-    await this.email.send({
-      to: admin.email,
-      subject: "Reset your RENDI VIRGO admin password",
-      html: renderPasswordResetEmail({ name: admin.name, link, expiresMinutes: RESET_TOKEN_TTL_MINUTES }),
+    await this.prisma.$transaction(async (tx) => {
+      await tx.admin.update({
+        where: { id: admin.id },
+        data: { resetTokenHash: tokenHash, resetTokenExpiresAt: expiresAt },
+      });
+      await this.emailOutbox.enqueue(tx, {
+        kind: "AdminPasswordReset",
+        targetId: admin.id,
+        tokenHash,
+        expiresAt,
+        email: {
+          to: admin.email,
+          subject: "Reset your RENDI VIRGO admin password",
+          html: renderPasswordResetEmail({ name: admin.name, link, expiresMinutes: RESET_TOKEN_TTL_MINUTES }),
+        },
+      });
     });
 
-    this.logger.log(`Password reset link issued for ${admin.email}`);
+    this.logger.log(`Password reset email queued for admin ${admin.id}`);
   }
 
   async resetPassword(token: string, newPassword: string): Promise<boolean> {
-    const admin = await this.prisma.admin.findFirst({
-      where: {
-        resetTokenHash: this.hashToken(token.trim()),
-        resetTokenExpiresAt: { gt: new Date() },
-      },
-    });
-    if (!admin) return false;
+    const tokenHash = this.hashToken(token.trim());
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const now = new Date();
 
-    await this.prisma.admin.update({
-      where: { id: admin.id },
-      data: {
-        passwordHash: await bcrypt.hash(newPassword, 12),
-        resetTokenHash: null,
-        resetTokenExpiresAt: null,
-      },
-    });
-    await this.prisma.adminSession.updateMany({
-      where: { adminId: admin.id, revokedAt: null },
-      data: { revokedAt: new Date() },
+    const reset = await this.prisma.$transaction(async (tx) => {
+      const admin = await tx.admin.findFirst({
+        where: { resetTokenHash: tokenHash, resetTokenExpiresAt: { gt: now } },
+        select: { id: true },
+      });
+      if (!admin) return null;
+
+      const changed = await tx.admin.updateMany({
+        where: { id: admin.id, resetTokenHash: tokenHash, resetTokenExpiresAt: { gt: now } },
+        data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
+      });
+      if (changed.count !== 1) return null;
+
+      await tx.adminSession.updateMany({
+        where: { adminId: admin.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      return admin.id;
     });
 
-    this.logger.log(`Password reset completed for ${admin.email}; all sessions revoked`);
+    if (!reset) return false;
+    this.logger.log(`Admin password reset completed for admin ${reset}; all sessions revoked`);
     return true;
   }
 

@@ -41,6 +41,10 @@ export class UpdateCustomerDto {
   acceptsMarketing?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  wholesaleAccess?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(300)
   addressLine1?: string | null;

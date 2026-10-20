@@ -37,11 +37,44 @@ export class PosSaleItemDto {
   unitPriceIdr?: number;
 }
 
+export class PosReservationItemDto {
+  @IsString()
+  @MinLength(1)
+  productId: string;
+
+  @IsOptional()
+  @IsString()
+  variantId?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(999)
+  quantity: number;
+}
+
+export class CreatePosReservationDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(120)
+  requestId: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => PosReservationItemDto)
+  items: PosReservationItemDto[];
+}
+
 export class CreatePosSaleDto {
   @IsString()
   @MinLength(8)
   @MaxLength(120)
   requestId: string;
+
+  @IsString()
+  @MinLength(1)
+  reservationId: string;
 
   @Type(() => Number)
   @IsNumber()

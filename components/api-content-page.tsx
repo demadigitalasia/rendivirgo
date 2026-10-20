@@ -45,14 +45,19 @@ export async function ApiContentPage({ slug, eyebrow }: { slug: string; eyebrow:
   const localizedEyebrow = eyebrowKey ? t.contentPages[eyebrowKey] : eyebrow;
 
   return (
-    <div className="page-container content-page">
+    <div className={`page-container content-page${slug === "terms-conditions" ? " content-page--terms" : ""}${slug === "privacy-policy" ? " content-page--privacy" : ""}`}>
       <div className="content-page__intro">
         <div className="eyebrow">{localizedEyebrow}</div>
         <h1 lang={page.contentLocale}>{page.title}</h1>
       </div>
       {language === "id" && page.contentLocale === "en" ? <p className="muted" role="note">{t.draft.fallback}</p> : null}
       <div lang={page.contentLocale}>
-        <PageBody body={page.body} />
+        <PageBody
+          body={page.body}
+          className={slug === "terms-conditions" ? "article article--terms" : slug === "privacy-policy" ? "article article--privacy" : "article"}
+          numberParagraphsAfterFirst={slug === "terms-conditions"}
+          numberAllParagraphs={slug === "privacy-policy"}
+        />
       </div>
     </div>
   );

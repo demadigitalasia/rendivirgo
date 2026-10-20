@@ -1,10 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
 import { PrismaService } from "../prisma/prisma.service";
-import { CreatePosSaleDto, PosSettingsDto } from "./dto/pos.dto";
+import { CreatePosReservationDto, CreatePosSaleDto, PosSettingsDto } from "./dto/pos.dto";
 
 const EXCHANGE_RATE_KEY = "pos.usdIdrRate";
 const catalogInclude = {
@@ -15,11 +15,24 @@ const catalogInclude = {
 type CatalogProduct = Prisma.ProductGetPayload<{ include: typeof catalogInclude }>;
 
 @Injectable()
-export class PosService {
+export class PosService implements OnModuleInit, OnModuleDestroy {
+  private reservationTimer?: NodeJS.Timeout;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
+
+  onModuleInit() {
+    this.reservationTimer = setInterval(() => {
+      void this.releaseExpiredReservations().catch(() => undefined);
+    }, 30_000);
+    this.reservationTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.reservationTimer) clearInterval(this.reservationTimer);
+  }
 
   private async configuredRate(): Promise<number | null> {
     const setting = await this.prisma.siteSetting.findUnique({ where: { key: EXCHANGE_RATE_KEY }, select: { value: true } });
@@ -51,14 +64,170 @@ export class PosService {
     return { currency: "IDR", exchangeRate: rate };
   }
 
+  private normalizedReservationItems(items: CreatePosReservationDto["items"]) {
+    const quantities = new Map<string, { productId: string; variantId: string | null; quantity: number }>();
+    for (const item of items) {
+      const variantId = item.variantId ?? null;
+      const key = `${item.productId}:${variantId ?? ""}`;
+      const current = quantities.get(key);
+      if (current) current.quantity += item.quantity;
+      else quantities.set(key, { productId: item.productId, variantId, quantity: item.quantity });
+    }
+    return [...quantities.values()].sort((a, b) => `${a.productId}:${a.variantId ?? ""}`.localeCompare(`${b.productId}:${b.variantId ?? ""}`));
+  }
+
+  async reserveStock(dto: CreatePosReservationDto, context: AuditContext) {
+    if (!context.adminId) throw new BadRequestException("Admin session required to reserve POS stock");
+    await this.releaseExpiredReservations();
+    const items = this.normalizedReservationItems(dto.items);
+    const fingerprint = createHash("sha256").update(JSON.stringify(items)).digest("hex");
+    const previous = await this.prisma.posReservation.findUnique({ where: { requestId: dto.requestId }, include: { items: true } });
+    if (previous) {
+      if (previous.fingerprint !== fingerprint || previous.adminId !== context.adminId) {
+        throw new ConflictException("This POS hold request was already used with different items");
+      }
+      if (previous.committedAt) throw new ConflictException("This POS stock hold has already been committed");
+      if (previous.releasedAt || previous.expiresAt.getTime() <= Date.now()) {
+        throw new ConflictException("This POS stock hold has expired. Start a new hold.");
+      }
+      return { reservationId: previous.id, expiresAt: previous.expiresAt };
+    }
+
+    const productIds = [...new Set(items.map((item) => item.productId))];
+    const expiresAt = new Date(Date.now() + 5 * 60_000);
+    const reservation = await this.prisma.$transaction(async (tx) => {
+      const products = await tx.product.findMany({ where: { id: { in: productIds } }, include: catalogInclude });
+      const productById = new Map(products.map((product) => [product.id, product]));
+      const heldItems: Array<{ productId: string; variantId: string | null; stockModel: "Unique" | "Quantity"; quantity: number }> = [];
+
+      for (const item of items) {
+        const product = productById.get(item.productId);
+        if (!product || product.status !== "Published" || !product.sellInWorkshop) {
+          throw new BadRequestException("One or more items are unavailable for Workshop POS");
+        }
+        const variant = item.variantId ? product.variants.find((entry) => entry.id === item.variantId) : null;
+        if (item.variantId && !variant) throw new BadRequestException(`The selected variant of "${product.name}" was not found`);
+        if (product.variants.length && !variant) throw new BadRequestException(`Choose a variant for "${product.name}"`);
+        if (product.stockModel === "Unique" && !variant) {
+          if (item.quantity !== 1) throw new BadRequestException(`"${product.name}" is a unique piece and can only be held once`);
+          const changed = await tx.product.updateMany({
+            where: { id: product.id, stockModel: "Unique", status: "Published", sellInWorkshop: true },
+            data: { status: "Reserved" },
+          });
+          if (changed.count !== 1) throw new ConflictException(`"${product.name}" is no longer available`);
+        } else if (variant) {
+          const changed = await tx.productVariant.updateMany({
+            where: { id: variant.id, product: { is: { status: "Published", sellInWorkshop: true } }, stockQuantity: { gte: item.quantity } },
+            data: { stockQuantity: { decrement: item.quantity } },
+          });
+          if (changed.count !== 1) throw new ConflictException(`"${product.name}" no longer has enough shared stock`);
+        } else {
+          const changed = await tx.product.updateMany({
+            where: { id: product.id, stockModel: "Quantity", status: "Published", sellInWorkshop: true, stockQuantity: { gte: item.quantity } },
+            data: { stockQuantity: { decrement: item.quantity } },
+          });
+          if (changed.count !== 1) throw new ConflictException(`"${product.name}" no longer has enough shared stock`);
+        }
+        heldItems.push({ productId: product.id, variantId: item.variantId, stockModel: product.stockModel, quantity: item.quantity });
+      }
+
+      return tx.posReservation.create({
+        data: {
+          requestId: dto.requestId,
+          fingerprint,
+          adminId: context.adminId!,
+          expiresAt,
+          items: { create: heldItems },
+        },
+        include: { items: true },
+      });
+    });
+
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "pos.stock.reserve",
+      entityType: "PosReservation",
+      entityId: reservation.id,
+      summary: `Reserved ${items.length} POS stock line(s) for five minutes`,
+      metadata: { items },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+    return { reservationId: reservation.id, expiresAt: reservation.expiresAt };
+  }
+
+  private async releaseReservationInternal(reservationId: string, adminId?: string, expiredOnly = false): Promise<boolean> {
+    const now = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.posReservation.updateMany({
+        where: {
+          id: reservationId,
+          committedAt: null,
+          releasedAt: null,
+          ...(adminId ? { adminId } : {}),
+          ...(expiredOnly ? { expiresAt: { lte: now } } : {}),
+        },
+        data: { releasedAt: now },
+      });
+      if (claimed.count !== 1) return false;
+      const items = await tx.posReservationItem.findMany({ where: { reservationId } });
+      for (const item of items) {
+        if (item.variantId) {
+          await tx.productVariant.updateMany({ where: { id: item.variantId }, data: { stockQuantity: { increment: item.quantity } } });
+        } else if (item.stockModel === "Quantity") {
+          await tx.product.updateMany({ where: { id: item.productId }, data: { stockQuantity: { increment: item.quantity } } });
+        } else {
+          await tx.product.updateMany({ where: { id: item.productId, status: "Reserved" }, data: { status: "Published" } });
+        }
+      }
+      return true;
+    });
+  }
+
+  async releaseExpiredReservations(): Promise<number> {
+    const expired = await this.prisma.posReservation.findMany({
+      where: { expiresAt: { lte: new Date() }, committedAt: null, releasedAt: null },
+      select: { id: true },
+      take: 100,
+    });
+    let released = 0;
+    for (const reservation of expired) {
+      if (await this.releaseReservationInternal(reservation.id, undefined, true)) released += 1;
+    }
+    return released;
+  }
+
+  async refreshReservation(reservationId: string, context: AuditContext) {
+    if (!context.adminId) throw new BadRequestException("Admin session required");
+    const reservation = await this.prisma.posReservation.findFirst({
+      where: { id: reservationId, adminId: context.adminId, committedAt: null, releasedAt: null, expiresAt: { gt: new Date() } },
+    });
+    if (!reservation) throw new NotFoundException("Active POS stock hold not found");
+    const expiresAt = new Date(Date.now() + 5 * 60_000);
+    const refreshed = await this.prisma.posReservation.updateMany({
+      where: { id: reservationId, adminId: context.adminId, committedAt: null, releasedAt: null, expiresAt: { gt: new Date() } },
+      data: { expiresAt },
+    });
+    if (refreshed.count !== 1) throw new ConflictException("This POS stock hold expired. Start a new hold.");
+    return { reservationId, expiresAt };
+  }
+
+  async releaseReservation(reservationId: string, context: AuditContext) {
+    if (!context.adminId) throw new BadRequestException("Admin session required");
+    const exists = await this.prisma.posReservation.findFirst({ where: { id: reservationId, adminId: context.adminId } });
+    if (!exists) throw new NotFoundException("POS stock hold not found");
+    const released = await this.releaseReservationInternal(reservationId, context.adminId);
+    return { released };
+  }
+
   private availableQuantity(product: CatalogProduct): number {
     if (product.variants.length) {
-      return product.variants.reduce((sum, variant) => sum + variant.stockQuantity + variant.workshopStockQuantity, 0);
+      return product.variants.reduce((sum, variant) => sum + variant.stockQuantity, 0);
     }
     if (product.stockModel === "Unique") {
-      return product.status === "Published" ? Math.max(1, product.workshopStockQuantity) : 0;
+      return product.status === "Published" ? 1 : 0;
     }
-    return (product.stockQuantity ?? 0) + product.workshopStockQuantity;
+    return product.stockQuantity ?? 0;
   }
 
   async catalog(search: string) {
@@ -96,89 +265,13 @@ export class PosService {
           name: variant.name,
           sku: variant.sku,
           price: Number(variant.price),
-          availableQuantity: variant.stockQuantity + variant.workshopStockQuantity,
+          availableQuantity: variant.stockQuantity,
         })).filter((variant) => variant.availableQuantity > 0),
       }));
   }
 
   private idr(value: Prisma.Decimal | number, exchangeRate: number): Prisma.Decimal {
     return new Prisma.Decimal(value).mul(exchangeRate).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
-  }
-
-  private async consumeStock(
-    tx: Prisma.TransactionClient,
-    product: CatalogProduct,
-    variantId: string | undefined,
-    quantity: number,
-  ): Promise<number> {
-    if (product.stockModel === "Unique" && !variantId) {
-      const updated = await tx.product.updateMany({
-        where: {
-          id: product.id,
-          status: "Published",
-          sellInWorkshop: true,
-          workshopStockQuantity: product.workshopStockQuantity > 0 ? { gte: 1 } : 0,
-        },
-        data: {
-          status: "Sold",
-          ...(product.workshopStockQuantity > 0 ? { workshopStockQuantity: { decrement: 1 } } : {}),
-        },
-      });
-      if (updated.count !== 1) throw new ConflictException(`"${product.name}" is no longer available`);
-      return product.workshopStockQuantity > 0 ? 1 : 0;
-    }
-
-    const variant = variantId ? product.variants.find((entry) => entry.id === variantId) : null;
-    if (variantId && !variant) throw new BadRequestException(`The selected variant of "${product.name}" was not found`);
-    const workshopAvailable = variant ? variant.workshopStockQuantity : product.workshopStockQuantity;
-    const sharedAvailable = variant ? variant.stockQuantity : (product.stockQuantity ?? 0);
-    const fromWorkshop = Math.min(workshopAvailable, quantity);
-    const fromShared = quantity - fromWorkshop;
-    if (fromWorkshop > 0) {
-      const changed = variant
-        ? await tx.productVariant.updateMany({
-            where: {
-              id: variant.id,
-              product: { is: { status: "Published", sellInWorkshop: true } },
-              workshopStockQuantity: { gte: fromWorkshop },
-            },
-            data: { workshopStockQuantity: { decrement: fromWorkshop } },
-          })
-        : await tx.product.updateMany({
-            where: {
-              id: product.id,
-              status: "Published",
-              sellInWorkshop: true,
-              workshopStockQuantity: { gte: fromWorkshop },
-            },
-            data: { workshopStockQuantity: { decrement: fromWorkshop } },
-          });
-      if (changed.count !== 1) throw new ConflictException(`Workshop allocation for "${product.name}" changed; refresh the cart`);
-    }
-    if (fromShared > 0) {
-      if (sharedAvailable < fromShared) throw new ConflictException(`"${product.name}" no longer has enough shared stock`);
-      const changed = variant
-        ? await tx.productVariant.updateMany({
-            where: {
-              id: variant.id,
-              product: { is: { status: "Published", sellInWorkshop: true } },
-              stockQuantity: { gte: fromShared },
-            },
-            data: { stockQuantity: { decrement: fromShared } },
-          })
-        : await tx.product.updateMany({
-            where: {
-              id: product.id,
-              stockModel: "Quantity",
-              status: "Published",
-              sellInWorkshop: true,
-              stockQuantity: { gte: fromShared },
-            },
-            data: { stockQuantity: { decrement: fromShared } },
-          });
-      if (changed.count !== 1) throw new ConflictException(`"${product.name}" no longer has enough shared stock`);
-    }
-    return fromWorkshop;
   }
 
   async createSale(dto: CreatePosSaleDto, context: AuditContext) {
@@ -242,6 +335,16 @@ export class PosService {
     const productIds = [...new Set(normalizedItems.map((item) => item.productId))];
     try {
       const created = await this.prisma.$transaction(async (tx) => {
+        const now = new Date();
+        const reservation = await tx.posReservation.findFirst({
+          where: { id: dto.reservationId, adminId: context.adminId ?? "", committedAt: null, releasedAt: null, expiresAt: { gt: now } },
+          include: { items: true },
+        });
+        if (!reservation) throw new ConflictException("POS stock hold expired or was released. Reserve the cart again before confirming payment.");
+        const reservedByKey = new Map(reservation.items.map((item) => [`${item.productId}:${item.variantId ?? ""}`, item.quantity]));
+        if (reservedByKey.size !== normalizedItems.length || normalizedItems.some((item) => reservedByKey.get(`${item.productId}:${item.variantId ?? ""}`) !== item.quantity)) {
+          throw new ConflictException("The active POS stock hold does not match the current cart");
+        }
         const customer = dto.customerId
           ? await tx.customer.findUnique({ where: { id: dto.customerId } })
           : null;
@@ -264,12 +367,14 @@ export class PosService {
 
         for (const requested of normalizedItems) {
           const product = productById.get(requested.productId);
-          if (!product || product.status !== "Published" || !product.sellInWorkshop) {
+          if (!product || !product.sellInWorkshop) {
             throw new BadRequestException("One or more items are unavailable for Workshop POS");
           }
           const variant = requested.variantId ? product.variants.find((entry) => entry.id === requested.variantId) : null;
           if (requested.variantId && !variant) throw new BadRequestException(`The selected variant of "${product.name}" was not found`);
           if (product.variants.length && !variant) throw new BadRequestException(`Choose a variant for "${product.name}"`);
+          const uniqueHold = product.stockModel === "Unique" && !variant && product.status === "Reserved" && reservedByKey.has(`${product.id}:`);
+          if (product.status !== "Published" && !uniqueHold) throw new BadRequestException(`"${product.name}" is no longer available for Workshop POS`);
           if (product.stockModel === "Unique" && requested.quantity > 1 && !variant) {
             throw new BadRequestException(`"${product.name}" is a unique piece and can only be sold once`);
           }
@@ -281,7 +386,13 @@ export class PosService {
             ? baseUnitPrice
             : new Prisma.Decimal(requested.unitPriceIdr).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
           const lineTotal = unitPrice.mul(requested.quantity);
-          const allocated = await this.consumeStock(tx, product, requested.variantId, requested.quantity);
+          if (uniqueHold) {
+            const sold = await tx.product.updateMany({
+              where: { id: product.id, status: "Reserved", stockModel: "Unique", sellInWorkshop: true },
+              data: { status: "Sold" },
+            });
+            if (sold.count !== 1) throw new ConflictException(`"${product.name}" is no longer available`);
+          }
           subtotal = subtotal.add(lineTotal);
           itemSnapshots.push({
             product,
@@ -293,16 +404,21 @@ export class PosService {
             name: variant ? `${product.name} — ${variant.name}` : product.name,
             sku: variant?.sku ?? product.sku,
             imageUrl: product.images[0]?.url ?? null,
-            workshopAllocatedQuantity: allocated,
+            workshopAllocatedQuantity: 0,
           });
         }
+
+        const committed = await tx.posReservation.updateMany({
+          where: { id: reservation.id, adminId: context.adminId ?? "", committedAt: null, releasedAt: null, expiresAt: { gt: now } },
+          data: { committedAt: now },
+        });
+        if (committed.count !== 1) throw new ConflictException("POS stock hold expired before payment confirmation");
 
         const rawDiscount = !hasDiscount ? new Prisma.Decimal(0) : dto.manualDiscountType === "Percentage"
           ? subtotal.mul(dto.manualDiscountValue!).div(100).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
           : new Prisma.Decimal(dto.manualDiscountValue!).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
         const discountTotal = rawDiscount.greaterThan(subtotal) ? subtotal : rawDiscount;
         const total = subtotal.sub(discountTotal);
-        const now = new Date();
         const dateKey = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
         const sequence = await tx.sequence.upsert({
           where: { key: `order:${dateKey}` },

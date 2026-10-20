@@ -144,7 +144,7 @@ export default function AdminReviewsPage() {
         <Card flush>
           <div className="rv-toolbar">
             <TextInput value={state.searchInput} onChange={state.setSearchInput} placeholder="Search product, name, email or text" />
-            <Select value={status} onChange={setStatus} options={statusOptions} />
+            <Select value={status} onChange={setStatus} options={statusOptions} ariaLabel="Filter reviews by status" />
           </div>
 
           <DataTable

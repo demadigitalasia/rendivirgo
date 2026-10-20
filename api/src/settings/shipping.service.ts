@@ -28,6 +28,8 @@ export type ShippingQuoteOption = {
   carrier: string | null;
   price: number;
   breakdown: ShippingQuoteBreakdown;
+  deliveryMinDays: number | null;
+  deliveryMaxDays: number | null;
 };
 
 export type ShippingQuoteSource = "CarrierAPI" | "AdminOverride" | "FreeShipping";
@@ -123,6 +125,8 @@ export class ShippingService {
       insuranceFee: Prisma.Decimal;
       fragileFee: Prisma.Decimal;
       oversizedFee: Prisma.Decimal;
+      deliveryMinDays: number;
+      deliveryMaxDays: number;
     },
     fragile: boolean,
     oversized: boolean,
@@ -134,6 +138,8 @@ export class ShippingService {
       carrier: rate.carrier,
       price: breakdown.total,
       breakdown,
+      deliveryMinDays: rate.deliveryMinDays,
+      deliveryMaxDays: rate.deliveryMaxDays,
     };
   }
 
@@ -152,6 +158,8 @@ export class ShippingService {
             carrier: null,
             price,
             breakdown: { base: price, handling: 0, insurance: 0, fragile: 0, oversized: 0, total: price },
+            deliveryMinDays: null,
+            deliveryMaxDays: null,
           },
         ],
         source: "AdminOverride",
@@ -169,6 +177,8 @@ export class ShippingService {
             carrier: null,
             price: 0,
             breakdown: { base: 0, handling: 0, insurance: 0, fragile: 0, oversized: 0, total: 0 },
+            deliveryMinDays: null,
+            deliveryMaxDays: null,
           },
         ],
         source: "FreeShipping",
@@ -258,6 +268,8 @@ export class ShippingService {
     region: string;
     minWeightGram: number;
     maxWeightGram: number | null;
+    deliveryMinDays: number;
+    deliveryMaxDays: number;
     price: Prisma.Decimal;
     handlingFee: Prisma.Decimal;
     insuranceFee: Prisma.Decimal;
@@ -275,6 +287,8 @@ export class ShippingService {
       region: rate.region,
       minWeightGram: rate.minWeightGram,
       maxWeightGram: rate.maxWeightGram,
+      deliveryMinDays: rate.deliveryMinDays,
+      deliveryMaxDays: rate.deliveryMaxDays,
       price: Number(rate.price),
       handlingFee: Number(rate.handlingFee),
       insuranceFee: Number(rate.insuranceFee),
@@ -316,9 +330,18 @@ export class ShippingService {
     }
   }
 
+  private assertDeliveryWindow(deliveryMinDays: number, deliveryMaxDays: number) {
+    if (deliveryMinDays < 1 || deliveryMaxDays < deliveryMinDays || deliveryMaxDays > 365) {
+      throw new BadRequestException("Delivery estimates must be from 1 to 365 business days, with the maximum at least the minimum.");
+    }
+  }
+
   async createRate(dto: CreateShippingRateDto, context: AuditContext) {
     const minWeightGram = dto.minWeightGram ?? 0;
+    const deliveryMinDays = dto.deliveryMinDays ?? 3;
+    const deliveryMaxDays = dto.deliveryMaxDays ?? 7;
     this.assertWeightRange(minWeightGram, dto.maxWeightGram);
+    this.assertDeliveryWindow(deliveryMinDays, deliveryMaxDays);
 
     const rate = await this.prisma.shippingRate.create({
       data: {
@@ -327,6 +350,8 @@ export class ShippingService {
         region: dto.region ?? "Worldwide",
         minWeightGram,
         maxWeightGram: dto.maxWeightGram ?? null,
+        deliveryMinDays,
+        deliveryMaxDays,
         price: new Prisma.Decimal(dto.price),
         handlingFee: new Prisma.Decimal(dto.handlingFee ?? 0),
         insuranceFee: new Prisma.Decimal(dto.insuranceFee ?? 0),
@@ -357,7 +382,10 @@ export class ShippingService {
 
     const minWeightGram = dto.minWeightGram ?? existing.minWeightGram;
     const maxWeightGram = dto.maxWeightGram !== undefined ? dto.maxWeightGram : existing.maxWeightGram;
+    const deliveryMinDays = dto.deliveryMinDays ?? existing.deliveryMinDays;
+    const deliveryMaxDays = dto.deliveryMaxDays ?? existing.deliveryMaxDays;
     this.assertWeightRange(minWeightGram, maxWeightGram);
+    this.assertDeliveryWindow(deliveryMinDays, deliveryMaxDays);
 
     const rate = await this.prisma.shippingRate.update({
       where: { id },
@@ -367,6 +395,8 @@ export class ShippingService {
         ...(dto.region !== undefined ? { region: dto.region } : {}),
         ...(dto.minWeightGram !== undefined ? { minWeightGram: dto.minWeightGram } : {}),
         ...(dto.maxWeightGram !== undefined ? { maxWeightGram: dto.maxWeightGram } : {}),
+        ...(dto.deliveryMinDays !== undefined ? { deliveryMinDays: dto.deliveryMinDays } : {}),
+        ...(dto.deliveryMaxDays !== undefined ? { deliveryMaxDays: dto.deliveryMaxDays } : {}),
         ...(dto.price !== undefined ? { price: new Prisma.Decimal(dto.price) } : {}),
         ...(dto.handlingFee !== undefined ? { handlingFee: new Prisma.Decimal(dto.handlingFee) } : {}),
         ...(dto.insuranceFee !== undefined ? { insuranceFee: new Prisma.Decimal(dto.insuranceFee) } : {}),

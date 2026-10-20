@@ -26,6 +26,8 @@ type ShippingRate = {
   region: string;
   minWeightGram: number;
   maxWeightGram: number | null;
+  deliveryMinDays: number;
+  deliveryMaxDays: number;
   price: number;
   handlingFee: number;
   insuranceFee: number;
@@ -62,6 +64,8 @@ type ShippingQuote = {
     name: string;
     carrier: string | null;
     price: number;
+    deliveryMinDays: number | null;
+    deliveryMaxDays: number | null;
     breakdown: { base: number; handling: number; fragile: number; oversized: number; total: number };
   }>;
   source: "CarrierAPI" | "AdminOverride" | "FreeShipping";
@@ -74,6 +78,8 @@ type RateForm = {
   region: string;
   minWeightGram: string;
   maxWeightGram: string;
+  deliveryMinDays: string;
+  deliveryMaxDays: string;
   price: string;
   handlingFee: string;
   insuranceFee: string;
@@ -112,6 +118,8 @@ const emptyRateForm: RateForm = {
   region: "Worldwide",
   minWeightGram: "0",
   maxWeightGram: "",
+  deliveryMinDays: "3",
+  deliveryMaxDays: "7",
   price: "0",
   handlingFee: "0",
   insuranceFee: "0",
@@ -161,11 +169,13 @@ const asOptionalDimension = (value: string) => {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : Number.NaN;
 };
 
-const rateFeeTotal = (rate: ShippingRate) =>
-  rate.handlingFee + rate.insuranceFee + rate.fragileFee + rate.oversizedFee;
-
 const profileFeeTotal = (profile: ShippingProfile) =>
   profile.handlingFee + profile.insuranceFee + profile.fragileFee + profile.oversizedFee;
+
+const deliveryWindowLabel = (minDays: number, maxDays: number) =>
+  minDays === maxDays
+    ? `${minDays} business day${minDays === 1 ? "" : "s"}`
+    : `${minDays}–${maxDays} business days`;
 
 export default function AdminShippingPage() {
   const ratesState: ApiState<ShippingRate[]> = useApi<ShippingRate[]>("/api/admin/shipping/rates");
@@ -218,6 +228,8 @@ export default function AdminShippingPage() {
       region: rate.region,
       minWeightGram: String(rate.minWeightGram),
       maxWeightGram: rate.maxWeightGram === null ? "" : String(rate.maxWeightGram),
+      deliveryMinDays: String(rate.deliveryMinDays),
+      deliveryMaxDays: String(rate.deliveryMaxDays),
       price: String(rate.price),
       handlingFee: String(rate.handlingFee),
       insuranceFee: String(rate.insuranceFee),
@@ -249,6 +261,17 @@ export default function AdminShippingPage() {
       return;
     }
 
+    const deliveryMinDays = Math.trunc(Number(rateForm.deliveryMinDays));
+    const deliveryMaxDays = Math.trunc(Number(rateForm.deliveryMaxDays));
+    if (!Number.isFinite(deliveryMinDays) || deliveryMinDays < 1 || deliveryMinDays > 365) {
+      setRateError("Minimum delivery time must be between 1 and 365 business days.");
+      return;
+    }
+    if (!Number.isFinite(deliveryMaxDays) || deliveryMaxDays < deliveryMinDays || deliveryMaxDays > 365) {
+      setRateError("Maximum delivery time must be between the minimum and 365 business days.");
+      return;
+    }
+
     const price = Number(rateForm.price);
     if (!Number.isFinite(price) || price < 0) {
       setRateError("Price must be 0 or more.");
@@ -274,6 +297,8 @@ export default function AdminShippingPage() {
       region: rateForm.region.trim() || "Worldwide",
       minWeightGram,
       maxWeightGram,
+      deliveryMinDays,
+      deliveryMaxDays,
       price,
       handlingFee: Number(rateForm.handlingFee),
       insuranceFee: Number(rateForm.insuranceFee),
@@ -469,46 +494,54 @@ export default function AdminShippingPage() {
     {
       key: "name",
       header: "Rate",
+      width: "18%",
       render: (rate) => (
-        <div className="rv-product-cell">
+        <div className="rv-shipping-rate-cell">
           <strong>{rate.name}</strong>
-          <span className="rv-hint">{rate.carrier ?? "—"}</span>
+          <span className="rv-hint">
+            {rate.carrier ? `via ${rate.carrier}` : "Carrier not specified"} · {deliveryWindowLabel(rate.deliveryMinDays, rate.deliveryMaxDays)}
+          </span>
         </div>
       ),
     },
-    { key: "region", header: "Region", render: (rate) => rate.region },
+    { key: "region", header: "Destination", width: "10%", render: (rate) => rate.region },
     {
       key: "weight",
-      header: "Weight",
+      header: "Weight range",
+      width: "13%",
       render: (rate) =>
-        `${formatNumber(rate.minWeightGram)} g – ${rate.maxWeightGram === null ? "no limit" : `${formatNumber(rate.maxWeightGram)} g`}`,
+        rate.maxWeightGram === null
+          ? `${formatNumber(rate.minWeightGram)} g and up`
+          : `${formatNumber(rate.minWeightGram)}–${formatNumber(rate.maxWeightGram)} g`,
     },
-    { key: "price", header: "Price", align: "right", render: (rate) => formatUSD(rate.price) },
+    { key: "price", header: "Base rate", align: "right", width: "9%", render: (rate) => formatUSD(rate.price) },
     {
       key: "fees",
-      header: "Fees",
+      header: "Extra fees",
       align: "right",
+      width: "20%",
       render: (rate) => (
-        <div>
-          <div>{formatUSD(rateFeeTotal(rate))}</div>
-          <div className="rv-hint">
-            H {formatUSD(rate.handlingFee)} · I {formatUSD(rate.insuranceFee)} · F {formatUSD(rate.fragileFee)} · O{" "}
-            {formatUSD(rate.oversizedFee)}
-          </div>
-        </div>
+        <dl className="rv-shipping-fee-list">
+          <div><dt>Handling</dt><dd>{formatUSD(rate.handlingFee)}</dd></div>
+          <div><dt>Insurance</dt><dd>{formatUSD(rate.insuranceFee)}</dd></div>
+          <div><dt>Fragile</dt><dd>{formatUSD(rate.fragileFee)}</dd></div>
+          <div><dt>Oversized</dt><dd>{formatUSD(rate.oversizedFee)}</dd></div>
+        </dl>
       ),
     },
     {
       key: "active",
-      header: "Active",
+      header: "Status",
+      width: "9%",
       render: (rate) => <Badge tone={rate.isActive ? "green" : "gray"}>{rate.isActive ? "Active" : "Inactive"}</Badge>,
     },
     {
       key: "actions",
       header: "Actions",
       align: "right",
+      width: "21%",
       render: (rate) => (
-        <div className="rv-inline" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
+        <div className="rv-inline rv-shipping-actions">
           <Button size="sm" onClick={() => openEditRate(rate)}>
             Edit
           </Button>
@@ -567,11 +600,11 @@ export default function AdminShippingPage() {
       header: "Fees",
       align: "right",
       render: (profile) => (
-        <div>
-          <div>{formatUSD(profileFeeTotal(profile))}</div>
+        <div className="rv-shipping-fees">
+          <strong>{formatUSD(profileFeeTotal(profile))}</strong>
           <div className="rv-hint">
-            H {formatUSD(profile.handlingFee)} · I {formatUSD(profile.insuranceFee)} · F {formatUSD(profile.fragileFee)} · O{" "}
-            {formatUSD(profile.oversizedFee)}
+            Handling {formatUSD(profile.handlingFee)} · Insurance {formatUSD(profile.insuranceFee)} · Fragile{" "}
+            {formatUSD(profile.fragileFee)} · Oversized {formatUSD(profile.oversizedFee)}
           </div>
         </div>
       ),
@@ -581,7 +614,7 @@ export default function AdminShippingPage() {
       header: "Actions",
       align: "right",
       render: (profile) => (
-        <div className="rv-inline" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
+        <div className="rv-inline rv-shipping-actions">
           <Button size="sm" onClick={() => openEditProfile(profile)}>
             Edit
           </Button>
@@ -603,20 +636,17 @@ export default function AdminShippingPage() {
     <>
       <PageHeader
         title="Shipping"
-        subtitle="Rates, packaging profiles and quote calculator"
+        subtitle="Manage delivery rates, package rules, and checkout quote previews."
         actions={
           <div className="rv-inline">
             <Button onClick={ratesState.refresh} disabled={ratesState.loading}>
               Refresh
             </Button>
-            <Button variant="primary" onClick={openCreateRate}>
-              New rate
-            </Button>
           </div>
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-shipping-content">
         {ratesState.error ? (
           <Card title="Could not load shipping rates">
             <p className="rv-error-text">{ratesState.error}</p>
@@ -624,8 +654,9 @@ export default function AdminShippingPage() {
         ) : null}
 
         <Card
+          className="rv-shipping-card rv-shipping-card--rates"
           title="Shipping rates"
-          description="Weight-based rates per region and carrier"
+          description="Rates match the destination and total cart weight. Fragile and oversized fees apply when relevant."
           flush
           actions={
             <Button size="sm" variant="primary" onClick={openCreateRate}>
@@ -634,6 +665,7 @@ export default function AdminShippingPage() {
           }
         >
           <DataTable
+            ariaLabel="Shipping rates"
             columns={rateColumns}
             items={ratesState.data ?? []}
             loading={ratesState.loading && !ratesState.data}
@@ -655,8 +687,9 @@ export default function AdminShippingPage() {
         ) : null}
 
         <Card
+          className="rv-shipping-card rv-shipping-card--profiles"
           title="Shipping profiles"
-          description="Packaging defaults, dimensions and handling fees"
+          description="Default package weight, dimensions, class, and handling fees."
           flush
           actions={
             <Button size="sm" variant="primary" onClick={openCreateProfile}>
@@ -665,6 +698,7 @@ export default function AdminShippingPage() {
           }
         >
           <DataTable
+            ariaLabel="Shipping profiles"
             columns={profileColumns}
             items={profilesState.data ?? []}
             loading={profilesState.loading && !profilesState.data}
@@ -679,7 +713,11 @@ export default function AdminShippingPage() {
           />
         </Card>
 
-        <Card title="Quote calculator" description="Preview the rate options a customer would see">
+        <Card
+          className="rv-shipping-card rv-shipping-card--quote"
+          title="Quote calculator"
+          description="Check which rates match a destination, package, and order value."
+        >
           <div className="rv-stack">
             {quoteError ? <p className="rv-error-text">{quoteError}</p> : null}
             <div className="rv-form-grid">
@@ -754,7 +792,11 @@ export default function AdminShippingPage() {
                         <div>
                           <strong>{option.name}</strong>
                           <div className="rv-hint">
-                            {option.carrier ?? "—"} · base {formatUSD(option.breakdown.base)} · handling{" "}
+                            {option.carrier ?? "—"}
+                            {option.deliveryMinDays !== null && option.deliveryMaxDays !== null
+                              ? ` · ${deliveryWindowLabel(option.deliveryMinDays, option.deliveryMaxDays)} after dispatch`
+                              : ""}
+                            {" · base "}{formatUSD(option.breakdown.base)} · handling{" "}
                             {formatUSD(option.breakdown.handling)} · fragile {formatUSD(option.breakdown.fragile)} · oversized{" "}
                             {formatUSD(option.breakdown.oversized)}
                           </div>
@@ -798,91 +840,118 @@ export default function AdminShippingPage() {
           </>
         }
       >
-        <div className="rv-stack">
+        <div className="rv-stack rv-shipping-rate-form">
           {rateError ? <p className="rv-error-text">{rateError}</p> : null}
-          <div className="rv-form-grid">
-            <Field label="Name">
-              <TextInput value={rateForm.name} onChange={(value) => setRateField("name", value)} placeholder="Standard domestic" />
-            </Field>
-            <Field label="Carrier">
-              <TextInput value={rateForm.carrier} onChange={(value) => setRateField("carrier", value)} placeholder="JNE, DHL…" />
-            </Field>
-            <Field label="Region" hint="Country code or Worldwide">
-              <TextInput value={rateForm.region} onChange={(value) => setRateField("region", value)} />
-            </Field>
-            <Field label="Price">
-              <TextInput type="number" min={0} step="0.01" value={rateForm.price} onChange={(value) => setRateField("price", value)} />
-            </Field>
-            <Field label="Min weight (gram)">
-              <TextInput
-                type="number"
-                min={0}
-                step="1"
-                value={rateForm.minWeightGram}
-                onChange={(value) => setRateField("minWeightGram", value)}
-              />
-            </Field>
-            <Field label="Max weight (gram)" hint="Leave blank for no limit">
-              <TextInput
-                type="number"
-                min={0}
-                step="1"
-                value={rateForm.maxWeightGram}
-                onChange={(value) => setRateField("maxWeightGram", value)}
-              />
-            </Field>
-            <Field label="Handling fee">
-              <TextInput
-                type="number"
-                min={0}
-                step="0.01"
-                value={rateForm.handlingFee}
-                onChange={(value) => setRateField("handlingFee", value)}
-              />
-            </Field>
-            <Field label="Insurance fee">
-              <TextInput
-                type="number"
-                min={0}
-                step="0.01"
-                value={rateForm.insuranceFee}
-                onChange={(value) => setRateField("insuranceFee", value)}
-              />
-            </Field>
-            <Field label="Fragile fee" hint="Charged for the Fragile shipping class">
-              <TextInput
-                type="number"
-                min={0}
-                step="0.01"
-                value={rateForm.fragileFee}
-                onChange={(value) => setRateField("fragileFee", value)}
-              />
-            </Field>
-            <Field label="Oversized fee" hint="Charged for the Oversized shipping class">
-              <TextInput
-                type="number"
-                min={0}
-                step="0.01"
-                value={rateForm.oversizedFee}
-                onChange={(value) => setRateField("oversizedFee", value)}
-              />
-            </Field>
-            <Field label="Sort order">
-              <TextInput
-                type="number"
-                step="1"
-                value={rateForm.sortOrder}
-                onChange={(value) => setRateField("sortOrder", value)}
-              />
-            </Field>
-            <Field label="Active">
-              <Switch
-                checked={rateForm.isActive}
-                onChange={(checked) => setRateField("isActive", checked)}
-                label="Available for quotes"
-              />
-            </Field>
-          </div>
+          <section className="rv-shipping-form-section">
+            <div className="rv-shipping-form-section__heading">
+              <h3>Rate details</h3>
+              <p>Name the service and set where it is available.</p>
+            </div>
+            <div className="rv-form-grid rv-shipping-form-grid--two">
+              <Field label="Rate name">
+                <TextInput value={rateForm.name} onChange={(value) => setRateField("name", value)} placeholder="Standard domestic" required />
+              </Field>
+              <Field label="Carrier" hint="Optional">
+                <TextInput value={rateForm.carrier} onChange={(value) => setRateField("carrier", value)} placeholder="JNE, DHL…" />
+              </Field>
+              <Field label="Destination" hint="Country code or Worldwide">
+                <TextInput value={rateForm.region} onChange={(value) => setRateField("region", value)} required />
+              </Field>
+              <Field label="Base rate (USD)">
+                <TextInput type="number" min={0} step="0.01" value={rateForm.price} onChange={(value) => setRateField("price", value)} required />
+              </Field>
+            </div>
+          </section>
+
+          <section className="rv-shipping-form-section">
+            <div className="rv-shipping-form-section__heading">
+              <h3>Weight and delivery time</h3>
+              <p>Set the parcel weight range and estimated transit time after dispatch.</p>
+            </div>
+            <div className="rv-form-grid rv-shipping-form-grid--two">
+              <Field label="Minimum weight (g)">
+                <TextInput
+                  type="number"
+                  min={0}
+                  step="1"
+                  value={rateForm.minWeightGram}
+                  onChange={(value) => setRateField("minWeightGram", value)}
+                  required
+                />
+              </Field>
+              <Field label="Maximum weight (g)" hint="Leave blank for no limit">
+                <TextInput
+                  type="number"
+                  min={0}
+                  step="1"
+                  value={rateForm.maxWeightGram}
+                  onChange={(value) => setRateField("maxWeightGram", value)}
+                />
+              </Field>
+              <Field label="Minimum transit (business days)" hint="From dispatch; maximum 365 days">
+                <TextInput
+                  type="number"
+                  min={1}
+                  max={365}
+                  step="1"
+                  value={rateForm.deliveryMinDays}
+                  onChange={(value) => setRateField("deliveryMinDays", value)}
+                  required
+                />
+              </Field>
+              <Field label="Maximum transit (business days)">
+                <TextInput
+                  type="number"
+                  min={1}
+                  max={365}
+                  step="1"
+                  value={rateForm.deliveryMaxDays}
+                  onChange={(value) => setRateField("deliveryMaxDays", value)}
+                  required
+                />
+              </Field>
+            </div>
+          </section>
+
+          <details className="rv-shipping-advanced" open={Boolean(editingRate)}>
+            <summary>Optional extra charges</summary>
+            <div className="rv-shipping-advanced__body">
+              <p>Fragile and oversized charges apply only to matching products.</p>
+              <div className="rv-form-grid rv-shipping-form-grid--two">
+                <Field label="Handling charge (USD)">
+                  <TextInput type="number" min={0} step="0.01" value={rateForm.handlingFee} onChange={(value) => setRateField("handlingFee", value)} />
+                </Field>
+                <Field label="Insurance charge (USD)">
+                  <TextInput type="number" min={0} step="0.01" value={rateForm.insuranceFee} onChange={(value) => setRateField("insuranceFee", value)} />
+                </Field>
+                <Field label="Fragile charge (USD)">
+                  <TextInput type="number" min={0} step="0.01" value={rateForm.fragileFee} onChange={(value) => setRateField("fragileFee", value)} />
+                </Field>
+                <Field label="Oversized charge (USD)">
+                  <TextInput type="number" min={0} step="0.01" value={rateForm.oversizedFee} onChange={(value) => setRateField("oversizedFee", value)} />
+                </Field>
+              </div>
+            </div>
+          </details>
+
+          <section className="rv-shipping-form-section">
+            <div className="rv-shipping-form-section__heading">
+              <h3>Availability and order</h3>
+              <p>Choose whether customers can use this rate and where it appears.</p>
+            </div>
+            <div className="rv-form-grid rv-shipping-form-grid--two">
+              <Field label="Sort priority" hint="Lower numbers appear first">
+                <TextInput type="number" step="1" value={rateForm.sortOrder} onChange={(value) => setRateField("sortOrder", value)} />
+              </Field>
+              <Field label="Rate status">
+                <Switch
+                  checked={rateForm.isActive}
+                  onChange={(checked) => setRateField("isActive", checked)}
+                  label="Available at checkout"
+                />
+              </Field>
+            </div>
+          </section>
         </div>
       </Modal>
 

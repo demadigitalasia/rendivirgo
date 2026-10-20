@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import { Throttle } from "@nestjs/throttler";
@@ -6,6 +6,7 @@ import { IsEmail } from "class-validator";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
+import { CUSTOMER_SESSION_COOKIE_NAME, CustomerAuthService } from "../customers/customer-auth.service";
 import {
   CreateOrderDto,
   CreateReturnRequestDto,
@@ -16,8 +17,71 @@ import {
   UpdateFulfillmentDto,
   UpdateOrderDto,
 } from "./dto/order.dto";
+import { WholesaleCatalogQueryDto } from "./dto/wholesale-catalog-query.dto";
 import { OrdersService } from "./orders.service";
 import { OrderReturnRequestsService, type ReturnEvidenceFile } from "./order-return-requests.service";
+import { CustomerGuard } from "../customers/customer.guard";
+import { IsInt, IsNumber, Min } from "class-validator";
+
+class UpdateWholesaleMinimumsDto {
+  @IsNumber()
+  @Min(0)
+  minimumSubtotalUsd: number;
+
+  @IsInt()
+  @Min(0)
+  minimumPieces: number;
+}
+
+@Public()
+@UseGuards(CustomerGuard)
+@Controller("wholesale")
+export class WholesaleController {
+  constructor(private readonly ordersService: OrdersService) {}
+
+  private customerId(request: AuthenticatedRequest): string {
+    if (!request.customer?.wholesaleAccess) throw new ForbiddenException("This account does not have Wholesale access");
+    return request.customer.id;
+  }
+
+  @Get("minimums")
+  minimums(@Req() request: AuthenticatedRequest) {
+    this.customerId(request);
+    return this.ordersService.wholesaleMinimums();
+  }
+
+  @Get("catalog")
+  catalog(@Req() request: AuthenticatedRequest, @Query() query: WholesaleCatalogQueryDto) {
+    return this.ordersService.wholesaleCatalog(this.customerId(request), query);
+  }
+
+  @Post("quote")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  quote(@Body() dto: CreateOrderDto, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.quoteWholesale(dto, this.customerId(request));
+  }
+
+  @Post("orders")
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  create(@Body() dto: CreateOrderDto, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.createWholesale(dto, this.customerId(request));
+  }
+}
+
+@Controller("admin/wholesale")
+export class AdminWholesaleController {
+  constructor(private readonly ordersService: OrdersService) {}
+
+  @Get("minimums")
+  minimums() {
+    return this.ordersService.wholesaleMinimums();
+  }
+
+  @Patch("minimums")
+  updateMinimums(@Body() dto: UpdateWholesaleMinimumsDto, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.updateWholesaleMinimums(dto, auditContextFrom(request));
+  }
+}
 
 class RequestHistoryLinkDto {
   @IsEmail()
@@ -29,20 +93,29 @@ export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly returnRequests: OrderReturnRequestsService,
+    private readonly customerAuth: CustomerAuthService,
   ) {}
+
+  private async signedInCustomerId(request: AuthenticatedRequest): Promise<string | undefined> {
+    const token = (request.cookies as Record<string, string> | undefined)?.[CUSTOMER_SESSION_COOKIE_NAME];
+    if (!token) return undefined;
+    const session = await this.customerAuth.resolveSession(token);
+    return session?.customer.id;
+  }
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("quote")
-  quote(@Body() dto: CreateOrderDto) {
-    return this.ordersService.quote(dto);
+  async quote(@Body() dto: CreateOrderDto, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.quote(dto, await this.signedInCustomerId(request));
   }
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
-  create(@Body() dto: CreateOrderDto) {
-    return this.ordersService.create(dto);
+  async create(@Body() dto: CreateOrderDto, @Req() request: AuthenticatedRequest) {
+    const customerId = await this.signedInCustomerId(request);
+    return this.ordersService.create(dto, false, customerId ? { source: "Online", customerId } : undefined);
   }
 
   @Public()
@@ -149,6 +222,11 @@ export class AdminOrdersController {
   @Post(":id/return")
   returnOrder(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
     return this.ordersService.returnOrder(id, auditContextFrom(request));
+  }
+
+  @Post(":id/restock-return")
+  restockReturnedInventory(@Param("id") id: string, @Req() request: AuthenticatedRequest) {
+    return this.ordersService.restockReturnedInventory(id, auditContextFrom(request));
   }
 
   @Post(":id/confirm-payment")

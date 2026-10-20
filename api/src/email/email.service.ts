@@ -7,6 +7,7 @@ export type SendEmailInput = {
   html: string;
   text?: string;
   replyTo?: string;
+  idempotencyKey?: string;
 };
 
 @Injectable()
@@ -28,7 +29,7 @@ export class EmailService {
 
   async send(input: SendEmailInput): Promise<boolean> {
     if (!this.apiKey) {
-      this.logger.warn(`Email skipped (RESEND_API_KEY not configured): "${input.subject}" -> ${String(input.to)}`);
+      this.logger.error(`Email delivery unavailable (RESEND_API_KEY not configured): "${input.subject}"`);
       return false;
     }
 
@@ -38,6 +39,7 @@ export class EmailService {
         headers: {
           authorization: `Bearer ${this.apiKey}`,
           "content-type": "application/json",
+          ...(input.idempotencyKey ? { "idempotency-key": input.idempotencyKey } : {}),
         },
         body: JSON.stringify({
           from: this.from,
@@ -51,8 +53,7 @@ export class EmailService {
       });
 
       if (!response.ok) {
-        const detail = await response.text().catch(() => "");
-        this.logger.error(`Resend rejected "${input.subject}" (${response.status}): ${detail.slice(0, 300)}`);
+        this.logger.error(`Resend rejected "${input.subject}" (${response.status})`);
         return false;
       }
 

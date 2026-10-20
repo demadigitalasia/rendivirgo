@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Product } from "@/lib/catalog";
 import type { Copy, Language } from "@/lib/i18n";
 import { dictionaries } from "@/lib/i18n";
@@ -15,7 +15,7 @@ export type CartLine = Product & {
   maxQuantity: number;
 };
 
-export const cartLineKey = (line: Pick<CartLine, "id" | "variantId">) => `${line.id}:${line.variantId ?? "base"}`;
+export const cartLineKey = (line: Pick<CartLine, "id" | "variantId" | "wholesale">) => `${line.id}:${line.variantId ?? "base"}:${line.wholesale ? "wholesale" : "retail"}`;
 
 type CartContextValue = {
   lines: CartLine[];
@@ -23,11 +23,11 @@ type CartContextValue = {
   addToCart: (product: Product, quantity?: number, variantId?: string, variantName?: string) => void;
   removeFromCart: (key: string) => void;
   updateQuantity: (key: string, quantity: number) => void;
-  clearCart: () => void;
+  clearCart: (channel?: "retail" | "wholesale") => void;
   itemCount: number;
   subtotal: number;
   totalWeight: number;
-  quantityInCart: (productId: string, variantId?: string) => number;
+  quantityInCart: (productId: string, variantId?: string, wholesale?: boolean) => number;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -136,13 +136,32 @@ export function Providers({
     document.documentElement.lang = language === "id" ? "id-ID" : "en-GB";
   }, [language, storageReady]);
 
+  const clearCart = useCallback((channel?: "retail" | "wholesale") => {
+    setLines((current) => {
+      if (!channel) return current.length ? [] : current;
+      const isWholesale = (line: CartLine) => line.wholesale === true;
+      const next = current.filter((line) => channel === "wholesale" ? !isWholesale(line) : isWholesale(line));
+      return next.length === current.length ? current : next;
+    });
+  }, []);
+
   const cartValue = useMemo<CartContextValue>(() => {
     const addToCart = (product: Product, quantity = 1, variantId?: string, variantName?: string) => {
       if (product.status !== "Available") return;
       if (product.variants?.length && !variantId) return;
       const limit = maxQuantityFor(product, variantId);
       if (limit <= 0) return;
-      const key = cartLineKey({ id: product.id, variantId });
+      const key = cartLineKey({ id: product.id, variantId, wholesale: product.wholesale });
+      const selectedVariant = variantId ? product.variants?.find((variant) => variant.id === variantId) : undefined;
+      const cartProduct = selectedVariant
+        ? {
+            ...product,
+            price: selectedVariant.price,
+            weightGram: selectedVariant.weightGram,
+            sku: selectedVariant.sku,
+            wholesalePiecesPerUnit: selectedVariant.wholesalePiecesPerUnit ?? product.wholesalePiecesPerUnit,
+          }
+        : product;
       setLines((current) => {
         const existing = current.find((line) => cartLineKey(line) === key);
         if (existing) {
@@ -152,7 +171,7 @@ export function Providers({
             cartLineKey(line) === key ? { ...line, quantity: nextQuantity, maxQuantity: limit } : line,
           );
         }
-        return [...current, { ...product, quantity: Math.min(Math.max(1, quantity), limit), variantId, variantName, maxQuantity: limit }];
+        return [...current, { ...cartProduct, quantity: Math.min(Math.max(1, quantity), limit), variantId, variantName, maxQuantity: limit }];
       });
     };
 
@@ -168,8 +187,8 @@ export function Providers({
     const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
     const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
     const totalWeight = lines.reduce((sum, line) => sum + line.weightGram * line.quantity, 0);
-    const quantityInCart = (productId: string, variantId?: string) => {
-      const key = cartLineKey({ id: productId, variantId });
+    const quantityInCart = (productId: string, variantId?: string, wholesale = false) => {
+      const key = cartLineKey({ id: productId, variantId, wholesale });
       return lines.find((line) => cartLineKey(line) === key)?.quantity ?? 0;
     };
 
@@ -179,13 +198,13 @@ export function Providers({
       addToCart,
       removeFromCart,
       updateQuantity,
-      clearCart: () => setLines([]),
+      clearCart,
       itemCount,
       subtotal,
       totalWeight,
       quantityInCart,
     };
-  }, [lines, storageReady]);
+  }, [clearCart, lines, storageReady]);
 
   useEffect(() => {
     const count = cartValue.itemCount;

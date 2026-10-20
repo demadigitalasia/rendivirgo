@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Produk | RENDI VIRGO Online Store |
-| Status | Implementasi tersedia; migrasi telah diterapkan pada database pengembangan lokal |
+| Status | Implementasi UI dan API memakai stok bersama serta reservasi lima menit; migrasi belum diterapkan ke database lokal |
 | Tanggal | 18 Oktober 2026 |
 | Cakupan | Penjualan langsung di workshop melalui dashboard admin |
 
@@ -20,9 +20,9 @@
 - Kupon toko online tidak berlaku di POS.
 - Retur dan refund dicatat melalui alur pesanan admin yang sudah ada.
 - Struk menggunakan format sederhana tanpa format pajak/nomor khusus yang diminta saat ini.
-- Stok POS dan online memakai persediaan yang sama; admin boleh mengalokasikan sebagian stok khusus untuk workshop.
-- Jika alokasi workshop habis, POS boleh memakai stok bersama yang masih tersedia selama stok itu tidak terikat reservasi order online.
-- Stok POS baru dikurangi setelah pembayaran lunas dikonfirmasi dan ketersediaan dicek ulang.
+- Retail, Wholesale, dan POS memakai satu pool stok tanpa alokasi terpisah per channel.
+- Sebelum pembayaran dikonfirmasi, POS memvalidasi dan menahan sementara stok secara atomik. Stok yang ditahan POS tidak dapat dijual oleh Retail, Wholesale, atau transaksi POS lain.
+- Setelah pembayaran lunas dikonfirmasi, sistem membuat order POS dan mengikat reservasi menjadi penjualan secara atomik. Jika hold dilepas atau kedaluwarsa, jumlah stok dikembalikan ke pool bersama.
 - POS hanya mencatat penjualan; koreksi stok dilakukan lewat manajemen produk.
 
 ## 1. Ringkasan
@@ -52,18 +52,20 @@ Menu POS, halaman kasir, pencarian katalog kasir, dan API pembuat transaksi POS 
 2. Admin mencari produk melalui nama atau SKU, lalu memilih produk/varian dan jumlahnya.
 3. Sistem menampilkan harga, stok yang tersedia, subtotal, diskon yang berlaku, dan total.
 4. Admin dapat memilih customer yang sudah tercatat atau melanjutkan sebagai pembeli walk-in tanpa profil lengkap.
-5. Admin memilih metode pembayaran, mencatat referensi/catatan bila diperlukan, lalu mengonfirmasi pembayaran yang benar-benar sudah diterima.
-6. Setelah pembayaran lunas dikonfirmasi, sistem memeriksa ulang ketersediaan dan menyimpan transaksi serta pengurangan stok secara atomik. Jika stok berubah sebelum konfirmasi, sistem menolak transaksi dan meminta admin memperbarui keranjang.
-7. POS menampilkan konfirmasi dan menyediakan bukti/struk yang bisa dicetak atau disimpan.
-8. Barang diserahkan langsung di workshop. Pesanan POS tidak membutuhkan alamat atau ongkos kirim; penyelesaian transaksi tidak boleh mencatat status pengiriman.
+5. Sebelum pembayaran diminta atau dikonfirmasi, server memeriksa ulang channel, harga, diskon, dan stok; sistem menahan stok yang tersedia secara atomik.
+6. Setelah reservasi berhasil, admin memilih metode pembayaran, mencatat referensi/catatan bila diperlukan, dan mengonfirmasi pembayaran yang benar-benar sudah diterima.
+7. Jika stok tidak tersedia, sistem tidak melanjutkan ke pembayaran dan meminta admin memperbarui keranjang. Jika reservasi kedaluwarsa atau pembayaran gagal, sistem melepas reservasi tanpa membuat order Paid.
+8. Setelah pembayaran lunas terkonfirmasi, pembuatan order POS, pengurangan stok fisik, dan pelepasan reservasi diselesaikan secara atomik dan idempoten.
+9. POS menampilkan konfirmasi dan menyediakan bukti/struk yang bisa dicetak atau disimpan.
+10. Barang diserahkan langsung di workshop. Pesanan POS tidak membutuhkan alamat atau ongkos kirim; penyelesaian transaksi tidak boleh mencatat status pengiriman.
 
 ## 5. Kebutuhan fungsional
 
 ### 5.1 Keranjang dan harga
 
-- Pada pengaturan produk, admin memilih kanal penjualan: **Web + Workshop POS**, **Web saja**, atau **Workshop POS saja**.
+- Pada pengaturan produk, admin mengaktifkan channel Retail/Web, Wholesale, dan POS Workshop secara independen. Kombinasi channel menentukan katalog tempat produk tersedia; Wholesale-only dan POS-only tidak tampil di katalog publik.
 - Produk **Workshop POS saja** hanya muncul di katalog kasir admin dan tidak boleh tampil pada katalog, pencarian, halaman produk, sitemap, atau API publik website.
-- Pengaturan kanal menentukan di mana produk boleh dijual; pengaturan alokasi stok menentukan jumlah yang dilindungi untuk workshop. Keduanya berdiri sendiri.
+- Pengaturan channel menentukan di mana produk boleh dijual. Channel tidak membuat pool atau alokasi stok terpisah.
 - Admin dapat menambah, menghapus, dan mengubah jumlah barang dalam keranjang.
 - Pencarian mendukung nama dan SKU. Pemindai barcode dapat digunakan bila perangkat mengirim hasil scan sebagai input teks; kebutuhan perangkat keras khusus belum termasuk cakupan.
 - Harga katalog dikonversi ke IDR sebagai harga awal. Admin dapat mengubah harga satuan langsung pada setiap baris keranjang; nilai ini hanya berlaku untuk transaksi berjalan.
@@ -71,10 +73,11 @@ Menu POS, halaman kasir, pencarian katalog kasir, dan API pembuat transaksi POS 
 - Produk unik tidak dapat dijual melebihi stok tersedia. Produk dengan model stok kuantitas mengikuti jumlah tersedia dan satuan produk.
 - Produk Draft, Reserved, Sold, Archived, atau tidak tersedia tidak dapat ditambahkan sebagai barang yang dapat dijual.
 - POS hanya menampilkan produk yang diizinkan untuk kanal Workshop POS dan memiliki status/ketersediaan yang dapat dijual.
-- Menambahkan produk ke keranjang tidak menahan stok. Saat admin menyelesaikan penjualan, sistem memeriksa ulang jumlah yang benar-benar dapat dijual dan mengurangi stok hanya setelah pembayaran lunas berhasil dikonfirmasi.
-- Stok yang dialokasikan khusus workshop tersedia untuk POS dan tidak boleh dihitung sebagai stok yang dapat dibeli di website. Alokasi dikelola dari manajemen produk, bukan melalui koreksi stok di POS.
-- Setelah alokasi workshop habis, POS boleh menggunakan sisa stok bersama, tetapi tidak boleh menjual stok yang sedang direservasi order online.
-- Pemeriksaan ketersediaan dan pengurangan stok dilakukan secara atomik serta memperhitungkan reservasi order online yang belum dibayar.
+- Menambahkan produk ke keranjang tidak menahan stok. Sebelum pembayaran diterima/dikonfirmasi, server memeriksa ulang jumlah tersedia dan membuat reservasi sementara POS secara atomik.
+- Jumlah tersedia adalah stok fisik dikurangi reservasi aktif dari Retail, Wholesale, dan POS. Tidak ada alokasi stok khusus Workshop.
+- Reservasi POS memiliki batas waktu yang ditetapkan sistem. Reservasi dilepas saat transaksi dibatalkan, pembayaran gagal, atau batas waktu tercapai. Jika pembayaran eksternal berhasil setelah reservasi berakhir, transaksi masuk ke rekonsiliasi admin dan tidak otomatis mengurangi stok.
+- Setelah pembayaran lunas, sistem membuat order, mengurangi stok fisik, dan melepas reservasi secara atomik. Operasi harus idempoten agar retry atau callback pembayaran tidak mengurangi stok dua kali.
+- Jika metode pembayaran telah berhasil di luar sistem tetapi finalisasi order gagal, transaksi masuk ke antrean rekonsiliasi admin; sistem tidak boleh menyatakan pembayaran/order selesai tanpa rekonsiliasi.
 - Admin boleh memberi diskon manual berupa persen atau nominal untuk seluruh order. Alasan wajib dicatat. Nilai sebelum diskon, jenis/nilai diskon, alasan, dan total akhir disimpan pada transaksi serta ditampilkan pada struk.
 - Kupon toko online tidak dapat digunakan pada transaksi POS.
 
@@ -100,9 +103,10 @@ Menu POS, halaman kasir, pencarian katalog kasir, dan API pembuat transaksi POS 
 - Setiap transaksi memiliki penanda sumber penjualan **POS/workshop** dan tipe pemenuhan **ambil langsung** atau ekuivalen.
 - Pengurangan stok dan pembuatan pesanan harus konsisten sebagai satu operasi: tidak boleh ada order berbayar tanpa perubahan stok yang sesuai, atau stok berkurang dua kali saat permintaan diulang.
 - Transaksi muncul di dashboard admin pada daftar pesanan dengan penanda POS dan customer (jika dihubungkan).
-- Stok yang dialokasikan untuk workshop tidak tersedia pada checkout online, dan penjualan online tidak dapat menghabiskan jumlah tersebut.
-- Admin dapat mengatur kanal produk sebagai Web + Workshop POS, Web saja, atau Workshop POS saja; produk POS saja tidak bocor ke storefront maupun API publik.
-- Saat alokasi workshop habis, POS dapat menjual stok bersama yang tersedia dan tidak sedang direservasi order online.
+- Admin dapat mengatur channel Retail/Web, Wholesale, dan Workshop POS secara independen; produk POS-only atau Wholesale-only tidak bocor ke storefront maupun API publik.
+- Seluruh channel membaca satu stok fisik bersama dan menghormati reservasi aktif dari semua channel.
+- Saat POS menahan stok untuk pembayaran, jumlah tersebut tidak dapat dibeli Retail/Wholesale atau ditahan oleh POS lain. Jika transaksi batal/gagal/kedaluwarsa, jumlah tersedia kembali.
+- Setelah pembayaran berhasil, transaksi POS mengikat stok yang ditahan sebagai penjualan tanpa mengubah status pengiriman.
 - POS tidak menyediakan tindakan koreksi stok; penyesuaian dilakukan dari manajemen produk.
 - Pesanan POS tidak meminta data shipping, tidak menghitung ongkir, dan tidak menghasilkan resi.
 - Laporan dapat memfilter atau membandingkan penjualan POS dengan penjualan online tanpa menghitung transaksi POS dua kali.
@@ -125,8 +129,9 @@ Menu POS, halaman kasir, pencarian katalog kasir, dan API pembuat transaksi POS 
 - Total POS menggunakan IDR, kurs USD–IDR yang dipakai tersimpan pada order, dan diskon order menyimpan nilai serta alasan.
 - Harga item hasil konversi dibulatkan ke rupiah penuh sebelum total keranjang dihitung.
 - Admin dapat menyesuaikan harga satuan tiap item di keranjang POS; harga hasil penyesuaian tersimpan pada transaksi dan tidak mengubah katalog produk atau harga website.
-- Stok POS baru berkurang setelah pembayaran lunas, dengan pengecekan ulang terhadap stok bersama dan reservasi aktif.
-- Stok alokasi workshop terlindungi dari penjualan online; POS dapat memakai stok bersama jika alokasi habis dan jumlah itu belum direservasi online.
+- POS menahan stok yang tersedia sebelum pembayaran dikonfirmasi; stok tidak bisa diambil oleh checkout online atau transaksi lain selama reservasi aktif.
+- Pembayaran lunas membuat order POS dan mengikat stok yang ditahan sebagai penjualan secara atomik; pelepasan atau kedaluwarsa mengembalikan jumlah ke pool bersama.
+- Stok POS, Retail, dan Wholesale berasal dari satu pool tanpa alokasi khusus channel.
 - Kupon toko online ditolak pada POS; retur/refund mengikuti alur pesanan admin.
 - Transaksi POS terlihat dalam daftar pesanan dan laporan, dengan penanda sumber POS.
 - Pengguna publik dan customer tidak dapat membuka POS atau membuat transaksi POS melalui URL/API.
@@ -134,6 +139,8 @@ Menu POS, halaman kasir, pencarian katalog kasir, dan API pembuat transaksi POS 
 
 ## 8. Catatan implementasi
 
-Kode POS tersedia di dashboard admin dan API admin. Implementasi menambahkan kanal penjualan produk, alokasi stok workshop, transaksi POS ber-IDR, kurs snapshot, penyesuaian harga per item di keranjang, metode tunai/QRIS, diskon order dengan alasan, struk, penanda sumber pesanan, dan pelaporan POS terpisah dari angka USD.
+Kode POS tersedia di dashboard admin dan API admin. POS memakai stok bersama dengan Retail dan Wholesale. Sebelum pembayaran diterima admin, API menahan stok secara atomik selama lima menit; hold dapat diperpanjang atau dilepas. Konfirmasi pembayaran penuh membuat order POS Paid/Completed dan mengikat hold ke order dalam satu transaksi.
 
-Migrasi database yang dipakai ada di `api/prisma/migrations/20261018180000_workshop_pos/migration.sql` dan `api/prisma/migrations/20261018190000_workshop_pos_prices/migration.sql`; keduanya telah diterapkan pada database pengembangan lokal. Kolom harga khusus dari rancangan POS sebelumnya dipertahankan sebagai data lama yang tidak digunakan oleh API atau layar produk. Admin mengatur kurs USD–IDR di halaman POS, lalu dapat menyesuaikan harga tiap item di keranjang untuk transaksi berjalan; harga akhir tersimpan pada item pesanan. Stok workshop dapat dialokasikan pada pengaturan produk; stok bersama tetap dapat dipakai POS selama belum direservasi checkout online.
+Admin mengatur kurs USD–IDR, memilih metode tunai/transfer/QRIS, dapat menyesuaikan harga item dan memberi diskon dengan alasan, lalu mencetak struk. Jumlah stok yang ditahan tidak tersedia bagi Retail, Wholesale, atau POS lain. API melepas hold yang tidak dikonfirmasi setelah masa berlakunya habis.
+
+Migrasi penggabungan alokasi stok lama ke pool bersama dan tabel reservasi POS ada di `api/prisma/migrations/20261018200000_customer_accounts_wholesale/migration.sql`. Pemeriksaan database lokal belum berhasil pada turn implementasi ini, sehingga migrasi perlu diterapkan sebelum versi kode terbaru berjalan dengan database.

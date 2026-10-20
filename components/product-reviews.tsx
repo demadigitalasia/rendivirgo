@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { FilterDropdown } from "@/components/filter-dropdown";
 import { useCopy, useLanguage } from "@/components/providers";
 
 type Review = {
@@ -185,13 +186,7 @@ export function ProductReviews({ slug }: { slug: string }) {
             <div className="field-grid">
               <div className="field">
                 <label htmlFor="review-rating">{t.reviews.rating}</label>
-                <select id="review-rating" value={rating} onChange={(event) => setRating(Number(event.target.value))}>
-                  {[5, 4, 3, 2, 1].map((value) => (
-                    <option key={value} value={value}>
-                      {value} ★
-                    </option>
-                  ))}
-                </select>
+                <FilterDropdown id="review-rating" ariaLabel={t.reviews.rating} value={String(rating)} onChange={(value) => setRating(Number(value))} options={[5, 4, 3, 2, 1].map((value) => ({ value: String(value), label: `${value} ★` }))} />
               </div>
               <div className="field">
                 <label htmlFor="review-title">{t.reviews.titleLabel}</label>

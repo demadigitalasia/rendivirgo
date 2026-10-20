@@ -132,7 +132,8 @@
 }
 
 .rv-catalog-pdf__search > span,
-.rv-catalog-pdf__filter > span {
+.rv-catalog-pdf__filter > span,
+.rv-catalog-pdf__filter > label {
   color: var(--rv-muted);
   font-size: 0.68rem;
   font-weight: 600;

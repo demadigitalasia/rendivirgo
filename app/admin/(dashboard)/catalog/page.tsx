@@ -126,20 +126,21 @@ export default function AdminCatalogPdfPage() {
               <span>Search catalog</span>
               <TextInput id="rv-catalog-search" type="search" value={list.searchInput} onChange={list.setSearchInput} placeholder="Product name, SKU, or origin" />
             </label>
-            <label className="rv-catalog-pdf__filter">
-              <span>Category</span>
+            <div className="rv-catalog-pdf__filter">
+              <label htmlFor="rv-catalog-category">Category</label>
               <Select
                 id="rv-catalog-category"
                 value={String(params.category ?? "")}
                 onChange={(value) => setFilter({ category: value || undefined })}
                 options={(categoriesState.data ?? []).map((category) => ({ value: category.slug, label: category.name }))}
                 placeholder="All categories"
+                ariaLabel="Filter catalog by category"
               />
-            </label>
-            <label className="rv-catalog-pdf__filter">
-              <span>Sort by</span>
-              <Select id="rv-catalog-sort" value={String(params.sort ?? "name")} onChange={(value) => setFilter({ sort: value })} options={sortOptions} />
-            </label>
+            </div>
+            <div className="rv-catalog-pdf__filter">
+              <label htmlFor="rv-catalog-sort">Sort by</label>
+              <Select id="rv-catalog-sort" value={String(params.sort ?? "name")} onChange={(value) => setFilter({ sort: value })} options={sortOptions} ariaLabel="Sort catalog" />
+            </div>
             <Button className="rv-catalog-pdf__reset" size="sm" onClick={() => { setSelectedIds([]); list.reset(); }}>Reset filters</Button>
           </div>
 

@@ -3,16 +3,19 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { SkipLink } from "@/components/skip-link";
 import { Toaster } from "@/components/toast";
-import { getPublicSettings } from "@/lib/storefront";
+import { getCategories, getPublicSettings } from "@/lib/storefront";
 import { StorefrontMotion } from "@/components/storefront-motion";
 import "./storefront.css";
 import { getRequestLanguage, hasLanguagePreferenceCookie } from "@/lib/server-locale";
 import { supportedLanguages } from "@/lib/locale";
 
 export default async function StorefrontLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { store } = await getPublicSettings();
-  const language = await getRequestLanguage();
-  const hasLanguageCookie = await hasLanguagePreferenceCookie();
+  const [{ store }, language, hasLanguageCookie] = await Promise.all([
+    getPublicSettings(),
+    getRequestLanguage(),
+    hasLanguagePreferenceCookie(),
+  ]);
+  const categories = await getCategories(language);
   const languages = supportedLanguages;
 
   return (
@@ -20,7 +23,7 @@ export default async function StorefrontLayout({ children }: Readonly<{ children
       <div className="storefront">
         <StorefrontMotion />
         <SkipLink />
-        <SiteHeader languages={languages} />
+        <SiteHeader categories={(categories ?? []).map(({ slug, name }) => ({ slug, name }))} languages={languages} />
         <main id="main">{children}</main>
         <SiteFooter socials={store.socials} email={store.email} />
         <Toaster />

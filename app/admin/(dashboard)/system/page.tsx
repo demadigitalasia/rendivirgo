@@ -328,8 +328,8 @@ function SecurityPanel() {
       setPasswordError("Enter your current password.");
       return;
     }
-    if (password.next.length < 10) {
-      setPasswordError("The new password must be at least 10 characters.");
+    if (password.next.length < 12) {
+      setPasswordError("The new password must be at least 12 characters.");
       return;
     }
     if (password.next !== password.confirm) {
@@ -400,7 +400,7 @@ function SecurityPanel() {
               onChange={(value) => setPassword((current) => ({ ...current, current: value }))}
             />
           </Field>
-          <Field label="New password" hint="At least 10 characters">
+          <Field label="New password" hint="At least 12 characters">
             <TextInput
               type="password"
               value={password.next}

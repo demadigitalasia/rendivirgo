@@ -13,6 +13,8 @@ type CheckoutPaymentResultProps = {
   paymentError: string | null;
   onStartPayment: (orderId: string, orderNumber: string, total: number) => void;
   onProofUploaded: (uploadedAt: string) => void;
+  scope?: string;
+  continueHref?: string;
 };
 
 export function CheckoutPaymentResult({
@@ -21,6 +23,8 @@ export function CheckoutPaymentResult({
   paymentError,
   onStartPayment,
   onProofUploaded,
+  scope,
+  continueHref = "/shop",
 }: CheckoutPaymentResultProps) {
   const t = useCopy();
   const { language } = useLanguage();
@@ -38,7 +42,7 @@ export function CheckoutPaymentResult({
       return;
     }
 
-    const orderEmail = readLastOrder()?.email;
+    const orderEmail = readLastOrder(scope)?.email;
     if (!orderEmail) {
       setProofUploadError(t.checkout.proofUploadFailed);
       return;
@@ -63,9 +67,9 @@ export function CheckoutPaymentResult({
         throw new Error(message || t.checkout.proofUploadFailed);
       }
 
-      const stored = readLastOrder();
+      const stored = readLastOrder(scope);
       if (stored?.orderId === result.orderId) {
-        writeLastOrder({ ...stored, paymentProofUploadedAt: payload.uploadedAt });
+        writeLastOrder({ ...stored, paymentProofUploadedAt: payload.uploadedAt }, scope);
       }
       onProofUploaded(payload.uploadedAt);
       setPaymentProof(null);
@@ -173,14 +177,14 @@ export function CheckoutPaymentResult({
         {result.orderNumber ? (
           <p style={{ marginTop: 14 }}>
             <Link
-              href={"/track?order=" + encodeURIComponent(result.orderNumber) + "&email=" + encodeURIComponent(readLastOrder()?.email ?? "")}
+              href={"/track?order=" + encodeURIComponent(result.orderNumber) + "&email=" + encodeURIComponent(readLastOrder(scope)?.email ?? "")}
               className="text-button"
             >
               {t.footer.track}
             </Link>
           </p>
         ) : null}
-        <Link href="/shop" className="button" style={{ marginTop: 18}}>
+        <Link href={continueHref} className="button" style={{ marginTop: 18}}>
           {t.checkout.continue}
         </Link>
       </div>

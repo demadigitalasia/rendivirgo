@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma";
 import type { Customer } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
@@ -32,6 +32,9 @@ export class CustomersService {
       tags: customer.tags,
       notes: customer.notes,
       acceptsMarketing: customer.acceptsMarketing,
+      emailVerifiedAt: customer.emailVerifiedAt,
+      wholesaleAccess: customer.wholesaleAccess,
+      wholesaleApprovedAt: customer.wholesaleApprovedAt,
       address: {
         line1: customer.addressLine1,
         line2: customer.addressLine2,
@@ -160,6 +163,9 @@ export class CustomersService {
   async update(id: string, dto: UpdateCustomerDto, context: AuditContext) {
     const existing = await this.prisma.customer.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Customer not found");
+    if (dto.wholesaleAccess === true && !existing.emailVerifiedAt) {
+      throw new BadRequestException("Verify the customer email before granting Wholesale access");
+    }
 
     const customer = await this.prisma.customer.update({
       where: { id },
@@ -169,6 +175,10 @@ export class CustomersService {
         ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
         ...(dto.acceptsMarketing !== undefined ? { acceptsMarketing: dto.acceptsMarketing } : {}),
+        ...(dto.wholesaleAccess !== undefined ? {
+          wholesaleAccess: dto.wholesaleAccess,
+          wholesaleApprovedAt: dto.wholesaleAccess ? existing.wholesaleApprovedAt ?? new Date() : null,
+        } : {}),
         ...(dto.addressLine1 !== undefined ? { addressLine1: dto.addressLine1 } : {}),
         ...(dto.addressLine2 !== undefined ? { addressLine2: dto.addressLine2 } : {}),
         ...(dto.city !== undefined ? { city: dto.city } : {}),

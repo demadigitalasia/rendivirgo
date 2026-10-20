@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
+import { FilterDropdown } from "@/components/filter-dropdown";
 import { CloseIcon } from "@/components/icons";
 import { useCopy } from "@/components/providers";
 import type { Product } from "@/lib/catalog";
@@ -88,7 +89,7 @@ export function ShopCatalog({
 
   return (
     <>
-      <section className="page-hero">
+      <section className="page-hero page-hero--shop">
         <div className="page-container">
           <Breadcrumb contained={false} tone="light" items={[{ key: "shop" }]} />
           <div className="eyebrow eyebrow--light">{t.shop.eyebrow}</div>
@@ -116,30 +117,31 @@ export function ShopCatalog({
             {t.shop.count(total)}
           </span>
           <div className="catalog-toolbar__controls">
-            <select
-              className="select-control"
+            <FilterDropdown
+              id="filter-stone-type"
               value={stone}
-              onChange={(event) => setParam("stone", event.target.value)}
-              aria-label={t.shop.filterStone}
-            >
-              <option value="all">{t.shop.allStones}</option>
-              {stoneTypes.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <select
-              className="select-control"
+              ariaLabel={t.shop.filterStone}
+              compact
+              wideMenu
+              onChange={(value) => setParam("stone", value)}
+              options={[
+                { value: "all", label: t.shop.allStones },
+                ...stoneTypes.map((item) => ({ value: item, label: item })),
+              ]}
+            />
+            <FilterDropdown
+              id="filter-sort"
               value={sort}
-              onChange={(event) => setParam("sort", event.target.value, "featured")}
-              aria-label={t.shop.sortLabel}
-            >
-              <option value="featured">{t.shop.sortFeatured}</option>
-              <option value="newest">{t.shop.sortNewest}</option>
-              <option value="price-asc">{t.shop.sortPriceLow}</option>
-              <option value="price-desc">{t.shop.sortPriceHigh}</option>
-            </select>
+              ariaLabel={t.shop.sortLabel}
+              compact
+              onChange={(value) => setParam("sort", value, "featured")}
+              options={[
+                { value: "featured", label: t.shop.sortFeatured },
+                { value: "newest", label: t.shop.sortNewest },
+                { value: "price-asc", label: t.shop.sortPriceLow },
+                { value: "price-desc", label: t.shop.sortPriceHigh },
+              ]}
+            />
           </div>
         </div>
         <div className="catalog-layout">
@@ -154,8 +156,8 @@ export function ShopCatalog({
                 <CloseIcon />
               </button>
             </div>
-            <div className="filter-group">
-              <label>
+            <div className="filter-group filter-group--options">
+              <label className={category === "all" ? "is-selected" : undefined}>
                 <input
                   type="radio"
                   name="category-filter"
@@ -165,7 +167,7 @@ export function ShopCatalog({
                 {t.shop.allPieces}
               </label>
               {categories.map((item) => (
-                <label key={item.slug}>
+                <label key={item.slug} className={category === item.slug ? "is-selected" : undefined}>
                   <input
                     type="radio"
                     name="category-filter"
@@ -176,50 +178,43 @@ export function ShopCatalog({
                 </label>
               ))}
             </div>
-            <div className="filter-field">
-              <label htmlFor="filter-price">{t.shop.filterPrice}</label>
-              <select
-                id="filter-price"
-                className="select-control"
-                value={price}
-                onChange={(event) => setParam("price", event.target.value)}
-              >
-                <option value="all">{t.shop.allPrices}</option>
-                <option value="under100">{t.shop.priceUnder100}</option>
-                <option value="100to250">{t.shop.price100to250}</option>
-                <option value="over250">{t.shop.priceOver250}</option>
-              </select>
-            </div>
-            <div className="filter-field">
-              <label htmlFor="filter-weight">{t.shop.filterWeight}</label>
-              <select
-                id="filter-weight"
-                className="select-control"
-                value={weight}
-                onChange={(event) => setParam("weight", event.target.value)}
-              >
-                <option value="all">{t.shop.allWeights}</option>
-                <option value="under100">{t.shop.weightUnder100}</option>
-                <option value="100to500">{t.shop.weight100to500}</option>
-                <option value="over500">{t.shop.weightOver500}</option>
-              </select>
-            </div>
-            <div className="filter-field">
-              <label htmlFor="filter-origin">{t.shop.filterOrigin}</label>
-              <select
-                id="filter-origin"
-                className="select-control"
-                value={origin}
-                onChange={(event) => setParam("origin", event.target.value)}
-              >
-                <option value="all">{t.shop.allOrigins}</option>
-                {origins.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              id="filter-price"
+              label={t.shop.filterPrice}
+              value={price}
+              adornment="$"
+              onChange={(value) => setParam("price", value)}
+              options={[
+                { value: "all", label: t.shop.allPrices },
+                { value: "under100", label: t.shop.priceUnder100 },
+                { value: "100to250", label: t.shop.price100to250 },
+                { value: "over250", label: t.shop.priceOver250 },
+              ]}
+            />
+            <FilterDropdown
+              id="filter-weight"
+              label={t.shop.filterWeight}
+              value={weight}
+              adornment="g"
+              onChange={(value) => setParam("weight", value)}
+              options={[
+                { value: "all", label: t.shop.allWeights },
+                { value: "under100", label: t.shop.weightUnder100 },
+                { value: "100to500", label: t.shop.weight100to500 },
+                { value: "over500", label: t.shop.weightOver500 },
+              ]}
+            />
+            <FilterDropdown
+              id="filter-origin"
+              label={t.shop.filterOrigin}
+              value={origin}
+              wideMenu
+              onChange={(value) => setParam("origin", value)}
+              options={[
+                { value: "all", label: t.shop.allOrigins },
+                ...origins.map((item) => ({ value: item, label: item })),
+              ]}
+            />
             {hasActiveFilters && (
               <button type="button" className="text-button" onClick={() => router.replace(pathname, { scroll: false })}>
                 {t.shop.clearFilters}

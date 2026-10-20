@@ -110,7 +110,8 @@ export function slugifyHeading(text: string): string {
     .slice(0, 80);
 }
 
-export function PageBody({ body, className = "article" }: { body: string; className?: string }) {
+export function PageBody({ body, className = "article", numberParagraphsAfterFirst = false, numberAllParagraphs = false }: { body: string; className?: string; numberParagraphsAfterFirst?: boolean; numberAllParagraphs?: boolean }) {
+  let paragraphNumber = 0;
   const renderBlocks = (blocks: Block[]): ReactNode[] => blocks.map((block, index) => {
     if (block.kind === "list") {
       const items = block.items.map((item, itemIndex) => <li key={itemIndex}>{renderInline(item)}</li>);
@@ -131,7 +132,15 @@ export function PageBody({ body, className = "article" }: { body: string; classN
           {renderInline(block.text)}
         </h3>
       );
-    return <p key={index} style={block.align ? { textAlign: block.align } : undefined}>{renderInline(block.text)}</p>;
+    paragraphNumber += 1;
+    const clauseNumber = paragraphNumber - 1;
+    const displayedNumber = numberAllParagraphs ? paragraphNumber : clauseNumber;
+    return (
+      <p key={index} style={block.align ? { textAlign: block.align } : undefined}>
+        {(numberAllParagraphs || (numberParagraphsAfterFirst && clauseNumber > 0)) ? <span className="article__clause-number" aria-hidden="true">{String(displayedNumber).padStart(2, "0")}</span> : null}
+        {renderInline(block.text)}
+      </p>
+    );
   });
 
   return (

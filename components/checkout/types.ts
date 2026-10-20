@@ -3,6 +3,8 @@ export type ShippingOption = {
   name: string;
   carrier: string | null;
   price: number;
+  deliveryMinDays: number | null;
+  deliveryMaxDays: number | null;
   breakdown: Record<string, number>;
 };
 

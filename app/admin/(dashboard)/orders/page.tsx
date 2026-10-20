@@ -187,33 +187,39 @@ export default function AdminOrdersPage() {
             </div>
 
             <div className="rv-orders-toolbar__filters">
-              <label className="rv-orders-toolbar__field">
-                <span className="rv-label">Status</span>
+              <div className="rv-orders-toolbar__field">
+                <label className="rv-label" htmlFor="orders-status">Status</label>
                 <Select
+                  id="orders-status"
                   value={String(params.status ?? "")}
                   onChange={(value) => state.update({ status: value || undefined, page: 1 })}
                   options={statusOptions}
                   placeholder="All statuses"
+                  ariaLabel="Filter orders by status"
                 />
-              </label>
-              <label className="rv-orders-toolbar__field">
-                <span className="rv-label">Payment</span>
+              </div>
+              <div className="rv-orders-toolbar__field">
+                <label className="rv-label" htmlFor="orders-payment-status">Payment</label>
                 <Select
+                  id="orders-payment-status"
                   value={String(params.paymentStatus ?? "")}
                   onChange={(value) => state.update({ paymentStatus: value || undefined, page: 1 })}
                   options={paymentOptions}
                   placeholder="All payments"
+                  ariaLabel="Filter orders by payment status"
                 />
-              </label>
-              <label className="rv-orders-toolbar__field">
-                <span className="rv-label">Source</span>
+              </div>
+              <div className="rv-orders-toolbar__field">
+                <label className="rv-label" htmlFor="orders-source">Source</label>
                 <Select
+                  id="orders-source"
                   value={String(params.source ?? "")}
                   onChange={(value) => state.update({ source: value || undefined, page: 1 })}
                   options={sourceOptions}
                   placeholder="All sources"
+                  ariaLabel="Filter orders by source"
                 />
-              </label>
+              </div>
               <div className="rv-orders-toolbar__date-range" role="group" aria-label="Filter by order date">
                 <span className="rv-label">Order date</span>
                 <div className="rv-orders-toolbar__dates">

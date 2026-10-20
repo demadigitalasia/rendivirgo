@@ -6,6 +6,7 @@ import { CurrentAdmin } from "../common/decorators/current-admin.decorator";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedAdmin, AuthenticatedRequest } from "../common/types/authenticated-request";
 import { AuditService } from "../audit/audit.service";
+import { AuthRateLimitService } from "./auth-rate-limit.service";
 import { AuthService, SESSION_COOKIE_NAME } from "./auth.service";
 import { ChangePasswordDto, ForgotPasswordDto, LoginDto, ResetPasswordDto, UpdateProfileDto } from "./dto/auth.dto";
 
@@ -15,6 +16,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly auditService: AuditService,
     private readonly config: ConfigService,
+    private readonly rateLimit: AuthRateLimitService,
   ) {}
 
   private cookieOptions(expires?: Date) {
@@ -31,6 +33,8 @@ export class AuthController {
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post("login")
   async login(@Body() dto: LoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    await this.rateLimit.consume("admin-login", request.ip, 8, 60_000);
+    await this.rateLimit.consume("admin-login-account", dto.email.trim().toLowerCase(), 20, 60_000);
     const admin = await this.authService.validateCredentials(dto.email, dto.password);
     if (!admin) {
       await this.auditService.log({
@@ -67,11 +71,13 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("forgot-password")
   async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() request: Request) {
+    await this.rateLimit.consume("admin-forgot-password", request.ip, 5, 60_000);
+    await this.rateLimit.consume("admin-forgot-password-account", dto.email.trim().toLowerCase(), 3, 60_000);
     await this.authService.requestPasswordReset(dto.email);
     await this.auditService.log({
       action: "auth.password_reset_requested",
       entityType: "Admin",
-      summary: `Password reset requested for ${dto.email.trim().toLowerCase()}`,
+      summary: "Admin password reset request processed",
       ip: request.ip ?? null,
       userAgent: request.headers["user-agent"] ?? null,
     });
@@ -82,6 +88,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("reset-password")
   async resetPassword(@Body() dto: ResetPasswordDto, @Req() request: Request) {
+    await this.rateLimit.consume("admin-reset-password", request.ip, 5, 60_000);
     const done = await this.authService.resetPassword(dto.token, dto.newPassword);
     if (!done) throw new BadRequestException("This reset link is invalid or has expired");
     await this.auditService.log({

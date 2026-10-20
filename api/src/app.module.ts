@@ -4,6 +4,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
+import { AuthRateLimitModule } from "./auth/auth-rate-limit.module";
 import { AdminGuard } from "./auth/admin.guard";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ContentModule } from "./content/content.module";
@@ -30,6 +31,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     PrismaModule,
     AuditModule,
     EmailModule,
+    AuthRateLimitModule,
     AuthModule,
     CatalogModule,
     ContentModule,

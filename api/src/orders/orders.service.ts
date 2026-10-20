@@ -31,10 +31,12 @@ import {
   RefundOrderDto,
   UpdateOrderDto,
 } from "./dto/order.dto";
+import { WholesaleCatalogQueryDto } from "./dto/wholesale-catalog-query.dto";
 
 const checkoutProductInclude = {
   variants: true,
   images: { orderBy: { sortOrder: "asc" as const }, take: 1 },
+  category: { select: { slug: true, name: true } },
 } satisfies Prisma.ProductInclude;
 
 export { orderInclude, orderListInclude };
@@ -324,17 +326,237 @@ export class OrdersService {
 
   // ------------------------------------------------------------ checkout
 
-  async quote(dto: CreateOrderDto) {
-    return this.create(dto, true);
+  async quote(dto: CreateOrderDto, customerId?: string) {
+    return this.create(dto, true, customerId ? { source: "Online", customerId } : undefined);
   }
 
-  async create(dto: CreateOrderDto, quoteOnly = false) {
+  private async requireWholesaleCustomer(customerId: string) {
+    const customer = await this.prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer || !customer.emailVerifiedAt || !customer.wholesaleAccess) {
+      throw new BadRequestException("Wholesale access is not enabled for this account");
+    }
+    return customer;
+  }
+
+  async wholesaleMinimums() {
+    const rows = await this.prisma.siteSetting.findMany({
+      where: { key: { in: ["wholesale.minimumSubtotalUsd", "wholesale.minimumPieces"] } },
+      select: { key: true, value: true },
+    });
+    const values = new Map(rows.map((row) => [row.key, row.value]));
+    const subtotal = Number(values.get("wholesale.minimumSubtotalUsd") ?? 300);
+    const pieces = Number(values.get("wholesale.minimumPieces") ?? 100);
+    return {
+      minimumSubtotalUsd: Number.isFinite(subtotal) && subtotal >= 0 ? subtotal : 300,
+      minimumPieces: Number.isInteger(pieces) && pieces >= 0 ? pieces : 100,
+    };
+  }
+
+  async updateWholesaleMinimums(input: { minimumSubtotalUsd: number; minimumPieces: number }, context: AuditContext) {
+    if (input.minimumSubtotalUsd < 0 || !Number.isFinite(input.minimumSubtotalUsd) || !Number.isInteger(input.minimumPieces) || input.minimumPieces < 0) {
+      throw new BadRequestException("Wholesale minimums must be non-negative amounts and whole-piece counts");
+    }
+    await this.prisma.$transaction([
+      this.prisma.siteSetting.upsert({
+        where: { key: "wholesale.minimumSubtotalUsd" },
+        create: { key: "wholesale.minimumSubtotalUsd", value: input.minimumSubtotalUsd },
+        update: { value: input.minimumSubtotalUsd },
+      }),
+      this.prisma.siteSetting.upsert({
+        where: { key: "wholesale.minimumPieces" },
+        create: { key: "wholesale.minimumPieces", value: input.minimumPieces },
+        update: { value: input.minimumPieces },
+      }),
+    ]);
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "wholesale.minimums.update",
+      entityType: "SiteSetting",
+      summary: `Updated Wholesale minimums to USD ${input.minimumSubtotalUsd} and ${input.minimumPieces} pieces`,
+      metadata: input,
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+    return this.wholesaleMinimums();
+  }
+
+  async wholesaleCatalog(customerId: string, query: WholesaleCatalogQueryDto) {
+    await this.requireWholesaleCustomer(customerId);
+    const stockModelEligibility: Prisma.ProductWhereInput = {
+      OR: [
+        { stockModel: "Quantity" },
+        { stockModel: "Unique", variants: { none: {} } },
+      ],
+    };
+    const baseWhere: Prisma.ProductWhereInput = {
+      status: "Published",
+      sellInWholesale: true,
+      AND: [stockModelEligibility],
+    };
+    const constraints: Prisma.ProductWhereInput[] = [];
+    const search = query.search?.trim().slice(0, 100);
+
+    if (query.category) constraints.push({ category: { is: { slug: query.category } } });
+    if (query.stoneType) constraints.push({ stoneType: { equals: query.stoneType, mode: "insensitive" } });
+    if (query.origin) constraints.push({ origin: { equals: query.origin, mode: "insensitive" } });
+    if (search) {
+      constraints.push({
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { sku: { contains: search, mode: "insensitive" } },
+          { stoneType: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+          { category: { is: { name: { contains: search, mode: "insensitive" } } } },
+        ],
+      });
+    }
+
+    const inStock: Prisma.ProductWhereInput = {
+      OR: [
+        { stockModel: "Unique", variants: { none: {} } },
+        { stockModel: "Quantity", stockQuantity: { gt: 0 }, variants: { none: {} } },
+        { variants: { some: { stockQuantity: { gt: 0 } } } },
+      ],
+    };
+    if (query.availability === "in-stock") constraints.push(inStock);
+    if (query.availability === "out-of-stock") constraints.push({ NOT: inStock });
+
+    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+      const range = {
+        ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
+        ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
+      };
+      constraints.push({
+        OR: [
+          { variants: { none: {} }, wholesalePrice: range },
+          {
+            variants: {
+              some: {
+                OR: [
+                  { wholesalePrice: range },
+                  { wholesalePrice: null, product: { is: { wholesalePrice: range } } },
+                ],
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    const where: Prisma.ProductWhereInput = {
+      ...baseWhere,
+      AND: [stockModelEligibility, ...constraints],
+    };
+    const wholesaleSort: Record<WholesaleCatalogQueryDto["sort"], Prisma.ProductOrderByWithRelationInput[]> = {
+      featured: [{ featured: "desc" }, { createdAt: "desc" }, { id: "asc" }],
+      newest: [{ createdAt: "desc" }, { id: "asc" }],
+      "name-asc": [{ name: "asc" }, { id: "asc" }],
+      "name-desc": [{ name: "desc" }, { id: "asc" }],
+      "price-asc": [{ wholesalePrice: { sort: "asc", nulls: "last" } }, { name: "asc" }, { id: "asc" }],
+      "price-desc": [{ wholesalePrice: { sort: "desc", nulls: "last" } }, { name: "asc" }, { id: "asc" }],
+    };
+    const orderBy = wholesaleSort[query.sort];
+
+    const [total, categories, stoneTypes, origins] = await this.prisma.$transaction([
+      this.prisma.product.count({ where }),
+      this.prisma.category.findMany({
+        where: { isActive: true, products: { some: baseWhere } },
+        select: {
+          slug: true,
+          name: true,
+          _count: { select: { products: { where: baseWhere } } },
+        },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      }),
+      this.prisma.product.groupBy({ by: ["stoneType"], where: baseWhere, orderBy: { stoneType: "asc" } }),
+      this.prisma.product.groupBy({ by: ["origin"], where: baseWhere, orderBy: { origin: "asc" } }),
+    ]);
+
+    const pageCount = Math.max(1, Math.ceil(total / query.pageSize));
+    const page = Math.min(query.page, pageCount);
+    const products = await this.prisma.product.findMany({
+      where,
+      include: checkoutProductInclude,
+      orderBy,
+      skip: (page - 1) * query.pageSize,
+      take: query.pageSize,
+    });
+    return {
+      items: products.map((product) => ({
+        id: product.id,
+        slug: product.slug,
+        name: product.name,
+        sku: product.sku,
+        categorySlug: product.category.slug,
+        categoryName: product.category.name,
+        stoneType: product.stoneType,
+        origin: product.origin,
+        condition: product.condition,
+        tone: product.tone,
+        description: product.description,
+        unit: product.unit,
+        stockModel: product.stockModel,
+        weightGram: product.weightGram,
+        shippingClass: product.shippingClass,
+        fragile: product.fragile,
+        availableQuantity: product.variants.length
+          ? product.variants.reduce((sum, variant) => sum + variant.stockQuantity, 0)
+          : product.stockModel === "Unique" ? 1 : product.stockQuantity ?? 0,
+        imageUrl: product.images[0]?.url ?? null,
+        wholesalePrice: product.wholesalePrice === null ? null : Number(product.wholesalePrice),
+        wholesalePiecesPerUnit: product.wholesalePiecesPerUnit,
+        variants: product.variants.map((variant) => ({
+          id: variant.id,
+          name: variant.name,
+          sku: variant.sku,
+          availableQuantity: variant.stockQuantity,
+          weightGram: variant.weightGram,
+          wholesalePrice: variant.wholesalePrice === null ? (product.wholesalePrice === null ? null : Number(product.wholesalePrice)) : Number(variant.wholesalePrice),
+          wholesalePiecesPerUnit: variant.wholesalePiecesPerUnit ?? product.wholesalePiecesPerUnit ?? (product.unit === "piece" ? 1 : null),
+        })),
+      })),
+      categories: categories.map((category) => ({ slug: category.slug, name: category.name, count: category._count.products })),
+      stoneTypes: stoneTypes.map((entry) => entry.stoneType),
+      origins: origins.map((entry) => entry.origin),
+      total,
+      page,
+      pageSize: query.pageSize,
+      pageCount,
+    };
+  }
+
+  async quoteWholesale(dto: CreateOrderDto, customerId: string) {
+    const customer = await this.requireWholesaleCustomer(customerId);
+    return this.create({ ...dto, email: customer.email }, true, { source: "Wholesale", customerId });
+  }
+
+  async createWholesale(dto: CreateOrderDto, customerId: string) {
+    const customer = await this.requireWholesaleCustomer(customerId);
+    return this.create({ ...dto, email: customer.email }, false, { source: "Wholesale", customerId });
+  }
+
+  async create(dto: CreateOrderDto, quoteOnly = false, channel?: { source: "Online" | "Wholesale"; customerId: string }) {
     const email = dto.email.trim().toLowerCase();
+    const source = channel?.source ?? "Online";
     const paymentMethod = dto.paymentMethod ?? "PayPal";
+    if (channel?.customerId) {
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: channel.customerId },
+        select: { email: true, emailVerifiedAt: true },
+      });
+      if (!customer?.emailVerifiedAt || customer.email !== email) {
+        throw new BadRequestException("The signed-in customer account does not match this checkout email");
+      }
+    }
+    if (source === "Wholesale" && dto.discountCode?.trim()) {
+      throw new BadRequestException("Online discount codes cannot be used on Wholesale orders");
+    }
     const requestFingerprint = createHash("sha256")
       .update(
         JSON.stringify({
               checkoutKey: dto.checkoutKey ?? null,
+          source,
+          customerId: channel?.customerId ?? null,
               email,
               customerName: dto.customerName.trim(),
               phone: dto.phone?.trim() || null,
@@ -397,21 +619,27 @@ export class OrdersService {
     for (const item of dto.items) {
       const product = productById.get(item.productId);
       if (!product) throw new BadRequestException(`Product "${item.productId}" was not found`);
-      if (product.status !== "Published" || !product.sellOnWeb) throw new BadRequestException(`"${product.name}" is not available`);
-      if (product.stockModel === "Unique" && product.workshopStockQuantity > 0) {
-        throw new BadRequestException(`"${product.name}" is allocated to workshop stock`);
+      if (product.status !== "Published" || (source === "Wholesale" ? !product.sellInWholesale : !product.sellOnWeb)) {
+        throw new BadRequestException(`"${product.name}" is not available`);
       }
 
       const variant = item.variantId ? (product.variants.find((entry) => entry.id === item.variantId) ?? null) : null;
       if (item.variantId && !variant) throw new BadRequestException(`The selected variant of "${product.name}" was not found`);
+      if (product.stockModel === "Unique" && product.variants.length > 0) {
+        throw new BadRequestException(`Unique-piece product "${product.name}" cannot have variants. Please contact the store.`);
+      }
 
       const shippingClass = variant?.shippingClass ?? product.shippingClass;
+      const wholesalePrice = variant?.wholesalePrice ?? product.wholesalePrice;
+      if (source === "Wholesale" && wholesalePrice === null) {
+        throw new BadRequestException(`A Wholesale price is not configured for "${product.name}"`);
+      }
 
       lines.push({
         product,
         variant,
         quantity: item.quantity,
-        unitPrice: variant ? variant.price : product.price,
+        unitPrice: source === "Wholesale" ? wholesalePrice! : variant ? variant.price : product.price,
         weightGram: variant ? variant.weightGram : product.weightGram,
         sku: variant ? variant.sku : product.sku,
         name: variant ? `${product.name} — ${variant.name}` : product.name,
@@ -469,7 +697,19 @@ export class OrdersService {
       oversized,
     );
     const baseShippingCost = shippingResult.shippingCost;
-    const discountResult = await this.resolveDiscount(dto.discountCode, lines, subtotal, baseShippingCost, email);
+    const wholesaleMinimums = source === "Wholesale" ? await this.wholesaleMinimums() : null;
+    if (wholesaleMinimums) {
+      const pieces = lines.reduce((sum, line) => {
+        const factor = line.variant?.wholesalePiecesPerUnit ?? line.product.wholesalePiecesPerUnit ?? (line.product.unit === "piece" ? 1 : null);
+        return sum + (factor ? factor * line.quantity : 0);
+      }, 0);
+      if (subtotal.lessThan(wholesaleMinimums.minimumSubtotalUsd) && pieces < wholesaleMinimums.minimumPieces) {
+        throw new BadRequestException(
+          `Wholesale checkout requires either USD ${wholesaleMinimums.minimumSubtotalUsd.toFixed(2)} in merchandise or ${wholesaleMinimums.minimumPieces} pieces; this cart has USD ${subtotal.toFixed(2)} and ${pieces} pieces`,
+        );
+      }
+    }
+    const discountResult = source === "Wholesale" ? null : await this.resolveDiscount(dto.discountCode, lines, subtotal, baseShippingCost, email);
 
     const shippingCost = discountResult?.shippingCost ?? baseShippingCost;
     const discountTotal = discountResult?.discountTotal ?? new Prisma.Decimal(0);
@@ -479,6 +719,8 @@ export class OrdersService {
     const preparedOrder: PreparedOrder = {
       checkoutKey: dto.checkoutKey,
       checkoutFingerprint,
+      source,
+      customerId: channel?.customerId ?? null,
       email,
       customerName: dto.customerName,
       phone: dto.phone ?? null,
@@ -854,6 +1096,21 @@ export class OrdersService {
       entityId: updated.id,
       summary: "Returned order " + updated.orderNumber,
       metadata: { status: "Returned" },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+    return this.toApiOrder(updated);
+  }
+
+  async restockReturnedInventory(id: string, context: AuditContext) {
+    const updated = await this.lifecycle.restockReturnedInventory(id, context.adminId ?? undefined);
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "order.inventory.restock",
+      entityType: "Order",
+      entityId: updated.id,
+      summary: "Restocked inspected items from returned order " + updated.orderNumber,
+      metadata: { status: updated.status, itemCount: updated.items.length },
       ip: context.ip,
       userAgent: context.userAgent,
     });

@@ -17,6 +17,7 @@ type CheckoutOrderSummaryProps = {
   shippingCost: number;
   total: number;
   totalIsKnown: boolean;
+  editHref?: string;
 };
 
 export function CheckoutOrderSummary({
@@ -30,6 +31,7 @@ export function CheckoutOrderSummary({
   shippingCost,
   total,
   totalIsKnown,
+  editHref = "/cart",
 }: CheckoutOrderSummaryProps) {
   const t = useCopy();
   const { language } = useLanguage();
@@ -37,7 +39,7 @@ export function CheckoutOrderSummary({
   return (
     <section className={"summary-card " + className}>
       <h2>{t.checkout.summary}</h2>
-      <Link href="/cart" className="text-button checkout-summary__edit">{t.checkout.editCart}</Link>
+      <Link href={editHref} className="text-button checkout-summary__edit">{t.checkout.editCart}</Link>
       {lines.map((line) => (
         <div className="summary-row" key={line.id + ":" + (line.variantId ?? "base")}>
           <span>
