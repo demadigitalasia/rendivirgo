@@ -59,7 +59,9 @@ export default function AdminWholesalePage() {
             </div>
           )}
         </Card>
-        <Card title="Wholesale catalog" description="Enable the Wholesale sales channel and set prices in the admin product editor. Access is granted from each customer profile after email verification." />
+        <Card title="Wholesale catalog" description="Enable the Wholesale sales channel and set prices in the admin product editor. Access is granted from each customer profile after email verification.">
+          <p className="rv-hint">Manage wholesale product pricing and customer access from the product editor and customer profiles.</p>
+        </Card>
       </div>
     </>
   );

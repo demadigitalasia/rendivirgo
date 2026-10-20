@@ -82,6 +82,7 @@ const en = {
     label: "Breadcrumb",
     home: "Home",
     shop: "Shop",
+    wholesale: "Wholesale",
     journal: "Journal",
     cart: "Cart",
     checkout: "Checkout",
