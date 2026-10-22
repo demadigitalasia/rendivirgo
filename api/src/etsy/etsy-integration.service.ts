@@ -455,16 +455,20 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     code?: string;
     state?: string;
     error?: string;
-    adminSessionId?: string;
     context: { adminId?: string | null; ip?: string | null; userAgent?: string | null };
   }): Promise<void> {
-    if (!input.state || !input.adminSessionId) throw new BadRequestException("Etsy authorization state is missing");
+    if (!input.state) throw new BadRequestException("Etsy authorization state is missing");
     const stateHash = createHash("sha256").update(input.state).digest("hex");
     const now = new Date();
     const pending = await this.prisma.etsyOAuthState.findFirst({
-      where: { stateHash, adminSessionId: input.adminSessionId, expiresAt: { gt: now } },
+      where: { stateHash, expiresAt: { gt: now } },
     });
-    if (!pending) throw new BadRequestException("Etsy authorization state is invalid, expired, or belongs to another admin session");
+    if (!pending) throw new BadRequestException("Etsy authorization state is invalid or expired");
+    const initiatingSession = await this.prisma.adminSession.findFirst({
+      where: { id: pending.adminSessionId, revokedAt: null, expiresAt: { gt: now } },
+      select: { adminId: true },
+    });
+    if (!initiatingSession) throw new BadRequestException("The admin session that started Etsy authorization is no longer active");
     const consumed = await this.prisma.etsyOAuthState.deleteMany({ where: { id: pending.id, stateHash } });
     if (consumed.count !== 1) throw new BadRequestException("Etsy authorization state has already been used");
     const codeVerifier = this.decryptSecret(pending.codeVerifierEncrypted);
@@ -528,7 +532,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     });
 
     await this.audit.log({
-      adminId: input.context.adminId,
+      adminId: input.context.adminId ?? initiatingSession.adminId,
       action: "integration.etsy.connected",
       entityType: "EtsyShopConnection",
       entityId: CONNECTION_ID,

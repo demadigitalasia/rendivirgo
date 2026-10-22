@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
+import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { EtsyIntegrationService } from "./etsy-integration.service";
@@ -48,6 +49,7 @@ export class EtsyIntegrationController {
     return this.etsy.startOAuth(request.adminSession?.id);
   }
 
+  @Public()
   @Get("oauth/callback")
   async oauthCallback(
     @Query("code") code: string | undefined,
@@ -61,7 +63,6 @@ export class EtsyIntegrationController {
         code: queryValue(code),
         state: queryValue(state),
         error: queryValue(error),
-        adminSessionId: request.adminSession?.id,
         context: auditContextFrom(request),
       });
       response.redirect(302, this.etsy.settingsRedirect("connected"));
