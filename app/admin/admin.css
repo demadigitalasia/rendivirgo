@@ -860,6 +860,24 @@
   font-size: 0.78rem;
 }
 
+.rv-notice {
+  padding: 12px 14px;
+  border: 1px solid var(--rv-line);
+  border-radius: var(--rv-radius-sm);
+  background: var(--rv-panel);
+  font-size: 0.82rem;
+}
+
+.rv-notice--warning {
+  border-color: rgba(168, 119, 44, 0.42);
+  background: #fffcf5;
+}
+
+.rv-notice > p {
+  margin: 4px 0 0;
+  color: var(--rv-muted);
+}
+
 .rv-error-text {
   color: var(--rv-danger);
   font-size: 0.8rem;

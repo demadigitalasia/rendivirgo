@@ -7,6 +7,7 @@ import { MediaPicker } from "@/components/admin/media";
 import { WatermarkPositionEditor } from "@/components/admin/watermark-position-editor";
 import { Badge, Button, Card, Field, Loading, PageHeader, Select, Switch, Tabs, TextArea, TextInput } from "@/components/admin/ui";
 import { defaultProductWatermark } from "@/lib/product-watermark";
+import { EtsySettingsPanel } from "./etsy-panel";
 
 type GroupedSettings = Record<"general" | "seo" | "notifications" | "payments", Record<string, unknown>>;
 type OpenRouterSettings = {
@@ -158,6 +159,18 @@ export default function AdminSettingsPage() {
   const [aiBusy, setAiBusy] = useState(false);
   const aiDirty = Boolean(apiKey.trim()) || aiModel.trim() !== savedAiModel;
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const requestedTab = url.searchParams.get("tab");
+    if (requestedTab === "etsy") setTab("etsy");
+    const etsyResult = url.searchParams.get("etsy");
+    if (etsyResult === "connected") toast.success("Etsy shop connected; product listings are queued for sync");
+    if (etsyResult === "error") toast.error("Etsy connection could not be completed. Check the Etsy app settings and try again.");
+    if (requestedTab === "etsy" || etsyResult) {
+      window.history.replaceState(null, "", `${url.pathname}${url.hash}`);
+    }
+  }, []);
 
   useEffect(() => {
     if (!state.data) return;
@@ -377,6 +390,7 @@ export default function AdminSettingsPage() {
                   { value: "notifications", label: "Notifications" },
                   { value: "payments", label: "Payments" },
                   { value: "ai", label: "AI & API" },
+                  { value: "etsy", label: "Etsy" },
                 ]}
                 value={tab}
                 onChange={setTab}
@@ -693,6 +707,8 @@ export default function AdminSettingsPage() {
                 </div>
               </Card>
             ) : null}
+
+            {tab === "etsy" ? <EtsySettingsPanel /> : null}
           </>
         ) : null}
       </div>

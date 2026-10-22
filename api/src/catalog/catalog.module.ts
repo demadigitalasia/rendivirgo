@@ -9,9 +9,10 @@ import { ProductCopyService } from "./product-copy.service";
 import { CategoryCopyService } from "./category-copy.service";
 import { AdminConditionsController, ConditionsController } from "./conditions.controller";
 import { SettingsModule } from "../settings/settings.module";
+import { EtsyIntegrationModule } from "../etsy/etsy-integration.module";
 
 @Module({
-  imports: [SettingsModule],
+  imports: [SettingsModule, EtsyIntegrationModule],
   controllers: [CategoriesController, AdminCategoriesController, ConditionsController, AdminConditionsController, ProductsController, AdminProductsController],
   providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService, ProductCopyService, CategoryCopyService],
   exports: [CategoriesService, ProductsService],

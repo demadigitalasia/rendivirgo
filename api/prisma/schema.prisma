@@ -166,6 +166,13 @@ enum ReviewStatus {
   Rejected
 }
 
+enum EtsySyncStatus {
+  Pending
+  Processing
+  Synced
+  Failed
+}
+
 enum BannerPlacement {
   HomeHero
   HomeOwner
@@ -357,6 +364,8 @@ model Product {
   priceHistory   ProductPriceHistory[]
   testimonials   Testimonial[]
   reviews        ProductReview[]
+  etsyListingMapping EtsyListingMapping?
+  etsySyncJob    EtsySyncJob?
 
   @@index([categoryId])
   @@index([status])
@@ -364,6 +373,67 @@ model Product {
   @@index([createdAt])
   @@index([status, createdAt])
   @@index([categoryId, status])
+}
+
+model EtsyShopConnection {
+  id                    String   @id @default("primary")
+  shopId                String
+  userId                String
+  shopName              String
+  currencyCode          String
+  accessTokenEncrypted  String   @db.Text
+  refreshTokenEncrypted String   @db.Text
+  tokenExpiresAt        DateTime
+  refreshLockedAt       DateTime?
+  connectedAt           DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model EtsyOAuthState {
+  id                    String   @id @default(cuid())
+  stateHash             String   @unique
+  codeVerifierEncrypted String   @db.Text
+  adminSessionId        String
+  expiresAt              DateTime
+  createdAt              DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([adminSessionId, expiresAt])
+}
+
+model EtsyListingMapping {
+  id              String   @id @default(cuid())
+  productId       String   @unique
+  etsyListingId   String   @unique
+  listingUrl      String?
+  remoteState     String   @default("draft")
+  imageFingerprint String  @default("")
+  imageIds        String[] @default([])
+  lastSyncedAt    DateTime?
+  lastError       String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([remoteState])
+}
+
+model EtsySyncJob {
+  productId   String         @id
+  status      EtsySyncStatus @default(Pending)
+  revision    Int            @default(1)
+  attempts    Int            @default(0)
+  availableAt DateTime       @default(now())
+  lockedAt    DateTime?
+  lastError   String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt, createdAt])
+  @@index([status, lockedAt])
 }
 
 model ProductImage {

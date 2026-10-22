@@ -15,6 +15,7 @@ import {
 } from "./dto/product.dto";
 import { CatalogPdfService } from "./catalog-pdf.service";
 import type { StorefrontLanguage } from "../common/utils/storefront-language";
+import { EtsyIntegrationService } from "../etsy/etsy-integration.service";
 
 export const productInclude = {
   category: true,
@@ -40,6 +41,7 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly catalogPdf: CatalogPdfService,
+    private readonly etsy: EtsyIntegrationService,
   ) {}
 
   private async assertConditionExists(condition: string) {
@@ -396,7 +398,8 @@ export class ProductsService {
     const stockModel = dto.stockModel ?? "Unique";
     const status = dto.status ?? "Draft";
 
-    const product = await this.prisma.product.create({
+    const product = await this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
       data: {
         name: dto.name,
         slug,
@@ -466,7 +469,10 @@ export class ProductsService {
           })),
         },
       },
-      include: productInclude,
+        include: productInclude,
+      });
+      await this.etsy.enqueueProductSync(product.id, tx);
+      return product;
     });
 
     await this.audit.log({
@@ -606,7 +612,7 @@ export class ProductsService {
         await this.syncVariants(tx, id, dto.variants);
       }
 
-      return tx.product.update({
+      const product = await tx.product.update({
         where: { id },
         data: {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -668,6 +674,8 @@ export class ProductsService {
         },
         include: productInclude,
       });
+      await this.etsy.enqueueProductSync(product.id, tx);
+      return product;
     });
 
     if (priceChanged) {
@@ -728,26 +736,53 @@ export class ProductsService {
 
     switch (dto.action) {
       case "Publish": {
-        const result = await this.prisma.product.updateMany({ where, data: { status: "Published", publishedAt: new Date() } });
+        const result = await this.prisma.$transaction(async (tx) => {
+          const result = await tx.product.updateMany({ where, data: { status: "Published", publishedAt: new Date() } });
+          const products = await tx.product.findMany({ where, select: { id: true } });
+          await this.etsy.enqueueProductsSync(products.map((product) => product.id), tx);
+          return result;
+        });
         affected = result.count;
         break;
       }
       case "Unpublish": {
-        const result = await this.prisma.product.updateMany({ where, data: { status: "Draft" } });
+        const result = await this.prisma.$transaction(async (tx) => {
+          const result = await tx.product.updateMany({ where, data: { status: "Draft" } });
+          const products = await tx.product.findMany({ where, select: { id: true } });
+          await this.etsy.enqueueProductsSync(products.map((product) => product.id), tx);
+          return result;
+        });
         affected = result.count;
         break;
       }
       case "Archive": {
-        const result = await this.prisma.product.updateMany({ where, data: { status: "Archived" } });
+        const result = await this.prisma.$transaction(async (tx) => {
+          const result = await tx.product.updateMany({ where, data: { status: "Archived" } });
+          const products = await tx.product.findMany({ where, select: { id: true } });
+          await this.etsy.enqueueProductsSync(products.map((product) => product.id), tx);
+          return result;
+        });
         affected = result.count;
         break;
       }
       case "Restore": {
-        const result = await this.prisma.product.updateMany({ where, data: { status: "Draft" } });
+        const result = await this.prisma.$transaction(async (tx) => {
+          const result = await tx.product.updateMany({ where, data: { status: "Draft" } });
+          const products = await tx.product.findMany({ where, select: { id: true } });
+          await this.etsy.enqueueProductsSync(products.map((product) => product.id), tx);
+          return result;
+        });
         affected = result.count;
         break;
       }
       case "Delete": {
+        const linkedListings = await this.prisma.etsyListingMapping.findMany({
+          where: { productId: { in: dto.ids } },
+          select: { productId: true },
+        });
+        if (linkedListings.length) {
+          throw new BadRequestException("Products with Etsy listings cannot be permanently deleted. Archive them to deactivate their Etsy listings first.");
+        }
         const result = await this.prisma.product.deleteMany({ where });
         affected = result.count;
         break;
@@ -774,7 +809,8 @@ export class ProductsService {
     const slug = await uniqueSlug(slugify(`${source.name} copy`), (candidate) => this.prisma.product.findUnique({ where: { slug: candidate } }));
     const sku = await this.nextSku(source.category.slug);
 
-    const copy = await this.prisma.product.create({
+    const copy = await this.prisma.$transaction(async (tx) => {
+      const copy = await tx.product.create({
       data: {
         name: `${source.name} (Copy)`,
         slug,
@@ -816,7 +852,10 @@ export class ProductsService {
         idTranslationStatus: source.idTranslationStatus,
         images: { create: source.images.map((image, index) => ({ url: image.url, alt: image.alt, focalX: image.focalX, focalY: image.focalY, sortOrder: index })) },
       },
-      include: productInclude,
+        include: productInclude,
+      });
+      await this.etsy.enqueueProductSync(copy.id, tx);
+      return copy;
     });
 
     await this.audit.log({
@@ -989,7 +1028,8 @@ export class ProductsService {
           ? (record.status as ProductStatus)
           : ProductStatus.Draft;
 
-        await this.prisma.product.create({
+        await this.prisma.$transaction(async (tx) => {
+          const imported = await tx.product.create({
           data: {
             name: record.name,
             slug,
@@ -1014,7 +1054,9 @@ export class ProductsService {
             featured: record.featured === "true",
             fragile: record.fragile === "true",
             publishedAt: status === "Published" ? new Date() : null,
-          },
+            },
+          });
+          await this.etsy.enqueueProductSync(imported.id, tx);
         });
         results.created += 1;
       } catch (error) {
