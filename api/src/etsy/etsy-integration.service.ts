@@ -495,12 +495,16 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
 
     const userId = accessToken.split(".", 1)[0];
     if (!/^\d+$/.test(userId)) throw new BadRequestException("Etsy returned an invalid user identifier");
+    const authorizationHeaders = {
+      Authorization: `Bearer ${accessToken}`,
+      "x-api-key": `${keystring}:${sharedSecret}`,
+    };
     const shop = await this.requestJson<EtsyShopResponse>(`/application/users/${userId}/shops`, {
-      headers: { "x-api-key": `${keystring}:${sharedSecret}` },
+      headers: authorizationHeaders,
     });
     if (!shop.shop_id || !shop.shop_name) throw new BadRequestException("No Etsy shop was found for the authorized account");
     const shopDetails = await this.requestJson<EtsyShopDetailsResponse>(`/application/shops/${shop.shop_id}`, {
-      headers: { "x-api-key": `${keystring}:${sharedSecret}` },
+      headers: authorizationHeaders,
     });
     const currencyCode = shopDetails.currency_code?.trim().toUpperCase();
     if (!currencyCode || !/^[A-Z]{3}$/.test(currencyCode)) {
