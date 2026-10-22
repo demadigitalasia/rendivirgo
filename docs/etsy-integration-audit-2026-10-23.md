@@ -77,18 +77,25 @@ Perubahan berikut sudah dibuat di workspace untuk menutup risiko sinkronisasi st
 
 Verifikasi workspace: `npm run prisma:generate`, `npx prisma validate --schema prisma/schema.prisma`, API `npm run typecheck`, API `npm test` (**35 lulus**), API `npm run build`, root `npm run lint`, dan root `npm run build` berhasil. Pemeriksaan ini tidak membuat atau mengubah listing Etsy.
 
+### Verifikasi rilis produksi
+
+- Commit fitur `2d6af5d2695f2e05956bdc7027513759302d0725` sudah di-push ke `origin/main`.
+- Service `rendivirgo-api` dan `rendivirgo-web` di Coolify sama-sama berhasil dideploy dari commit tersebut dan berstatus Running.
+- Log startup API mengonfirmasi migrasi `20261023090000_product_etsy_sales_channel` berhasil diterapkan; Prisma melaporkan semua migrasi berhasil.
+- `https://rendivirgo.com/api/health` mengembalikan `status: ok`, `database: up`, dan `uploads: up`.
+- Audit/deploy ini tidak membuat, mengubah, menerbitkan, atau menonaktifkan listing Etsy.
+
 ### Yang masih belum selesai untuk pemakaian Etsy sebagai kanal penjualan live
 
-1. Perubahan ini harus dideploy ke Coolify agar API menjalankan migrasi baru. Entrypoint API proyek menjalankan `prisma migrate deploy` saat startup.
-2. Tujuh listing default di API Coolify masih perlu nilai yang benar untuk shop dan produk uji. Jangan mengarang taxonomy, return policy, readiness, atau metadata asal/pembuatan.
-3. Uji satu listing Draft di toko uji/lingkungan yang Etsy izinkan masih perlu dilakukan manual setelah konfigurasi lengkap; belum ada listing Etsy yang dibuat atau diterbitkan oleh audit ini.
-4. OAuth saat ini hanya meminta `listings_r`, `listings_w`, `shops_r`, dan `shops_w`. Impor receipt/pesanan Etsy serta pengurangan stok lokal dari pembelian Etsy belum dibuat; untuk itu dibutuhkan `transactions_r`, persetujuan scope pada Etsy, deduplikasi receipt, dan rekonsiliasi pesanan. Karena itu penjualan Etsy masih belum tercermin ke stok RENDI VIRGO secara otomatis.
-5. Sinkronisasi stok lokal tetap tertunda sampai worker mengirim perubahan ke Etsy. Tanpa impor receipt Etsy, jeda ini belum aman untuk menjamin pencegahan overselling saat dua kanal aktif.
-6. Produk dengan varian tetap ditolak untuk sinkronisasi Etsy. Pemetaan SKU/harga/stok tiap variasi perlu dibuat sebelum listing bervarian dipakai.
-7. Jika Etsy tidak mengembalikan waktu pembuatan atau listing yang mungkin berhasil tidak bisa ditemukan dengan ID, SKU, atau judul saat ini, rekonsiliasi tetap memerlukan investigasi operasional. Sistem sengaja tidak menghapus reservasi atau mengulang POST secara otomatis dalam kondisi ambigu agar tidak membuat listing duplikat.
+1. Tujuh listing default di API Coolify masih perlu nilai yang benar untuk shop dan produk uji. Jangan mengarang taxonomy, return policy, readiness, atau metadata asal/pembuatan.
+2. Uji satu listing Draft di toko uji/lingkungan yang Etsy izinkan masih perlu dilakukan setelah konfigurasi lengkap; belum ada listing Etsy yang dibuat atau diterbitkan oleh audit ini.
+3. OAuth saat ini hanya meminta `listings_r`, `listings_w`, `shops_r`, dan `shops_w`. Impor receipt/pesanan Etsy serta pengurangan stok lokal dari pembelian Etsy belum dibuat; untuk itu dibutuhkan `transactions_r`, persetujuan scope pada Etsy, deduplikasi receipt, dan rekonsiliasi pesanan. Karena itu penjualan Etsy masih belum tercermin ke stok RENDI VIRGO secara otomatis.
+4. Sinkronisasi stok lokal tetap tertunda sampai worker mengirim perubahan ke Etsy. Tanpa impor receipt Etsy, jeda ini belum aman untuk menjamin pencegahan overselling saat dua kanal aktif.
+5. Produk dengan varian tetap ditolak untuk sinkronisasi Etsy. Pemetaan SKU/harga/stok tiap variasi perlu dibuat sebelum listing bervarian dipakai.
+6. Jika Etsy tidak mengembalikan waktu pembuatan atau listing yang mungkin berhasil tidak bisa ditemukan dengan ID, SKU, atau judul saat ini, rekonsiliasi tetap memerlukan investigasi operasional. Sistem sengaja tidak menghapus reservasi atau mengulang POST secara otomatis dalam kondisi ambigu agar tidak membuat listing duplikat.
 
 Endpoint pembacaan listing yang dipakai untuk verifikasi mapping lama adalah `GET /v3/application/listings/{listing_id}`; respons Etsy memuat `shop_id`. Lihat [Etsy Open API Reference](https://developers.etsy.com/documentation/reference/).
 
 ### Status rilis
 
-Status commit, push, dan deploy dicatat setelah pipeline Coolify selesai. Kelulusan build workspace saja tidak membuktikan API produksi sudah menjalankan migrasi atau mengirim listing ke Etsy. Belum ada listing Draft yang dibuat sebagai bagian audit ini.
+Rilis fitur tercatat pada commit `2d6af5d` dan sudah sukses di-deploy ke API serta website. Migrasi database dan health API produksi sudah terverifikasi. Rilis ini menyiapkan kanal Etsy dan antrean listing Draft, tetapi belum membuktikan pengiriman listing karena defaults Etsy belum lengkap dan belum ada produk uji yang dikirim.
