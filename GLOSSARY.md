@@ -20,7 +20,7 @@ A customer's verified login identity for private self-service features. It is as
 An admin-granted permission associated with a verified customer account and customer profile. It enables access to the private Wholesale catalog and Wholesale checkout without creating a separate login.
 
 **Sales channel**:
-A place where a product may be offered for sale: the public Retail website, the private Wholesale dashboard, or POS Workshop. Channel availability controls where a product can be sold; the agreed Wholesale design uses shared inventory across channels.
+A place where a product may be offered for sale: the public Retail website, the private Wholesale dashboard, POS Workshop, or the connected Etsy shop. Channel availability controls where a product can be sold; all channels use shared inventory, and Etsy listing/stock updates are asynchronous.
 
 **Sellable unit**:
 The product quantity unit used when an order line is created, such as a piece, pair, gram, strand, or bag. Wholesale's 100-piece threshold uses a product/variant conversion factor to calculate equivalent pieces across order lines.

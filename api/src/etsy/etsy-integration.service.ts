@@ -48,7 +48,16 @@ type EtsyShopDetailsResponse = EtsyShopResponse & {
 
 type EtsyListingResponse = {
   listing_id?: number | string;
+  shop_id?: number | string;
   url?: string;
+  title?: string;
+  state?: string;
+  creation_timestamp?: number;
+  created_timestamp?: number;
+};
+
+type EtsyListingInventoryResponse = {
+  products?: Array<{ sku?: string }>;
 };
 
 type EtsyListingImageResponse = {
@@ -274,8 +283,134 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
           ? null
           : job.product.etsyListingMapping?.etsyListingId ?? null,
         listingUrl: job.product.etsyListingMapping?.listingUrl ?? null,
+        needsReconciliation: job.status === "Failed" && job.product.etsyListingMapping?.remoteState === "creating",
       })),
     };
+  }
+
+  async reconcilePendingListing(
+    productId: string,
+    listingId: string,
+    context: { adminId?: string | null; ip?: string | null; userAgent?: string | null },
+  ) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, name: true, sku: true, sellInEtsy: true, status: true, variants: { select: { id: true } } },
+    });
+    if (!product) throw new BadRequestException("Product was not found");
+    if (!product.sellInEtsy || product.status !== "Draft" || product.variants.length) {
+      throw new BadRequestException("Only an Etsy-enabled single-item Draft product can be reconciled");
+    }
+    if (!product.sku.trim()) throw new BadRequestException("A product SKU is required to verify the Etsy draft");
+    const missing = this.listingConfigErrors();
+    if (missing.length) throw new BadRequestException(`Configure Etsy listing defaults before retrying: ${missing.join(", ")}`);
+
+    const pendingId = `pending:${productId}`;
+    const [mapping, job] = await Promise.all([
+      this.prisma.etsyListingMapping.findUnique({ where: { productId } }),
+      this.prisma.etsySyncJob.findUnique({ where: { productId }, select: { status: true } }),
+    ]);
+    if (!mapping || mapping.etsyListingId !== pendingId || mapping.remoteState !== "creating") {
+      throw new BadRequestException("This product has no Etsy listing creation that needs reconciliation");
+    }
+    if (job?.status !== "Failed") {
+      throw new BadRequestException("Wait for the current Etsy sync attempt to fail, then refresh status before reconciling");
+    }
+
+    const { token, shopId } = await this.accessToken();
+    if (mapping.shopId !== shopId) {
+      throw new BadRequestException("The pending Etsy listing belongs to a different shop connection");
+    }
+    const listing = await this.apiRequest<EtsyListingResponse>(`/listings/${listingId}`, token);
+    if (String(listing.shop_id ?? "") !== shopId) {
+      throw new BadRequestException("That Etsy listing is not in the currently connected shop");
+    }
+    if (String(listing.listing_id ?? "") !== listingId || !listing.title?.trim() || !["draft", "inactive"].includes(listing.state ?? "")) {
+      throw new BadRequestException("Choose an inactive Etsy draft listing to reconcile");
+    }
+    const listingCreatedAt = listing.creation_timestamp ?? listing.created_timestamp;
+    if (!mapping.creationAttemptAt || !Number.isFinite(listingCreatedAt)) {
+      throw new BadRequestException("A matching Etsy creation-attempt time is unavailable, so this draft cannot be safely reconciled");
+    }
+    const createdAtMs = Number(listingCreatedAt) * 1000;
+    const creationAttemptAtMs = mapping.creationAttemptAt.getTime();
+    if (createdAtMs < creationAttemptAtMs - 120_000 || createdAtMs > creationAttemptAtMs + 15 * 60_000) {
+      throw new BadRequestException("That Etsy listing was not created during this sync attempt; no mapping was changed");
+    }
+    const inventory = await this.apiRequest<EtsyListingInventoryResponse>(`/listings/${listingId}/inventory`, token);
+    const remoteSkus = (inventory.products ?? []).map((item) => item.sku?.trim() ?? "").filter(Boolean);
+    const hasMatchingSku = remoteSkus.includes(product.sku.trim());
+    const hasConflictingSku = remoteSkus.some((sku) => sku !== product.sku.trim());
+    const normalizedTitle = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+    const titleMatches = normalizedTitle(listing.title ?? "") === normalizedTitle(product.name);
+    if (hasConflictingSku || (!hasMatchingSku && !titleMatches)) {
+      throw new BadRequestException("That Etsy listing matches neither this product's SKU nor exact title; no mapping was changed");
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const currentRows = await tx.$queryRaw<Array<{ shopId: string }>>`
+        SELECT "shopId" FROM "EtsyShopConnection" WHERE "id" = ${CONNECTION_ID} FOR UPDATE
+      `;
+      if (currentRows[0]?.shopId !== shopId) {
+        throw new BadRequestException("The connected Etsy shop changed during reconciliation; refresh and try again");
+      }
+      const currentProducts = await tx.$queryRaw<Array<{ sku: string; sellInEtsy: boolean; status: string }>>`
+        SELECT "sku", "sellInEtsy", "status" FROM "Product" WHERE "id" = ${productId} FOR UPDATE
+      `;
+      if (currentProducts[0]?.sku !== product.sku || !currentProducts[0]?.sellInEtsy || currentProducts[0]?.status !== "Draft") {
+        throw new BadRequestException("The product changed during reconciliation. Keep it as an Etsy-enabled Draft, refresh, and try again");
+      }
+      const alreadyLinked = await tx.etsyListingMapping.findFirst({
+        where: { etsyListingId: listingId, productId: { not: productId } },
+        select: { productId: true },
+      });
+      if (alreadyLinked) throw new BadRequestException("That Etsy listing is already linked to another product");
+      const linked = await tx.etsyListingMapping.updateMany({
+        where: { productId, shopId, etsyListingId: pendingId, remoteState: "creating" },
+        data: {
+          etsyListingId: String(listing.listing_id ?? listingId),
+          listingUrl: listing.url ?? null,
+          remoteState: listing.state,
+          lastError: null,
+        },
+      });
+      if (linked.count !== 1) throw new BadRequestException("The Etsy mapping changed during reconciliation; refresh status");
+      const queued = await tx.etsySyncJob.updateMany({
+        where: { productId, status: "Failed" },
+        data: {
+          status: "Pending",
+          revision: { increment: 1 },
+          attempts: 0,
+          availableAt: new Date(),
+          lockedAt: null,
+          lastError: null,
+        },
+      });
+      if (queued.count !== 1) throw new BadRequestException("The Etsy sync job changed during reconciliation; refresh status");
+    });
+
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "integration.etsy.listing_reconciled",
+      entityType: "Product",
+      entityId: productId,
+      summary: `Reconciled Etsy listing ${listingId} for ${product.name}`,
+      metadata: { listingId, shopId, sku: product.sku },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+    void this.dispatchSyncQueue();
+    return { reconciled: true, queued: true, listingId };
+  }
+
+  async assertCanEnableChannel(): Promise<void> {
+    if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) {
+      throw new BadRequestException("Connect an Etsy shop in Settings before enabling the Etsy sales channel");
+    }
+    const missing = this.listingConfigErrors();
+    if (missing.length) {
+      throw new BadRequestException(`Configure Etsy listing defaults before enabling the Etsy sales channel: ${missing.join(", ")}`);
+    }
   }
 
   async getShopProfiles() {
@@ -343,7 +478,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
 
   async listDraftSyncCandidates() {
     const products = await this.prisma.product.findMany({
-      where: { status: "Draft", variants: { none: {} }, etsyListingMapping: { is: null } },
+      where: { sellInEtsy: true, status: "Draft", variants: { none: {} }, etsyListingMapping: { is: null } },
       orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
       take: 100,
       select: {
@@ -376,6 +511,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       include: { variants: { select: { id: true } } },
     });
     if (!product) throw new BadRequestException("Product was not found");
+    if (!product.sellInEtsy) throw new BadRequestException("Enable the Etsy sales channel on this product before syncing it");
     if (product.status !== "Draft") throw new BadRequestException("Initial Etsy sync is limited to local Draft products so it cannot publish a listing");
     if (product.variants.length) throw new BadRequestException("Choose a single-item product without variants for the initial Etsy draft");
     if (await this.prisma.etsyListingMapping.findUnique({ where: { productId }, select: { id: true } })) {
@@ -503,6 +639,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       headers: authorizationHeaders,
     });
     if (!shop.shop_id || !shop.shop_name) throw new BadRequestException("No Etsy shop was found for the authorized account");
+    const requestedShopName = shop.shop_name;
     const shopDetails = await this.requestJson<EtsyShopDetailsResponse>(`/application/shops/${shop.shop_id}`, {
       headers: authorizationHeaders,
     });
@@ -513,29 +650,48 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
 
     const expiresIn = Number(token.expires_in ?? 3600);
     if (!Number.isFinite(expiresIn) || expiresIn <= 0) throw new BadRequestException("Etsy returned an invalid token lifetime");
-    await this.prisma.etsyShopConnection.upsert({
-      where: { id: CONNECTION_ID },
-      create: {
-        id: CONNECTION_ID,
-        shopId: String(shop.shop_id),
-        userId,
-        shopName: shop.shop_name,
-        currencyCode,
-        accessTokenEncrypted: this.encryptSecret(accessToken),
-        refreshTokenEncrypted: this.encryptSecret(this.requireRefreshToken(token)),
-        tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
-      },
-      update: {
-        shopId: String(shop.shop_id),
-        userId,
-        shopName: shop.shop_name,
-        currencyCode,
-        accessTokenEncrypted: this.encryptSecret(accessToken),
-        refreshTokenEncrypted: this.encryptSecret(this.requireRefreshToken(token)),
-        tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
-        refreshLockedAt: null,
-        connectedAt: new Date(),
-      },
+    const requestedShopId = String(shop.shop_id);
+    const connectionState = await this.prisma.$transaction(async (tx) => {
+      // Serialize shop changes against listing reservation. This prevents a shop
+      // switch from racing a worker that is about to create its first mapping.
+      const currentRows = await tx.$queryRaw<Array<{ shopId: string }>>`
+        SELECT "shopId" FROM "EtsyShopConnection" WHERE "id" = ${CONNECTION_ID} FOR UPDATE
+      `;
+      const previousConnection = currentRows[0] ?? null;
+      const foreignMapping = await tx.etsyListingMapping.findFirst({
+        where: { AND: [{ shopId: { not: null } }, { shopId: { not: requestedShopId } }] },
+        select: { id: true },
+      });
+      if (foreignMapping) {
+        throw new BadRequestException(
+          "This Etsy connection has listings linked to another shop. Reconnect the original shop or reconcile those listings before switching shops.",
+        );
+      }
+      await tx.etsyShopConnection.upsert({
+        where: { id: CONNECTION_ID },
+        create: {
+          id: CONNECTION_ID,
+          shopId: requestedShopId,
+          userId,
+          shopName: requestedShopName,
+          currencyCode,
+          accessTokenEncrypted: this.encryptSecret(accessToken),
+          refreshTokenEncrypted: this.encryptSecret(this.requireRefreshToken(token)),
+          tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+        },
+        update: {
+          shopId: requestedShopId,
+          userId,
+          shopName: requestedShopName,
+          currencyCode,
+          accessTokenEncrypted: this.encryptSecret(accessToken),
+          refreshTokenEncrypted: this.encryptSecret(this.requireRefreshToken(token)),
+          tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+          refreshLockedAt: null,
+          connectedAt: new Date(),
+        },
+      });
+      return { previousShopId: previousConnection?.shopId ?? null };
     });
 
     await this.audit.log({
@@ -543,11 +699,22 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       action: "integration.etsy.connected",
       entityType: "EtsyShopConnection",
       entityId: CONNECTION_ID,
-      summary: `Connected Etsy shop ${shop.shop_name}`,
-      metadata: { shopId: String(shop.shop_id), scopes: grantedScopes },
+      summary: `Connected Etsy shop ${requestedShopName}`,
+      metadata: { shopId: requestedShopId, scopes: grantedScopes },
       ip: input.context.ip,
       userAgent: input.context.userAgent,
     });
+
+    // Requeue opted-in products and existing links when reconnecting the same shop.
+    // Listing IDs belong to a specific shop, so never apply old links to a different shop.
+    if (!connectionState.previousShopId || connectionState.previousShopId === requestedShopId) {
+      const products = await this.prisma.product.findMany({
+        where: { OR: [{ sellInEtsy: true }, { etsyListingMapping: { isNot: null } }] },
+        select: { id: true },
+      });
+      await this.enqueueProductsSync(products.map((product) => product.id));
+      void this.dispatchSyncQueue();
+    }
   }
 
   async disconnect(context: { adminId?: string | null; ip?: string | null; userAgent?: string | null }) {
@@ -576,16 +743,13 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) {
       throw new BadRequestException("Connect an Etsy shop before retrying listing sync jobs");
     }
-    const missing = this.listingConfigErrors();
-    if (missing.length) throw new BadRequestException(`Configure Etsy listing defaults before retrying: ${missing.join(", ")}`);
-
     const result = await this.prisma.etsySyncJob.updateMany({
       where: {
         status: "Failed",
         product: {
           OR: [
-            { etsyListingMapping: { isNot: null } },
-            { status: "Draft" },
+            { etsyListingMapping: { is: { remoteState: { not: "creating" } } } },
+            { sellInEtsy: true, status: { in: ["Draft", "Published"] }, etsyListingMapping: { is: null } },
           ],
         },
       },
@@ -603,10 +767,14 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
   }
 
   async enqueueProductSync(productId: string, tx?: Prisma.TransactionClient): Promise<void> {
-    if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) return;
-    if (this.listingConfigErrors().length) return;
     const db = tx ?? this.prisma;
-    if (!(await db.etsyListingMapping.findUnique({ where: { productId }, select: { id: true } }))) return;
+    const product = await db.product.findUnique({
+      where: { id: productId },
+      select: { sellInEtsy: true, status: true, etsyListingMapping: { select: { remoteState: true } } },
+    });
+    if (!product) return;
+    if (!product.sellInEtsy && (!product.etsyListingMapping || product.etsyListingMapping.remoteState === "inactive")) return;
+    if (product.sellInEtsy && !product.etsyListingMapping && !["Draft", "Published"].includes(product.status)) return;
     await db.etsySyncJob.upsert({
       where: { productId },
       create: { productId, status: "Pending", revision: 1, availableAt: new Date() },
@@ -623,18 +791,22 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
 
   async enqueueProductsSync(productIds: string[], tx?: Prisma.TransactionClient): Promise<void> {
     if (!productIds.length) return;
-    if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) return;
-    if (this.listingConfigErrors().length) return;
     const db = tx ?? this.prisma;
     const uniqueIds = [...new Set(productIds)];
-    const mappedProducts = await db.etsyListingMapping.findMany({
-      where: { productId: { in: uniqueIds } },
-      select: { productId: true },
+    const eligibleProducts = await db.product.findMany({
+      where: {
+        id: { in: uniqueIds },
+        OR: [
+          { sellInEtsy: true, status: { in: ["Draft", "Published"] } },
+          { etsyListingMapping: { isNot: null } },
+        ],
+      },
+      select: { id: true },
     });
-    const mappedProductIds = mappedProducts.map((mapping) => mapping.productId);
-    if (!mappedProductIds.length) return;
+    const eligibleProductIds = eligibleProducts.map((product) => product.id);
+    if (!eligibleProductIds.length) return;
     await db.etsySyncJob.updateMany({
-      where: { productId: { in: mappedProductIds } },
+      where: { productId: { in: eligibleProductIds } },
       data: {
         status: "Pending",
         revision: { increment: 1 },
@@ -645,7 +817,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       },
     });
     await db.etsySyncJob.createMany({
-      data: mappedProductIds.map((productId) => ({ productId, status: "Pending" as const, revision: 1 })),
+      data: eligibleProductIds.map((productId) => ({ productId, status: "Pending" as const, revision: 1 })),
       skipDuplicates: true,
     });
   }
@@ -916,7 +1088,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       body: form.toString(),
       contentType: "application/x-www-form-urlencoded",
     });
-    await this.prisma.etsyListingMapping.updateMany({ where: { etsyListingId: listingId }, data: { remoteState: state } });
+    await this.prisma.etsyListingMapping.updateMany({ where: { etsyListingId: listingId, shopId }, data: { remoteState: state } });
   }
 
   private async synchronizeProduct(productId: string): Promise<void> {
@@ -926,10 +1098,23 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     });
     if (!product) return;
     let mapping = await this.prisma.etsyListingMapping.findUnique({ where: { productId } });
-    if (!mapping && ["Reserved", "Sold", "Archived"].includes(product.status)) return;
-    if (!mapping && product.status !== "Draft") {
-      throw new EtsySyncError("Create the initial Etsy listing from a local Draft product in Etsy settings. Published products without an Etsy listing are not created automatically.");
+    if (!product.sellInEtsy) {
+      if (!mapping || mapping.remoteState === "inactive") return;
+      if (mapping.remoteState === "creating") {
+        throw new EtsySyncError("The Etsy listing is still being created. Reconcile the listing in Etsy before disabling this channel.");
+      }
+      const { token, shopId } = await this.accessToken();
+      await this.ensureMappingBelongsToShop(mapping, shopId, token);
+      await this.updateRemoteState(shopId, mapping.etsyListingId, token, "inactive");
+      await this.prisma.etsyListingMapping.update({
+        where: { productId },
+        data: { lastSyncedAt: new Date(), lastError: null },
+      });
+      return;
     }
+    if (!mapping && ["Reserved", "Sold", "Archived"].includes(product.status)) return;
+    const missing = this.listingConfigErrors();
+    if (missing.length) throw new EtsySyncError(`Configure Etsy listing defaults before syncing: ${missing.join(", ")}`);
     if (mapping?.remoteState === "creating") {
       throw new EtsySyncError(
         "An Etsy listing creation may have reached Etsy, but its listing ID was not confirmed. Check the shop's draft listings and reconcile the mapping before retrying to avoid creating a duplicate.",
@@ -939,6 +1124,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     this.validateProductForEtsy(product);
     const defaults = this.listingDefaults();
     const { token, shopId, currencyCode } = await this.accessToken();
+    if (mapping) await this.ensureMappingBelongsToShop(mapping, shopId, token);
     if (product.currency.trim().toUpperCase() !== currencyCode) {
       throw new EtsySyncError(`Product currency ${product.currency} does not match Etsy shop currency ${currencyCode}`);
     }
@@ -967,8 +1153,22 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       // response is lost after Etsy creates the listing, retries must stop for
       // manual reconciliation instead of silently creating another listing.
       const reservationId = `pending:${productId}`;
-      mapping = await this.prisma.etsyListingMapping.create({
-        data: { productId, etsyListingId: reservationId, remoteState: "creating" },
+      const creationAttemptAt = new Date();
+      mapping = await this.prisma.$transaction(async (tx) => {
+        const currentRows = await tx.$queryRaw<Array<{ shopId: string }>>`
+          SELECT "shopId" FROM "EtsyShopConnection" WHERE "id" = ${CONNECTION_ID} FOR UPDATE
+        `;
+        const currentConnection = currentRows[0] ?? null;
+        if (currentConnection?.shopId !== shopId) {
+          throw new EtsySyncError("The connected Etsy shop changed before this listing could be created. Reconnect the intended shop and retry.");
+        }
+        const existing = await tx.etsyListingMapping.findUnique({ where: { productId } });
+        if (existing) {
+          throw new EtsySyncError("An Etsy listing mapping appeared while this product was being synced. Refresh sync status before retrying.");
+        }
+        return tx.etsyListingMapping.create({
+          data: { productId, shopId, etsyListingId: reservationId, remoteState: "creating", creationAttemptAt },
+        });
       });
       let created: EtsyListingResponse;
       try {
@@ -991,6 +1191,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       mapping = await this.prisma.etsyListingMapping.update({
         where: { productId },
         data: {
+          shopId,
           etsyListingId: String(created.listing_id),
           listingUrl: created.url ?? null,
           remoteState: "draft",
@@ -1078,12 +1279,51 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  private async ensureMappingBelongsToShop(
+    mapping: { productId: string; etsyListingId: string; shopId: string | null },
+    shopId: string,
+    token: string,
+  ): Promise<void> {
+    if (mapping.shopId === shopId) return;
+    if (mapping.shopId) {
+      throw new EtsySyncError("This Etsy listing belongs to a different shop. Reconnect the original shop or reconcile the mapping before syncing.");
+    }
+    if (!/^\d+$/.test(mapping.etsyListingId)) {
+      throw new EtsySyncError("This unverified Etsy mapping has no confirmed listing ID. Reconcile the draft in Etsy before retrying.");
+    }
+
+    // Legacy mappings predate shop binding. Verify ownership with Etsy before
+    // attaching the current shop, so a reconnect can never redirect an old ID.
+    const remoteListing = await this.apiRequest<EtsyListingResponse>(`/listings/${mapping.etsyListingId}`, token);
+    if (String(remoteListing.shop_id ?? "") !== shopId) {
+      throw new EtsySyncError("Etsy could not verify that this legacy listing belongs to the connected shop. Reconcile the listing manually before syncing.");
+    }
+    await this.prisma.$transaction(async (tx) => {
+      const currentRows = await tx.$queryRaw<Array<{ shopId: string }>>`
+        SELECT "shopId" FROM "EtsyShopConnection" WHERE "id" = ${CONNECTION_ID} FOR UPDATE
+      `;
+      if (currentRows[0]?.shopId !== shopId) {
+        throw new EtsySyncError("The connected Etsy shop changed during listing verification. Reconnect the intended shop and retry.");
+      }
+      const bound = await tx.etsyListingMapping.updateMany({
+        where: { productId: mapping.productId, etsyListingId: mapping.etsyListingId, shopId: null },
+        data: { shopId },
+      });
+      if (bound.count !== 1) {
+        const current = await tx.etsyListingMapping.findUnique({ where: { productId: mapping.productId }, select: { shopId: true } });
+        if (current?.shopId !== shopId) {
+          throw new EtsySyncError("The Etsy listing mapping changed during shop verification. Refresh status and reconcile before retrying.");
+        }
+      }
+    });
+    mapping.shopId = shopId;
+  }
+
   private async dispatchSyncQueue(): Promise<void> {
     if (this.dispatching) return;
     this.dispatching = true;
     try {
       if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) return;
-      if (this.listingConfigErrors().length) return;
       const now = new Date();
       const staleLock = new Date(now.getTime() - 5 * 60_000);
       const jobs = await this.prisma.etsySyncJob.findMany({

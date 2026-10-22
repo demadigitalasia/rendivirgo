@@ -188,6 +188,10 @@ export class CreateProductDto {
   sellInWholesale?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  sellInEtsy?: boolean;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   wholesalePrice?: number | null;

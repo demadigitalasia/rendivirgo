@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
+import { EtsyIntegrationService } from "../etsy/etsy-integration.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreatePosReservationDto, CreatePosSaleDto, PosSettingsDto } from "./dto/pos.dto";
 
@@ -21,6 +22,7 @@ export class PosService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly etsy: EtsyIntegrationService,
   ) {}
 
   onModuleInit() {
@@ -131,7 +133,7 @@ export class PosService implements OnModuleInit, OnModuleDestroy {
         heldItems.push({ productId: product.id, variantId: item.variantId, stockModel: product.stockModel, quantity: item.quantity });
       }
 
-      return tx.posReservation.create({
+      const created = await tx.posReservation.create({
         data: {
           requestId: dto.requestId,
           fingerprint,
@@ -141,6 +143,8 @@ export class PosService implements OnModuleInit, OnModuleDestroy {
         },
         include: { items: true },
       });
+      await this.etsy.enqueueProductsSync(productIds, tx);
+      return created;
     });
 
     await this.audit.log({
@@ -180,6 +184,7 @@ export class PosService implements OnModuleInit, OnModuleDestroy {
           await tx.product.updateMany({ where: { id: item.productId, status: "Reserved" }, data: { status: "Published" } });
         }
       }
+      await this.etsy.enqueueProductsSync([...new Set(items.map((item) => item.productId))], tx);
       return true;
     });
   }
@@ -488,6 +493,7 @@ export class PosService implements OnModuleInit, OnModuleDestroy {
             entityId: order.id,
           },
         });
+        await this.etsy.enqueueProductsSync(productIds, tx);
         return order;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 

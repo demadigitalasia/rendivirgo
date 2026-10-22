@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch, errorMessage, formatDateTime, formatUSD, useApi } from "@/components/admin/api";
 import { ProductForm, type ApiProduct } from "@/components/admin/product-form";
@@ -23,6 +24,12 @@ export default function EditProductPage() {
   const history = useApi<PriceHistoryEntry[]>(id ? `/api/admin/products/${id}/price-history` : null);
 
   const product = state.data;
+
+  useEffect(() => {
+    if (!product || !["Pending", "Processing"].includes(product.etsySync?.status ?? "")) return;
+    const timer = window.setTimeout(state.refresh, 2500);
+    return () => window.clearTimeout(timer);
+  }, [product?.etsySync?.status, state.refresh]);
 
   const duplicate = async () => {
     if (!product) return;

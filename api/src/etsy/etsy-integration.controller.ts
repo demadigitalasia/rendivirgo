@@ -6,6 +6,7 @@ import type { AuthenticatedRequest } from "../common/types/authenticated-request
 import { auditContextFrom } from "../common/utils/audit-context";
 import { EtsyIntegrationService } from "./etsy-integration.service";
 import { CreateReadinessProfileDto } from "./dto/create-readiness-profile.dto";
+import { ReconcileListingDto } from "./dto/reconcile-listing.dto";
 
 function queryValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -106,6 +107,16 @@ export class EtsyIntegrationController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   retry() {
     return this.etsy.retryFailed();
+  }
+
+  @Post("reconcile/:productId")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  reconcileListing(
+    @Param("productId") productId: string,
+    @Body() dto: ReconcileListingDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.etsy.reconcilePendingListing(productId, dto.listingId, auditContextFrom(request));
   }
 
   @Delete()

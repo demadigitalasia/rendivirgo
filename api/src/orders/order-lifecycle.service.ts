@@ -10,6 +10,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Prisma, type OrderSource, type OrderStatus, type PaymentMethod } from "../../generated/prisma";
 import { EmailService } from "../email/email.service";
+import { EtsyIntegrationService } from "../etsy/etsy-integration.service";
 import {
   renderOrderCancelledEmail,
   renderOrderCompletedEmail,
@@ -111,6 +112,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly email: EmailService,
+    private readonly etsy: EtsyIntegrationService,
     config: ConfigService,
   ) {
     const configured = Number(config.get("ORDER_RESERVATION_MINUTES") ?? 60);
@@ -205,6 +207,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
           throw new BadRequestException("One or more items are no longer available");
         }
       }
+      await this.etsy.enqueueProductsSync([...new Set(input.items.map((item) => item.productId))], tx);
 
       const email = input.email.trim().toLowerCase();
       const existingCustomer = await tx.customer.findUnique({ where: { email } });
@@ -491,6 +494,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
           message: "Returned items were inspected and added back to inventory",
         },
       });
+      await this.etsy.enqueueProductsSync([...new Set(order.items.flatMap((item) => item.productId ? [item.productId] : []))], tx);
       return tx.order.findUniqueOrThrow({ where: { id: orderId }, include: orderInclude });
     });
   }
@@ -946,6 +950,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
         });
       }
     }
+    await this.etsy.enqueueProductsSync([...new Set(items.flatMap((item) => item.productId ? [item.productId] : []))], tx);
   }
 
   private async markUniqueProductsSold(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
@@ -956,6 +961,7 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
       where: { id: { in: productIds }, stockModel: "Unique" },
       data: { status: "Sold" },
     });
+    await this.etsy.enqueueProductsSync(productIds, tx);
   }
 
   private async releaseDiscountUsage(tx: Prisma.TransactionClient, orderId: string): Promise<void> {

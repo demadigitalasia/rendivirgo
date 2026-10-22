@@ -23,7 +23,14 @@ export const productInclude = {
   variants: { orderBy: { sortOrder: "asc" as const } },
 } satisfies Prisma.ProductInclude;
 
+export const adminProductInclude = {
+  ...productInclude,
+  etsyListingMapping: true,
+  etsySyncJob: true,
+} satisfies Prisma.ProductInclude;
+
 export type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
+export type AdminProductWithRelations = Prisma.ProductGetPayload<{ include: typeof adminProductInclude }>;
 
 const sortMap: Record<string, Prisma.ProductOrderByWithRelationInput[]> = {
   featured: [{ featured: "desc" }, { createdAt: "desc" }],
@@ -90,6 +97,7 @@ export class ProductsService {
       price: Number(product.price),
       ...(includeTranslations ? {
         sellInWholesale: product.sellInWholesale,
+        sellInEtsy: product.sellInEtsy,
         wholesalePrice: product.wholesalePrice === null ? null : Number(product.wholesalePrice),
         wholesalePiecesPerUnit: product.wholesalePiecesPerUnit,
       } : {}),
@@ -163,6 +171,19 @@ export class ProductsService {
       publishedAt: product.publishedAt,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
+    };
+  }
+
+  private toAdminApiProduct(product: AdminProductWithRelations) {
+    return {
+      ...this.toApiProduct(product, "en", true),
+      etsySync: {
+        status: product.etsySyncJob?.status ?? (product.etsyListingMapping ? "Linked" : "Not linked"),
+        lastError: product.etsySyncJob?.lastError ?? product.etsyListingMapping?.lastError ?? null,
+        listingUrl: product.etsyListingMapping?.listingUrl ?? null,
+        remoteState: product.etsyListingMapping?.remoteState ?? null,
+        lastSyncedAt: product.etsyListingMapping?.lastSyncedAt ?? null,
+      },
     };
   }
 
@@ -252,10 +273,10 @@ export class ProductsService {
 
     const [total, products] = await this.prisma.$transaction([
       this.prisma.product.count({ where }),
-      this.prisma.product.findMany({ where, orderBy, include: productInclude, ...skipTake(query.page, query.pageSize) }),
+      this.prisma.product.findMany({ where, orderBy, include: adminProductInclude, ...skipTake(query.page, query.pageSize) }),
     ]);
 
-    return paginated(products.map((product) => this.toApiProduct(product, "en", true)), total, query.page, query.pageSize);
+    return paginated(products.map((product) => this.toAdminApiProduct(product)), total, query.page, query.pageSize);
   }
 
   async exportCatalogPdf(query: CatalogPdfQueryDto) {
@@ -311,9 +332,9 @@ export class ProductsService {
   }
 
   async getAdminById(id: string) {
-    const product = await this.prisma.product.findUnique({ where: { id }, include: productInclude });
+    const product = await this.prisma.product.findUnique({ where: { id }, include: adminProductInclude });
     if (!product) throw new NotFoundException("Product not found");
-    return this.toApiProduct(product, "en", true);
+    return this.toAdminApiProduct(product);
   }
 
   async related(slug: string, limit = 4, language: StorefrontLanguage = "en") {
@@ -374,8 +395,12 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto, context: AuditContext) {
-    this.validateSalesChannels(dto.sellOnWeb ?? true, dto.sellInWorkshop ?? true, dto.workshopStockQuantity ?? 0, dto.stockModel ?? "Unique", dto.variants ?? [], dto.sellInWholesale ?? false);
+    this.validateSalesChannels(dto.sellOnWeb ?? true, dto.sellInWorkshop ?? true, dto.workshopStockQuantity ?? 0, dto.stockModel ?? "Unique", dto.variants ?? [], dto.sellInWholesale ?? false, dto.sellInEtsy ?? false);
     this.validateWholesaleChannel(dto.sellInWholesale ?? false, dto.wholesalePrice, dto.variants ?? []);
+    if (dto.sellInEtsy && (dto.variants?.length ?? 0) > 0) {
+      throw new BadRequestException("Etsy variation mapping is not configured yet. Create this product without variants or leave Etsy disabled.");
+    }
+    if (dto.sellInEtsy) await this.etsy.assertCanEnableChannel();
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new BadRequestException("Category not found");
 
@@ -418,6 +443,7 @@ export class ProductsService {
         sellOnWeb: dto.sellOnWeb ?? true,
         sellInWorkshop: dto.sellInWorkshop ?? true,
         sellInWholesale: dto.sellInWholesale ?? false,
+        sellInEtsy: dto.sellInEtsy ?? false,
         wholesalePrice: dto.wholesalePrice === undefined || dto.wholesalePrice === null ? null : new Prisma.Decimal(dto.wholesalePrice),
         wholesalePiecesPerUnit: dto.wholesalePiecesPerUnit ?? null,
         workshopStockQuantity: Math.max(0, dto.workshopStockQuantity ?? 0),
@@ -486,7 +512,7 @@ export class ProductsService {
       userAgent: context.userAgent,
     });
 
-    return this.toApiProduct(product, "en", true);
+    return this.getAdminById(product.id);
   }
 
   private validateSalesChannels(
@@ -496,8 +522,9 @@ export class ProductsService {
     stockModel: string,
     variants: Array<{ workshopStockQuantity?: number | null }>,
     sellInWholesale = false,
+    sellInEtsy = false,
   ): void {
-    if (!sellOnWeb && !sellInWorkshop && !sellInWholesale) throw new BadRequestException("Select at least one sales channel");
+    if (!sellOnWeb && !sellInWorkshop && !sellInWholesale && !sellInEtsy) throw new BadRequestException("Select at least one sales channel");
     if (workshopStockQuantity > 0 || variants.some((variant) => (variant.workshopStockQuantity ?? 0) > 0)) {
       throw new BadRequestException("Inventory is shared across Retail, Wholesale and POS. Workshop stock allocation is no longer supported.");
     }
@@ -586,6 +613,7 @@ export class ProductsService {
     const nextStatus = dto.status ?? existing.status;
     const nextSellOnWeb = dto.sellOnWeb ?? existing.sellOnWeb;
     const nextSellInWorkshop = dto.sellInWorkshop ?? existing.sellInWorkshop;
+    const nextSellInEtsy = dto.sellInEtsy ?? existing.sellInEtsy;
     const nextWorkshopStock = dto.workshopStockQuantity ?? existing.workshopStockQuantity;
     const nextStockModel = dto.stockModel ?? existing.stockModel;
     this.validateSalesChannels(
@@ -595,7 +623,12 @@ export class ProductsService {
       nextStockModel,
       dto.variants ?? existing.variants,
       dto.sellInWholesale ?? existing.sellInWholesale,
+      nextSellInEtsy,
     );
+    if (nextSellInEtsy && (dto.variants ?? existing.variants).length > 0) {
+      throw new BadRequestException("Etsy variation mapping is not configured yet. Disable Etsy before adding or editing product variants.");
+    }
+    if (nextSellInEtsy && !existing.sellInEtsy) await this.etsy.assertCanEnableChannel();
     this.validateWholesaleChannel(
       dto.sellInWholesale ?? existing.sellInWholesale,
       dto.wholesalePrice !== undefined ? dto.wholesalePrice : existing.wholesalePrice === null ? null : Number(existing.wholesalePrice),
@@ -634,6 +667,7 @@ export class ProductsService {
           ...(dto.sellOnWeb !== undefined ? { sellOnWeb: dto.sellOnWeb } : {}),
           ...(dto.sellInWorkshop !== undefined ? { sellInWorkshop: dto.sellInWorkshop } : {}),
           ...(dto.sellInWholesale !== undefined ? { sellInWholesale: dto.sellInWholesale } : {}),
+          ...(dto.sellInEtsy !== undefined ? { sellInEtsy: dto.sellInEtsy } : {}),
           ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice === null ? null : new Prisma.Decimal(dto.wholesalePrice) } : {}),
           ...(dto.wholesalePiecesPerUnit !== undefined ? { wholesalePiecesPerUnit: dto.wholesalePiecesPerUnit } : {}),
           ...(dto.workshopStockQuantity !== undefined ? { workshopStockQuantity: Math.max(0, dto.workshopStockQuantity) } : {}),
@@ -725,7 +759,7 @@ export class ProductsService {
       userAgent: context.userAgent,
     });
 
-    return this.toApiProduct(product, "en", true);
+    return this.getAdminById(product.id);
   }
 
   async bulk(dto: BulkProductActionDto, context: AuditContext) {
@@ -829,6 +863,7 @@ export class ProductsService {
         sellOnWeb: source.sellOnWeb,
         sellInWorkshop: source.sellInWorkshop,
         sellInWholesale: false,
+        sellInEtsy: false,
         workshopStockQuantity: 0,
         weightGram: source.weightGram,
         weightCarat: source.weightCarat,
@@ -868,7 +903,7 @@ export class ProductsService {
       userAgent: context.userAgent,
     });
 
-    return this.toApiProduct(copy, "en", true);
+    return this.getAdminById(copy.id);
   }
 
   async priceHistory(id: string) {

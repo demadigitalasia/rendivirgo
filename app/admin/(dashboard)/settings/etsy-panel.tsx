@@ -14,6 +14,7 @@ type EtsyJob = {
   updatedAt: string;
   listingId: string | null;
   listingUrl: string | null;
+  needsReconciliation: boolean;
 };
 
 type EtsyStatus = {
@@ -56,6 +57,8 @@ export function EtsySettingsPanel() {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
+  const [reconcileBusy, setReconcileBusy] = useState("");
+  const [reconcileIds, setReconcileIds] = useState<Record<string, string>>({});
   const [readinessState, setReadinessState] = useState<"" | "ready_to_ship" | "made_to_order">("");
   const [minProcessingTime, setMinProcessingTime] = useState("");
   const [maxProcessingTime, setMaxProcessingTime] = useState("");
@@ -137,6 +140,24 @@ export function EtsySettingsPanel() {
     }
   };
 
+  const reconcileListing = async (productId: string) => {
+    const listingId = reconcileIds[productId]?.trim();
+    if (!listingId) return;
+    setReconcileBusy(productId);
+    try {
+      await apiFetch(`/api/admin/integrations/etsy/reconcile/${encodeURIComponent(productId)}`, {
+        json: { listingId },
+      });
+      toast.success("Etsy draft verified by shop and SKU; sync queued");
+      setReconcileIds((current) => ({ ...current, [productId]: "" }));
+      state.refresh();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setReconcileBusy("");
+    }
+  };
+
   const refreshConnectionData = () => {
     state.refresh();
     if (status?.connected) {
@@ -187,7 +208,7 @@ export function EtsySettingsPanel() {
             ) : null}
 
             <p className="rv-hint">
-              The first Etsy listing is created only when you choose an unlinked local Draft product without variants. After it is linked, product edits sync automatically; changing that product to Published activates its Etsy listing. Etsy order imports and order-driven stock changes are not included.
+              Enable Etsy in a product's Sales channels to queue its listing automatically. Draft products stay as Etsy drafts; publishing activates the listing after a successful sync. Turning the Etsy channel off deactivates its listing. Etsy order imports and order-driven stock changes are not included.
             </p>
 
             <div className="rv-inline">
@@ -271,7 +292,7 @@ export function EtsySettingsPanel() {
       ) : null}
 
       {status?.connected ? (
-        <Card title="First Etsy draft sync" description="Select one unlinked local Draft product. This creates an inactive Etsy draft listing.">
+        <Card title="Unlinked Etsy drafts" description="Etsy-enabled Draft products are queued automatically. Use this only to retry an initial draft after correcting an earlier sync error.">
           <div className="rv-stack">
             {status.missingListingConfig.length ? (
               <p className="rv-hint">Finish the Coolify listing defaults above before queuing a product.</p>
@@ -279,15 +300,15 @@ export function EtsySettingsPanel() {
               <>
                 <label className="rv-field"><span className="rv-label">Draft product</span>
                   <select className="rv-input" value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)} disabled={candidates.loading || !candidates.data?.length}>
-                    <option value="">Choose a single-item Draft product</option>
+                    <option value="">Choose an Etsy-enabled Draft product</option>
                     {(candidates.data ?? []).map((product) => (
                       <option key={product.id} value={product.id}>{product.name} · {product.sku} · {product.currency} {product.price}{product.hasImage ? "" : " · no photo"}</option>
                     ))}
                   </select>
                 </label>
                 {candidates.error ? <p className="rv-error-text">{candidates.error}</p> : null}
-                {!candidates.loading && !candidates.error && !candidates.data?.length ? <p className="rv-hint">No single-item Draft products are available. Create or change one product to Draft in Products first.</p> : null}
-                <Button variant="primary" onClick={syncDraftProduct} loading={syncBusy} disabled={!selectedProductId || status.missingListingConfig.length > 0 || candidates.loading}>Queue Etsy draft</Button>
+                {!candidates.loading && !candidates.error && !candidates.data?.length ? <p className="rv-hint">There are no Etsy-enabled Draft products without a listing to retry.</p> : null}
+                <Button variant="primary" onClick={syncDraftProduct} loading={syncBusy} disabled={!selectedProductId || status.missingListingConfig.length > 0 || candidates.loading}>Retry Etsy draft sync</Button>
               </>
             )}
           </div>
@@ -315,6 +336,30 @@ export function EtsySettingsPanel() {
                       <strong>{job.productName}</strong> <span className="rv-hint">· {job.sku}</span>
                       {job.lastError ? <p className="rv-error-text">{job.lastError}</p> : null}
                       {job.listingUrl ? <a href={job.listingUrl} target="_blank" rel="noreferrer">Open Etsy listing</a> : null}
+                      {job.needsReconciliation ? (
+                        <div className="rv-notice rv-notice--warning" style={{ marginTop: 10 }}>
+                          <strong>Verify a draft Etsy may already have created</strong>
+                          <p>Copy its numeric listing ID from Etsy Shop Manager. The API checks the connected shop, inactive state, creation time, and matching SKU or exact title before linking it. The local product must still be Draft.</p>
+                          <div className="rv-inline">
+                            <input
+                              className="rv-input"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={20}
+                              aria-label={`Etsy listing ID for ${job.productName}`}
+                              placeholder="Etsy listing ID"
+                              value={reconcileIds[job.productId] ?? ""}
+                              onChange={(event) => setReconcileIds((current) => ({ ...current, [job.productId]: event.target.value.replace(/\D/g, "") }))}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => reconcileListing(job.productId)}
+                              loading={reconcileBusy === job.productId}
+                              disabled={!reconcileIds[job.productId]?.trim() || Boolean(reconcileBusy)}
+                            >Verify and retry</Button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="rv-stack" style={{ alignItems: "flex-end" }}>
                       <StatusBadge status={job.status} />

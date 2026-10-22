@@ -51,6 +51,14 @@ export type ApiProduct = {
   sellOnWeb: boolean;
   sellInWorkshop: boolean;
   sellInWholesale: boolean;
+  sellInEtsy: boolean;
+  etsySync?: {
+    status: string;
+    lastError: string | null;
+    listingUrl: string | null;
+    remoteState: string | null;
+    lastSyncedAt: string | null;
+  };
   wholesalePrice: number | null;
   wholesalePiecesPerUnit: number | null;
   weightGram: number;
@@ -81,6 +89,7 @@ export type ApiProduct = {
 
 type ApiCategory = { id: string; slug: string; name: string; isActive: boolean };
 type ApiConditionOption = { id: string; name: string; isActive: boolean };
+type ApiEtsyStatus = { connected: boolean; missingListingConfig: string[] };
 
 const statusValues = ["Draft", "Published", "Reserved", "Sold", "Archived"] as const;
 const unitValues = ["piece", "pair", "gram", "carat", "strand", "bag"] as const;
@@ -124,6 +133,7 @@ type FormValues = {
   sellOnWeb: boolean;
   sellInWorkshop: boolean;
   sellInWholesale: boolean;
+  sellInEtsy: boolean;
   wholesalePrice: string;
   wholesalePiecesPerUnit: string;
   weightGram: string;
@@ -207,6 +217,7 @@ function valuesFromProduct(product?: ApiProduct | null): FormValues {
     sellOnWeb: product?.sellOnWeb ?? true,
     sellInWorkshop: product?.sellInWorkshop ?? true,
     sellInWholesale: product?.sellInWholesale ?? false,
+    sellInEtsy: product?.sellInEtsy ?? false,
     wholesalePrice: product?.wholesalePrice != null ? String(product.wholesalePrice) : "",
     wholesalePiecesPerUnit: product?.wholesalePiecesPerUnit != null ? String(product.wholesalePiecesPerUnit) : "",
     weightGram: product ? String(product.weightGram) : "",
@@ -243,6 +254,7 @@ export function ProductForm({
 }) {
   const categoriesState = useApi<ApiCategory[]>("/api/admin/categories");
   const conditionsState = useApi<ApiConditionOption[]>("/api/admin/conditions");
+  const etsyStatus = useApi<ApiEtsyStatus>("/api/admin/integrations/etsy");
   const [values, setValues] = useState<FormValues>(() => valuesFromProduct(product));
   const [imageUrls, setImageUrls] = useState<string[]>(() => product?.imageUrls ?? []);
   const [videoUrl, setVideoUrl] = useState<string | null>(() => product?.videoUrl ?? null);
@@ -385,8 +397,17 @@ export function ProductForm({
       setError("Weight in grams is required.");
       return;
     }
-    if (!values.sellOnWeb && !values.sellInWorkshop && !values.sellInWholesale) {
+    if (!values.sellOnWeb && !values.sellInWorkshop && !values.sellInWholesale && !values.sellInEtsy) {
       setError("Select at least one sales channel.");
+      return;
+    }
+    const enablingEtsy = values.sellInEtsy && (!product || !product.sellInEtsy);
+    if (enablingEtsy && (!etsyStatus.data?.connected || (etsyStatus.data.missingListingConfig?.length ?? 0) > 0)) {
+      setError("Connect Etsy and complete its listing defaults in Settings before enabling the Etsy channel.");
+      return;
+    }
+    if (values.sellInEtsy && variants.some((row) => row.sku.trim() && row.name.trim())) {
+      setError("Etsy variation mapping is not configured yet. Remove product variants before enabling Etsy.");
       return;
     }
 
@@ -407,6 +428,7 @@ export function ProductForm({
       sellOnWeb: values.sellOnWeb,
       sellInWorkshop: values.sellInWorkshop,
       sellInWholesale: values.sellInWholesale,
+      sellInEtsy: values.sellInEtsy,
       wholesalePrice: toNumberOrNull(values.wholesalePrice),
       wholesalePiecesPerUnit: toIntOrNull(values.wholesalePiecesPerUnit),
       workshopStockQuantity: 0,
@@ -465,6 +487,19 @@ export function ProductForm({
   };
 
   const slugPlaceholder = slugPreview(values.name) || "auto-generated from name";
+  const etsyReady = Boolean(etsyStatus.data?.connected && etsyStatus.data.missingListingConfig.length === 0);
+  const hasVariants = variants.some((row) => row.sku.trim() && row.name.trim());
+  const etsyBlockedHint = etsyStatus.loading
+    ? "Checking Etsy connection…"
+    : etsyStatus.error
+      ? "Could not check Etsy setup. Refresh the page and try again."
+      : !etsyStatus.data?.connected
+        ? "Connect your Etsy shop in Settings before enabling this channel."
+        : etsyStatus.data.missingListingConfig.length
+          ? "Complete the Etsy listing defaults in Settings first: " + etsyStatus.data.missingListingConfig.join(", ") + "."
+          : hasVariants
+            ? "Etsy variation mapping is not configured yet. This product currently has variants."
+            : null;
 
   return (
     <div className="rv-stack rv-product-edit-form">
@@ -535,8 +570,28 @@ export function ProductForm({
               <Switch checked={values.sellOnWeb} onChange={(checked) => update("sellOnWeb", checked)} label="Website" />
               <Switch checked={values.sellInWorkshop} onChange={(checked) => update("sellInWorkshop", checked)} label="Workshop POS" />
               <Switch checked={values.sellInWholesale} onChange={(checked) => update("sellInWholesale", checked)} label="Wholesale" />
+              <Switch
+                checked={values.sellInEtsy}
+                onChange={(checked) => update("sellInEtsy", checked)}
+                label="Etsy"
+                disabled={saving || etsyStatus.loading || (!values.sellInEtsy && (!etsyReady || hasVariants))}
+              />
             </div>
             <div className="rv-hint">Choose the sales channels where this product can be purchased.</div>
+            {values.sellInEtsy ? (
+              <div className="rv-hint">
+                {product?.etsySync
+                  ? "Etsy sync: " + product.etsySync.status + (product.etsySync.remoteState ? " · listing " + product.etsySync.remoteState : "") + ". Draft products stay as Etsy drafts; publishing activates the listing after a successful sync."
+                  : "Saving this product will queue an Etsy listing. Draft products stay as Etsy drafts; publishing activates the listing after a successful sync."}
+                {product?.etsySync?.listingUrl ? <> <a href={product.etsySync.listingUrl} target="_blank" rel="noreferrer">Open listing</a>.</> : null}
+              </div>
+            ) : etsyBlockedHint ? (
+              <div className="rv-hint">Etsy is unavailable: {etsyBlockedHint}</div>
+            ) : null}
+            {!values.sellInEtsy && product?.etsySync?.remoteState && product.etsySync.remoteState !== "inactive" ? (
+              <div className="rv-hint">Etsy is turned off. The linked Etsy listing will be deactivated after the queued update.</div>
+            ) : null}
+            {product?.etsySync?.status === "Failed" && product.etsySync.lastError ? <p className="rv-error-text">Etsy sync failed: {product.etsySync.lastError}</p> : null}
           </Field>
         </div>
       </Card>
