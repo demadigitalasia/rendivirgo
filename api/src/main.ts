@@ -68,7 +68,8 @@ async function bootstrap() {
 
     const startedAt = Date.now();
     response.on("finish", () => {
-      const line = `${request.method} ${request.originalUrl} ${response.statusCode} ${Date.now() - startedAt}ms rid=${requestId}`;
+      // Use the path without query parameters; OAuth callbacks include one-time codes and state.
+      const line = `${request.method} ${request.path} ${response.statusCode} ${Date.now() - startedAt}ms rid=${requestId}`;
       if (response.statusCode >= 500) logger.error(line);
       else logger.log(line);
     });

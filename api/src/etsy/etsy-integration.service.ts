@@ -89,8 +89,11 @@ class EtsyRequestError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean,
+    readonly statusCode?: number,
+    readonly operation?: string,
   ) {
     super(message);
+    this.name = EtsyRequestError.name;
   }
 }
 
@@ -655,11 +658,18 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async requestJson<T>(path: string, init: RequestInit): Promise<T> {
+    const operation = path === "/public/oauth/token"
+      ? "token exchange"
+      : /^\/application\/users\/\d+\/shops$/.test(path)
+        ? "shop lookup"
+        : /^\/application\/shops\/\d+$/.test(path)
+          ? "shop details"
+          : undefined;
     let response: Response;
     try {
       response = await fetch(`${ETSY_API}${path}`, { ...init, cache: "no-store" });
     } catch {
-      throw new EtsyRequestError("Could not reach the Etsy API", true);
+      throw new EtsyRequestError("Could not reach the Etsy API", true, undefined, operation);
     }
     const text = await response.text();
     let body: unknown = null;
@@ -677,7 +687,12 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
         : typeof record.message === "string"
           ? record.message
           : `Etsy API returned HTTP ${response.status}`;
-      throw new EtsyRequestError(message.slice(0, 700), response.status === 429 || response.status >= 500);
+      throw new EtsyRequestError(
+        message.slice(0, 700),
+        response.status === 429 || response.status >= 500,
+        response.status,
+        operation,
+      );
     }
     return body as T;
   }

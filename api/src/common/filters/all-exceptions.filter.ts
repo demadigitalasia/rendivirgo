@@ -53,14 +53,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (status >= 500) {
-      this.logger.error(`${request.method} ${request.url}`, exception instanceof Error ? exception.stack : String(exception));
+      this.logger.error(`${request.method} ${request.path}`, exception instanceof Error ? exception.stack : String(exception));
     }
 
     response.status(status).json({
       statusCode: status,
       error: errorName,
       message,
-      path: request.url,
+      path: request.path,
       timestamp: new Date().toISOString(),
     });
   }
