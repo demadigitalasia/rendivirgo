@@ -17,7 +17,7 @@ import { detectImageType } from "../uploads/image-validation";
 
 const ETSY_API = "https://api.etsy.com/v3";
 const CONNECTION_ID = "primary";
-const REQUIRED_LISTING_SCOPES = ["listings_r", "listings_w"];
+const REQUIRED_ETSY_SCOPES = ["listings_r", "listings_w", "shops_r", "shops_w"];
 const MAX_ATTEMPTS = 8;
 const MAX_LISTING_IMAGES = 20;
 const OAUTH_STATE_TTL_MS = 10 * 60_000;
@@ -53,6 +53,32 @@ type EtsyListingResponse = {
 
 type EtsyListingImageResponse = {
   listing_image_id?: number | string;
+};
+
+type EtsyCollection<T> = {
+  count?: number;
+  results?: T[];
+};
+
+type EtsyShippingProfile = {
+  shipping_profile_id?: number | string;
+  title?: string;
+  origin_country_iso?: string;
+};
+
+type EtsyReturnPolicy = {
+  return_policy_id?: number | string;
+  accepts_returns?: boolean;
+  accepts_exchanges?: boolean;
+  return_deadline?: number | null;
+};
+
+type EtsyReadinessProfile = {
+  readiness_state_id?: number | string;
+  readiness_state?: string;
+  min_processing_days?: number;
+  max_processing_days?: number;
+  processing_days_display_label?: string;
 };
 
 type SyncProduct = Prisma.ProductGetPayload<{
@@ -249,6 +275,136 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async getShopProfiles() {
+    const { token, shopId } = await this.accessToken();
+    const [shipping, returns, readiness] = await Promise.all([
+      this.apiRequest<EtsyCollection<EtsyShippingProfile>>(`/shops/${shopId}/shipping-profiles?limit=100`, token),
+      this.apiRequest<EtsyCollection<EtsyReturnPolicy>>(`/shops/${shopId}/policies/return`, token),
+      this.apiRequest<EtsyCollection<EtsyReadinessProfile>>(`/shops/${shopId}/readiness-state-definitions?limit=100`, token),
+    ]);
+
+    return {
+      shippingProfiles: (shipping.results ?? []).flatMap((profile) => profile.shipping_profile_id
+        ? [{ id: String(profile.shipping_profile_id), title: profile.title?.trim() || "Shipping profile", originCountry: profile.origin_country_iso ?? null }]
+        : []),
+      returnPolicies: (returns.results ?? []).flatMap((policy) => policy.return_policy_id
+        ? [{
+          id: String(policy.return_policy_id),
+          acceptsReturns: Boolean(policy.accepts_returns),
+          acceptsExchanges: Boolean(policy.accepts_exchanges),
+          returnDeadline: policy.return_deadline ?? null,
+        }]
+        : []),
+      readinessProfiles: (readiness.results ?? []).flatMap((profile) => profile.readiness_state_id
+        ? [{
+          id: String(profile.readiness_state_id),
+          state: profile.readiness_state ?? "unknown",
+          minProcessingDays: profile.min_processing_days ?? null,
+          maxProcessingDays: profile.max_processing_days ?? null,
+          label: profile.processing_days_display_label ?? null,
+        }]
+        : []),
+    };
+  }
+
+  async createReadinessProfile(input: {
+    readinessState: "ready_to_ship" | "made_to_order";
+    minProcessingTime: number;
+    maxProcessingTime: number;
+    processingTimeUnit: "days" | "weeks";
+  }) {
+    if (input.maxProcessingTime < input.minProcessingTime) {
+      throw new BadRequestException("Maximum processing time must be at least the minimum processing time");
+    }
+    const { token, shopId } = await this.accessToken();
+    const body = new URLSearchParams({
+      readiness_state: input.readinessState,
+      min_processing_time: String(input.minProcessingTime),
+      max_processing_time: String(input.maxProcessingTime),
+      processing_time_unit: input.processingTimeUnit,
+    });
+    const profile = await this.apiRequest<EtsyReadinessProfile>(`/shops/${shopId}/readiness-state-definitions`, token, {
+      method: "POST",
+      body: body.toString(),
+      contentType: "application/x-www-form-urlencoded",
+    });
+    if (!profile.readiness_state_id) throw new ServiceUnavailableException("Etsy created a profile without returning its ID");
+    return {
+      id: String(profile.readiness_state_id),
+      state: profile.readiness_state ?? input.readinessState,
+      minProcessingDays: profile.min_processing_days ?? null,
+      maxProcessingDays: profile.max_processing_days ?? null,
+      label: profile.processing_days_display_label ?? null,
+    };
+  }
+
+  async listDraftSyncCandidates() {
+    const products = await this.prisma.product.findMany({
+      where: { status: "Draft", variants: { none: {} }, etsyListingMapping: { is: null } },
+      orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+      take: 100,
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        currency: true,
+        price: true,
+        images: { take: 1, orderBy: { sortOrder: "asc" }, select: { id: true } },
+      },
+    });
+    return products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      currency: product.currency,
+      price: Number(product.price),
+      hasImage: product.images.length > 0,
+    }));
+  }
+
+  async queueDraftProductSync(productId: string, context: { adminId?: string | null; ip?: string | null; userAgent?: string | null }) {
+    if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) {
+      throw new BadRequestException("Connect an Etsy shop before syncing a product");
+    }
+    const missing = this.listingConfigErrors();
+    if (missing.length) throw new BadRequestException(`Configure Etsy listing defaults before syncing: ${missing.join(", ")}`);
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      include: { variants: { select: { id: true } } },
+    });
+    if (!product) throw new BadRequestException("Product was not found");
+    if (product.status !== "Draft") throw new BadRequestException("Initial Etsy sync is limited to local Draft products so it cannot publish a listing");
+    if (product.variants.length) throw new BadRequestException("Choose a single-item product without variants for the initial Etsy draft");
+    if (await this.prisma.etsyListingMapping.findUnique({ where: { productId }, select: { id: true } })) {
+      throw new BadRequestException("This product is already linked to Etsy; edit the product to sync its changes");
+    }
+
+    await this.prisma.etsySyncJob.upsert({
+      where: { productId },
+      create: { productId, status: "Pending", revision: 1, availableAt: new Date() },
+      update: {
+        status: "Pending",
+        revision: { increment: 1 },
+        attempts: 0,
+        availableAt: new Date(),
+        lockedAt: null,
+        lastError: null,
+      },
+    });
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "integration.etsy.draft_sync_queued",
+      entityType: "Product",
+      entityId: productId,
+      summary: `Queued Etsy draft sync for ${product.name}`,
+      metadata: { sku: product.sku },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+    void this.dispatchSyncQueue();
+    return { queued: 1 };
+  }
+
   async startOAuth(adminSessionId: string | undefined) {
     if (!adminSessionId) throw new BadRequestException("An active admin session is required to connect Etsy");
     const { keystring, redirectUri } = this.requireConnectionConfig();
@@ -271,7 +427,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     authorization.searchParams.set("response_type", "code");
     authorization.searchParams.set("client_id", keystring);
     authorization.searchParams.set("redirect_uri", redirectUri);
-    authorization.searchParams.set("scope", REQUIRED_LISTING_SCOPES.join(" "));
+    authorization.searchParams.set("scope", REQUIRED_ETSY_SCOPES.join(" "));
     authorization.searchParams.set("state", state);
     authorization.searchParams.set("code_challenge", codeChallenge);
     authorization.searchParams.set("code_challenge_method", "S256");
@@ -326,8 +482,8 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     const token = await this.requestToken(tokenParams);
     const accessToken = this.requireAccessToken(token);
     const grantedScopes = Array.isArray(token.scope) ? token.scope : (token.scope ?? "").split(/\s+/).filter(Boolean);
-    if (!REQUIRED_LISTING_SCOPES.every((scope) => grantedScopes.includes(scope))) {
-      throw new BadRequestException("The Etsy authorization did not grant the listings read and write scopes. Reconnect and approve both scopes.");
+    if (!REQUIRED_ETSY_SCOPES.every((scope) => grantedScopes.includes(scope))) {
+      throw new BadRequestException("The Etsy authorization did not grant all requested listing and shop scopes. Reconnect and approve them.");
     }
 
     const userId = accessToken.split(".", 1)[0];
@@ -371,7 +527,6 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    await this.enqueueAllProducts();
     await this.audit.log({
       adminId: input.context.adminId,
       action: "integration.etsy.connected",
@@ -407,8 +562,22 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
   }
 
   async retryFailed() {
+    if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) {
+      throw new BadRequestException("Connect an Etsy shop before retrying listing sync jobs");
+    }
+    const missing = this.listingConfigErrors();
+    if (missing.length) throw new BadRequestException(`Configure Etsy listing defaults before retrying: ${missing.join(", ")}`);
+
     const result = await this.prisma.etsySyncJob.updateMany({
-      where: { status: "Failed" },
+      where: {
+        status: "Failed",
+        product: {
+          OR: [
+            { etsyListingMapping: { isNot: null } },
+            { status: "Draft" },
+          ],
+        },
+      },
       data: {
         status: "Pending",
         revision: { increment: 1 },
@@ -423,7 +592,10 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
   }
 
   async enqueueProductSync(productId: string, tx?: Prisma.TransactionClient): Promise<void> {
+    if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) return;
+    if (this.listingConfigErrors().length) return;
     const db = tx ?? this.prisma;
+    if (!(await db.etsyListingMapping.findUnique({ where: { productId }, select: { id: true } }))) return;
     await db.etsySyncJob.upsert({
       where: { productId },
       create: { productId, status: "Pending", revision: 1, availableAt: new Date() },
@@ -440,10 +612,18 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
 
   async enqueueProductsSync(productIds: string[], tx?: Prisma.TransactionClient): Promise<void> {
     if (!productIds.length) return;
+    if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) return;
+    if (this.listingConfigErrors().length) return;
     const db = tx ?? this.prisma;
     const uniqueIds = [...new Set(productIds)];
-    await db.etsySyncJob.updateMany({
+    const mappedProducts = await db.etsyListingMapping.findMany({
       where: { productId: { in: uniqueIds } },
+      select: { productId: true },
+    });
+    const mappedProductIds = mappedProducts.map((mapping) => mapping.productId);
+    if (!mappedProductIds.length) return;
+    await db.etsySyncJob.updateMany({
+      where: { productId: { in: mappedProductIds } },
       data: {
         status: "Pending",
         revision: { increment: 1 },
@@ -454,25 +634,9 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       },
     });
     await db.etsySyncJob.createMany({
-      data: uniqueIds.map((productId) => ({ productId, status: "Pending" as const, revision: 1 })),
+      data: mappedProductIds.map((productId) => ({ productId, status: "Pending" as const, revision: 1 })),
       skipDuplicates: true,
     });
-  }
-
-  private async enqueueAllProducts(): Promise<void> {
-    let cursor: string | undefined;
-    while (true) {
-      const products = await this.prisma.product.findMany({
-        where: cursor ? { id: { gt: cursor } } : {},
-        orderBy: { id: "asc" },
-        take: 200,
-        select: { id: true },
-      });
-      if (!products.length) return;
-      await this.enqueueProductsSync(products.map((product) => product.id));
-      cursor = products[products.length - 1].id;
-      if (products.length < 200) return;
-    }
   }
 
   private async requestToken(params: URLSearchParams): Promise<EtsyTokenResponse> {
@@ -740,6 +904,9 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     if (!product) return;
     let mapping = await this.prisma.etsyListingMapping.findUnique({ where: { productId } });
     if (!mapping && ["Reserved", "Sold", "Archived"].includes(product.status)) return;
+    if (!mapping && product.status !== "Draft") {
+      throw new EtsySyncError("Create the initial Etsy listing from a local Draft product in Etsy settings. Published products without an Etsy listing are not created automatically.");
+    }
     if (mapping?.remoteState === "creating") {
       throw new EtsySyncError(
         "An Etsy listing creation may have reached Etsy, but its listing ID was not confirmed. Check the shop's draft listings and reconcile the mapping before retrying to avoid creating a duplicate.",
@@ -782,7 +949,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       });
       let created: EtsyListingResponse;
       try {
-        created = await this.apiRequest<EtsyListingResponse>(`/shops/${shopId}/listings?legacy=false`, token, {
+        created = await this.apiRequest<EtsyListingResponse>(`/shops/${shopId}/listings`, token, {
           method: "POST",
           body: createBody.toString(),
           contentType: "application/x-www-form-urlencoded",
@@ -864,7 +1031,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
       sku_on_property: [],
       readiness_state_on_property: [],
     };
-    await this.apiRequest(`/listings/${listingId}/inventory?legacy=false`, token, {
+    await this.apiRequest(`/listings/${listingId}/inventory`, token, {
       method: "PUT",
       body: JSON.stringify(inventory),
       contentType: "application/json",
@@ -893,6 +1060,7 @@ export class EtsyIntegrationService implements OnModuleInit, OnModuleDestroy {
     this.dispatching = true;
     try {
       if (!(await this.prisma.etsyShopConnection.findUnique({ where: { id: CONNECTION_ID }, select: { id: true } }))) return;
+      if (this.listingConfigErrors().length) return;
       const now = new Date();
       const staleLock = new Date(now.getTime() - 5 * 60_000);
       const jobs = await this.prisma.etsySyncJob.findMany({
