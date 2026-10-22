@@ -5,6 +5,8 @@ import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import {
+  BulkShippingRatesDto,
+  BulkUpdateShippingRatesDto,
   CreateShippingProfileDto,
   CreateShippingRateDto,
   ShippingQuoteDto,
@@ -30,6 +32,16 @@ export class ShippingController {
 @Controller("admin/shipping/rates")
 export class AdminShippingRatesController {
   constructor(private readonly shippingService: ShippingService) {}
+
+  @Patch("bulk")
+  bulkUpdate(@Body() dto: BulkUpdateShippingRatesDto, @Req() request: AuthenticatedRequest) {
+    return this.shippingService.bulkUpdateRates(dto, auditContextFrom(request));
+  }
+
+  @Delete("bulk")
+  bulkRemove(@Body() dto: BulkShippingRatesDto, @Req() request: AuthenticatedRequest) {
+    return this.shippingService.bulkRemoveRates(dto, auditContextFrom(request));
+  }
 
   @Get("export")
   async exportRates(@Query("carrier") carrier: string | undefined, @Res() response: Response) {

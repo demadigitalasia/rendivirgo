@@ -6,6 +6,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import {
   CreateShippingProfileDto,
   CreateShippingRateDto,
+  BulkShippingRatesDto,
+  BulkUpdateShippingRatesDto,
   ShippingQuoteDto,
   ShippingRateQueryDto,
   UpdateShippingProfileDto,
@@ -845,6 +847,68 @@ export class ShippingService {
     });
 
     return this.toApiRate(rate);
+  }
+
+  async bulkUpdateRates(dto: BulkUpdateShippingRatesDto, context: AuditContext) {
+    const { ids, ...fields } = dto;
+    const hasChanges = Object.values(fields).some((value) => value !== undefined);
+    if (!hasChanges) throw new BadRequestException("Choose at least one field to update.");
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const rates = await tx.shippingRate.findMany({ where: { id: { in: ids } } });
+      if (rates.length !== ids.length) throw new NotFoundException("One or more selected shipping rates no longer exist. Refresh the list and try again.");
+
+      for (const rate of rates) {
+        this.assertDeliveryWindow(fields.deliveryMinDays ?? rate.deliveryMinDays, fields.deliveryMaxDays ?? rate.deliveryMaxDays);
+      }
+
+      const data: Prisma.ShippingRateUpdateManyMutationInput = {
+        ...(fields.price !== undefined ? { price: new Prisma.Decimal(fields.price) } : {}),
+        ...(fields.deliveryMinDays !== undefined ? { deliveryMinDays: fields.deliveryMinDays } : {}),
+        ...(fields.deliveryMaxDays !== undefined ? { deliveryMaxDays: fields.deliveryMaxDays } : {}),
+        ...(fields.handlingFee !== undefined ? { handlingFee: new Prisma.Decimal(fields.handlingFee) } : {}),
+        ...(fields.insuranceFee !== undefined ? { insuranceFee: new Prisma.Decimal(fields.insuranceFee) } : {}),
+        ...(fields.fragileFee !== undefined ? { fragileFee: new Prisma.Decimal(fields.fragileFee) } : {}),
+        ...(fields.oversizedFee !== undefined ? { oversizedFee: new Prisma.Decimal(fields.oversizedFee) } : {}),
+        ...(fields.isActive !== undefined ? { isActive: fields.isActive } : {}),
+      };
+      const updated = await tx.shippingRate.updateMany({ where: { id: { in: ids } }, data });
+      if (updated.count !== ids.length) throw new NotFoundException("Some selected shipping rates changed while this update was running. Refresh and try again.");
+      return updated.count;
+    });
+
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "shipping_rate.bulk_update",
+      entityType: "ShippingRate",
+      summary: `Bulk updated ${result} shipping rate(s)`,
+      metadata: { ids, changes: fields, updatedCount: result },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+    return { updatedCount: result };
+  }
+
+  async bulkRemoveRates(dto: BulkShippingRatesDto, context: AuditContext) {
+    const { ids } = dto;
+    const deletedCount = await this.prisma.$transaction(async (tx) => {
+      const existingCount = await tx.shippingRate.count({ where: { id: { in: ids } } });
+      if (existingCount !== ids.length) throw new NotFoundException("One or more selected shipping rates no longer exist. Refresh the list and try again.");
+      const deleted = await tx.shippingRate.deleteMany({ where: { id: { in: ids } } });
+      if (deleted.count !== ids.length) throw new NotFoundException("Some selected shipping rates changed while this delete was running. Refresh and try again.");
+      return deleted.count;
+    });
+
+    await this.audit.log({
+      adminId: context.adminId,
+      action: "shipping_rate.bulk_delete",
+      entityType: "ShippingRate",
+      summary: `Bulk deleted ${deletedCount} shipping rate(s)`,
+      metadata: { ids, deletedCount },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+    return { deletedCount };
   }
 
   async updateRate(id: string, dto: UpdateShippingRateDto, context: AuditContext) {

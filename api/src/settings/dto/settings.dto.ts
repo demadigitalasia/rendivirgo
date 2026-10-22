@@ -1,6 +1,10 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { Transform } from "class-transformer";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsIn,
@@ -144,6 +148,58 @@ export class CreateShippingRateDto {
 }
 
 export class UpdateShippingRateDto extends PartialType(CreateShippingRateDto) {}
+
+export class BulkShippingRatesDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10_000)
+  @ArrayUnique()
+  @IsString({ each: true })
+  ids: string[];
+}
+
+export class BulkUpdateShippingRatesDto extends BulkShippingRatesDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  price?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  deliveryMinDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  deliveryMaxDays?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  handlingFee?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  insuranceFee?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fragileFee?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  oversizedFee?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
 
 // ---------------------------------------------------------------- profiles
 

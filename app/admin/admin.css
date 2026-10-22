@@ -2282,7 +2282,56 @@ a.rv-list__row:hover {
   padding: 7px 11px;
 }
 
+.rv-shipping-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(145px, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--rv-line-soft);
+  background: linear-gradient(180deg, var(--rv-panel) 0%, rgba(240, 238, 228, 0.45) 100%);
+}
+
+.rv-shipping-toolbar .rv-field {
+  min-width: 0;
+}
+
+.rv-shipping-toolbar .rv-input,
+.rv-shipping-toolbar .rv-select {
+  max-width: none;
+}
+
+.rv-shipping-toolbar__footer {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--rv-muted);
+  font-size: 0.78rem;
+}
+
+.rv-shipping-bulk {
+  border-bottom: 1px solid var(--rv-line-soft);
+}
+
+.rv-shipping-bulk-edit-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+@media (max-width: 1080px) {
+  .rv-shipping-toolbar {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
+  .rv-shipping-toolbar {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
   .rv-shipping-card .rv-card__header {
     align-items: flex-start;
     flex-direction: column;
@@ -2307,6 +2356,15 @@ a.rv-list__row:hover {
 
   .rv-shipping-actions {
     justify-content: flex-start;
+  }
+
+  .rv-shipping-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-shipping-toolbar__footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

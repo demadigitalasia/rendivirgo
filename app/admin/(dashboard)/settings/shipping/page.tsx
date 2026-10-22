@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { apiFetch, apiUrl, errorMessage, formatNumber, formatUSD, useApi, type ApiState } from "@/components/admin/api";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { toast } from "@/components/admin/toast";
@@ -19,7 +19,7 @@ import {
   Switch,
   TextInput,
 } from "@/components/admin/ui";
-import { countryCodeForName, WORLDWIDE_REGION_VALUE } from "@/lib/countries";
+import { countryCodeForName, countryNameForCode, WORLDWIDE_REGION_VALUE } from "@/lib/countries";
 
 type ShippingRate = {
   id: string;
@@ -91,6 +91,16 @@ type RateForm = {
   isActive: boolean;
 };
 
+type BulkRateForm = {
+  price: string;
+  deliveryMinDays: string;
+  deliveryMaxDays: string;
+  handlingFee: string;
+  insuranceFee: string;
+  fragileFee: string;
+  oversizedFee: string;
+};
+
 type ProfileForm = {
   name: string;
   packageWeightGram: string;
@@ -144,6 +154,29 @@ const emptyRateForm: RateForm = {
   isActive: true,
 };
 
+const emptyBulkRateForm: BulkRateForm = {
+  price: "",
+  deliveryMinDays: "",
+  deliveryMaxDays: "",
+  handlingFee: "",
+  insuranceFee: "",
+  fragileFee: "",
+  oversizedFee: "",
+};
+
+const rateSortOptions = [
+  { value: "default", label: "Default order" },
+  { value: "country-asc", label: "Country A–Z" },
+  { value: "country-desc", label: "Country Z–A" },
+  { value: "courier-asc", label: "Courier A–Z" },
+  { value: "price-asc", label: "Price: low to high" },
+  { value: "price-desc", label: "Price: high to low" },
+  { value: "weight-asc", label: "Weight: light to heavy" },
+  { value: "weight-desc", label: "Weight: heavy to light" },
+  { value: "name-asc", label: "Rate name A–Z" },
+  { value: "status", label: "Status" },
+];
+
 const emptyProfileForm: ProfileForm = {
   name: "",
   packageWeightGram: "0",
@@ -192,6 +225,11 @@ const deliveryWindowLabel = (minDays: number, maxDays: number) =>
     ? `${minDays} business day${minDays === 1 ? "" : "s"}`
     : `${minDays}–${maxDays} business days`;
 
+const destinationName = (region: string) => {
+  const code = countryCodeForName(region);
+  return code ? countryNameForCode(code) ?? region : region;
+};
+
 export default function AdminShippingPage() {
   const ratesState: ApiState<ShippingRate[]> = useApi<ShippingRate[]>("/api/admin/shipping/rates");
   const profilesState: ApiState<ShippingProfile[]> = useApi<ShippingProfile[]>("/api/admin/shipping/profiles");
@@ -210,6 +248,17 @@ export default function AdminShippingPage() {
   const [previewingImport, setPreviewingImport] = useState(false);
   const [importingRates, setImportingRates] = useState(false);
   const [exportingCarrier, setExportingCarrier] = useState<string | null>(null);
+  const [rateSearch, setRateSearch] = useState("");
+  const [rateCarrierFilter, setRateCarrierFilter] = useState("");
+  const [rateDestinationFilter, setRateDestinationFilter] = useState("");
+  const [rateStatusFilter, setRateStatusFilter] = useState("");
+  const [rateSort, setRateSort] = useState("default");
+  const [selectedRateIds, setSelectedRateIds] = useState<string[]>([]);
+  const [bulkRateModalOpen, setBulkRateModalOpen] = useState(false);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+  const [bulkRateForm, setBulkRateForm] = useState<BulkRateForm>(emptyBulkRateForm);
+  const [bulkRateError, setBulkRateError] = useState<string | null>(null);
+  const [bulkRatesBusy, setBulkRatesBusy] = useState(false);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ShippingProfile | null>(null);
@@ -235,6 +284,45 @@ export default function AdminShippingPage() {
 
   const setQuoteField = <K extends keyof QuoteForm>(key: K, value: QuoteForm[K]) =>
     setQuoteForm((current) => ({ ...current, [key]: value }));
+
+  const rates = ratesState.data ?? [];
+  const rateCarriers = useMemo(
+    () => Array.from(new Set(rates.map((rate) => rate.carrier?.trim() || "").filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [rates],
+  );
+  const rateDestinations = useMemo(
+    () => Array.from(new Set(rates.map((rate) => rate.region.trim()).filter(Boolean)))
+      .sort((a, b) => destinationName(a).localeCompare(destinationName(b))),
+    [rates],
+  );
+  const visibleRates = useMemo(() => {
+    const query = rateSearch.trim().toLocaleLowerCase();
+    const filtered = rates.filter((rate) => {
+      const matchesSearch = !query || [rate.name, rate.carrier ?? "", rate.region, destinationName(rate.region)]
+        .some((value) => value.toLocaleLowerCase().includes(query));
+      const matchesCarrier = !rateCarrierFilter || (rate.carrier?.trim() || "") === rateCarrierFilter;
+      const matchesDestination = !rateDestinationFilter || rate.region.trim() === rateDestinationFilter;
+      const matchesStatus = !rateStatusFilter || (rate.isActive ? "active" : "inactive") === rateStatusFilter;
+      return matchesSearch && matchesCarrier && matchesDestination && matchesStatus;
+    });
+    if (rateSort === "default") return filtered;
+
+    return filtered.sort((a, b) => {
+      const byName = a.name.localeCompare(b.name);
+      switch (rateSort) {
+        case "country-asc": return destinationName(a.region).localeCompare(destinationName(b.region)) || byName;
+        case "country-desc": return destinationName(b.region).localeCompare(destinationName(a.region)) || byName;
+        case "courier-asc": return (a.carrier ?? "").localeCompare(b.carrier ?? "") || byName;
+        case "price-asc": return a.price - b.price || byName;
+        case "price-desc": return b.price - a.price || byName;
+        case "weight-asc": return a.minWeightGram - b.minWeightGram || byName;
+        case "weight-desc": return b.minWeightGram - a.minWeightGram || byName;
+        case "name-asc": return byName;
+        case "status": return Number(b.isActive) - Number(a.isActive) || byName;
+        default: return 0;
+      }
+    });
+  }, [rates, rateSearch, rateCarrierFilter, rateDestinationFilter, rateStatusFilter, rateSort]);
 
   const openCreateRate = () => {
     setEditingRate(null);
@@ -372,6 +460,99 @@ export default function AdminShippingPage() {
       ratesState.refresh();
     } catch (error) {
       toast.error(errorMessage(error));
+    }
+  };
+
+  const toggleRateSelection = (id: string) => {
+    setSelectedRateIds((current) => current.includes(id)
+      ? current.filter((selectedId) => selectedId !== id)
+      : [...current, id]);
+  };
+
+  const toggleVisibleRateSelection = (checked: boolean) => {
+    const visibleIds = visibleRates.map((rate) => rate.id);
+    setSelectedRateIds((current) => checked
+      ? Array.from(new Set([...current, ...visibleIds]))
+      : current.filter((id) => !visibleIds.includes(id)));
+  };
+
+  const runBulkRateUpdate = async (changes: Record<string, number | boolean>, successLabel: string) => {
+    if (!selectedRateIds.length) return false;
+    setBulkRatesBusy(true);
+    try {
+      const result = await apiFetch<{ updatedCount: number }>("/api/admin/shipping/rates/bulk", {
+        method: "PATCH",
+        json: { ids: selectedRateIds, ...changes },
+      });
+      toast.success(`${successLabel}: ${formatNumber(result.updatedCount)} rate(s)`);
+      setSelectedRateIds([]);
+      ratesState.refresh();
+      return true;
+    } catch (error) {
+      toast.error(errorMessage(error));
+      return false;
+    } finally {
+      setBulkRatesBusy(false);
+    }
+  };
+
+  const openBulkRateEdit = () => {
+    setBulkRateForm(emptyBulkRateForm);
+    setBulkRateError(null);
+    setBulkRateModalOpen(true);
+  };
+
+  const setBulkRateField = <K extends keyof BulkRateForm>(key: K, value: BulkRateForm[K]) =>
+    setBulkRateForm((current) => ({ ...current, [key]: value }));
+
+  const saveBulkRateEdit = async () => {
+    const changes: Record<string, number> = {};
+    const numericFields: Array<[keyof BulkRateForm, string, boolean]> = [
+      ["price", "Base rate", false],
+      ["deliveryMinDays", "Minimum delivery time", true],
+      ["deliveryMaxDays", "Maximum delivery time", true],
+      ["handlingFee", "Handling fee", false],
+      ["insuranceFee", "Insurance fee", false],
+      ["fragileFee", "Fragile fee", false],
+      ["oversizedFee", "Oversized fee", false],
+    ];
+    for (const [key, label, integer] of numericFields) {
+      const rawValue = bulkRateForm[key].trim();
+      if (!rawValue) continue;
+      const value = Number(rawValue);
+      if (!Number.isFinite(value) || value < 0 || (integer && (!Number.isInteger(value) || value < 1 || value > 365))) {
+        setBulkRateError(integer
+          ? `${label} must be a whole number from 1 to 365 days.`
+          : `${label} must be 0 or more.`);
+        return;
+      }
+      changes[key] = value;
+    }
+    if (!Object.keys(changes).length) {
+      setBulkRateError("Enter at least one value to apply to the selected rates.");
+      return;
+    }
+
+    setBulkRateError(null);
+    if (await runBulkRateUpdate(changes, "Updated")) setBulkRateModalOpen(false);
+  };
+
+  const deleteSelectedRates = async () => {
+    if (!selectedRateIds.length) return;
+    setBulkRatesBusy(true);
+    try {
+      const result = await apiFetch<{ deletedCount: number }>("/api/admin/shipping/rates/bulk", {
+        method: "DELETE",
+        json: { ids: selectedRateIds },
+      });
+      toast.success(`Deleted ${formatNumber(result.deletedCount)} shipping rate(s)`);
+      setSelectedRateIds([]);
+      setBulkDeleteModalOpen(false);
+      ratesState.refresh();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setBulkRatesBusy(false);
     }
   };
 
@@ -639,7 +820,7 @@ export default function AdminShippingPage() {
         </div>
       ),
     },
-    { key: "region", header: "Destination", width: "10%", render: (rate) => rate.region },
+    { key: "region", header: "Destination", width: "10%", render: (rate) => destinationName(rate.region) },
     {
       key: "weight",
       header: "Weight range",
@@ -791,7 +972,7 @@ export default function AdminShippingPage() {
         <Card
           className="rv-shipping-card rv-shipping-card--rates"
           title="Shipping rates"
-          description="Rates match the destination and total cart weight. Fragile and oversized fees apply when relevant."
+          description="Filter and sort rates by destination, courier, price, weight, and status. Select rates for bulk updates."
           flush
           actions={
             <div className="rv-inline">
@@ -816,12 +997,103 @@ export default function AdminShippingPage() {
             </div>
           }
         >
+          <div className="rv-shipping-toolbar">
+            <Field label="Search rates">
+              <TextInput
+                value={rateSearch}
+                onChange={(value) => { setRateSearch(value); setSelectedRateIds([]); }}
+                placeholder="Rate, country, or courier…"
+              />
+            </Field>
+            <Field label="Courier">
+              <Select
+                value={rateCarrierFilter}
+                onChange={(value) => { setRateCarrierFilter(value); setSelectedRateIds([]); }}
+                options={rateCarriers.map((carrier) => ({ value: carrier, label: carrier }))}
+                placeholder="All couriers"
+              />
+            </Field>
+            <Field label="Destination country">
+              <Select
+                value={rateDestinationFilter}
+                onChange={(value) => { setRateDestinationFilter(value); setSelectedRateIds([]); }}
+                options={rateDestinations.map((destination) => ({ value: destination, label: destinationName(destination) }))}
+                placeholder="All countries"
+              />
+            </Field>
+            <Field label="Status">
+              <Select
+                value={rateStatusFilter}
+                onChange={(value) => { setRateStatusFilter(value); setSelectedRateIds([]); }}
+                options={[
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+                placeholder="All statuses"
+              />
+            </Field>
+            <Field label="Sort by">
+              <Select value={rateSort} onChange={setRateSort} options={rateSortOptions} />
+            </Field>
+            <div className="rv-shipping-toolbar__footer">
+              <span role="status" aria-live="polite">
+                Showing {formatNumber(visibleRates.length)} of {formatNumber(rates.length)} rates
+              </span>
+              <Button
+                size="sm"
+                disabled={!rateSearch && !rateCarrierFilter && !rateDestinationFilter && !rateStatusFilter && rateSort === "default"}
+                onClick={() => {
+                  setRateSearch("");
+                  setRateCarrierFilter("");
+                  setRateDestinationFilter("");
+                  setRateStatusFilter("");
+                  setRateSort("default");
+                  setSelectedRateIds([]);
+                }}
+              >
+                Reset filters
+              </Button>
+            </div>
+          </div>
+
+          {selectedRateIds.length ? (
+            <div className="rv-toolbar rv-toolbar--bulk rv-shipping-bulk" aria-live="polite">
+              <Badge tone="blue">{formatNumber(selectedRateIds.length)} selected</Badge>
+              <Button size="sm" disabled={bulkRatesBusy} onClick={openBulkRateEdit}>Bulk edit</Button>
+              <Button
+                size="sm"
+                disabled={bulkRatesBusy || selectedRateIds.every((id) => rates.find((rate) => rate.id === id)?.isActive)}
+                onClick={() => void runBulkRateUpdate({ isActive: true }, "Activated")}
+              >
+                Activate
+              </Button>
+              <Button
+                size="sm"
+                disabled={bulkRatesBusy || selectedRateIds.every((id) => !rates.find((rate) => rate.id === id)?.isActive)}
+                onClick={() => void runBulkRateUpdate({ isActive: false }, "Deactivated")}
+              >
+                Deactivate
+              </Button>
+              <Button size="sm" variant="danger" disabled={bulkRatesBusy} onClick={() => setBulkDeleteModalOpen(true)}>
+                Delete selected
+              </Button>
+              <Button size="sm" variant="ghost" disabled={bulkRatesBusy} onClick={() => setSelectedRateIds([])}>
+                Clear selection
+              </Button>
+            </div>
+          ) : null}
+
           <DataTable
             ariaLabel="Shipping rates"
             columns={rateColumns}
-            items={ratesState.data ?? []}
+            items={visibleRates}
             loading={ratesState.loading && !ratesState.data}
             rowKey={(rate) => rate.id}
+            getRowLabel={(rate) => `${rate.name}, ${rate.region}`}
+            selectable
+            selectedIds={selectedRateIds}
+            onToggleSelect={toggleRateSelection}
+            onToggleSelectAll={toggleVisibleRateSelection}
             emptyTitle="No shipping rates yet"
             emptyDescription="Create a rate so quotes have something to return."
             emptyAction={
@@ -983,6 +1255,61 @@ export default function AdminShippingPage() {
           </div>
         </Card>
       </div>
+
+      <Modal
+        open={bulkRateModalOpen}
+        title={`Bulk edit ${formatNumber(selectedRateIds.length)} shipping rate(s)`}
+        onClose={() => { if (!bulkRatesBusy) setBulkRateModalOpen(false); }}
+        wide
+        footer={
+          <>
+            <Button onClick={() => setBulkRateModalOpen(false)} disabled={bulkRatesBusy}>Cancel</Button>
+            <Button variant="primary" loading={bulkRatesBusy} onClick={saveBulkRateEdit}>Apply changes</Button>
+          </>
+        }
+      >
+        <div className="rv-stack">
+          <p className="rv-hint">Enter only the fields you want to change. Blank fields stay as they are for each selected rate.</p>
+          {bulkRateError ? <p className="rv-error-text" role="alert">{bulkRateError}</p> : null}
+          <div className="rv-form-grid rv-shipping-bulk-edit-grid">
+            <Field label="Base rate (USD)">
+              <TextInput type="number" min={0} step="0.01" value={bulkRateForm.price} onChange={(value) => setBulkRateField("price", value)} placeholder="No change" />
+            </Field>
+            <Field label="Minimum delivery (business days)">
+              <TextInput type="number" min={1} max={365} step="1" value={bulkRateForm.deliveryMinDays} onChange={(value) => setBulkRateField("deliveryMinDays", value)} placeholder="No change" />
+            </Field>
+            <Field label="Maximum delivery (business days)">
+              <TextInput type="number" min={1} max={365} step="1" value={bulkRateForm.deliveryMaxDays} onChange={(value) => setBulkRateField("deliveryMaxDays", value)} placeholder="No change" />
+            </Field>
+            <Field label="Handling fee (USD)">
+              <TextInput type="number" min={0} step="0.01" value={bulkRateForm.handlingFee} onChange={(value) => setBulkRateField("handlingFee", value)} placeholder="No change" />
+            </Field>
+            <Field label="Insurance fee (USD)">
+              <TextInput type="number" min={0} step="0.01" value={bulkRateForm.insuranceFee} onChange={(value) => setBulkRateField("insuranceFee", value)} placeholder="No change" />
+            </Field>
+            <Field label="Fragile fee (USD)">
+              <TextInput type="number" min={0} step="0.01" value={bulkRateForm.fragileFee} onChange={(value) => setBulkRateField("fragileFee", value)} placeholder="No change" />
+            </Field>
+            <Field label="Oversized fee (USD)">
+              <TextInput type="number" min={0} step="0.01" value={bulkRateForm.oversizedFee} onChange={(value) => setBulkRateField("oversizedFee", value)} placeholder="No change" />
+            </Field>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulkDeleteModalOpen}
+        title={`Delete ${formatNumber(selectedRateIds.length)} shipping rate(s)?`}
+        onClose={() => { if (!bulkRatesBusy) setBulkDeleteModalOpen(false); }}
+        footer={
+          <>
+            <Button onClick={() => setBulkDeleteModalOpen(false)} disabled={bulkRatesBusy}>Cancel</Button>
+            <Button variant="danger" loading={bulkRatesBusy} onClick={deleteSelectedRates}>Delete rates</Button>
+          </>
+        }
+      >
+        <p>This permanently removes the selected shipping rates. This action cannot be undone.</p>
+      </Modal>
 
       <Modal
         open={importModalOpen}
