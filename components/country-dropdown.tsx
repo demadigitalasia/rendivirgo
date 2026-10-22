@@ -41,7 +41,13 @@ export function CountryDropdown({
     const countryOptions: FilterDropdownOption[] = COUNTRY_CODES.map((code) => ({
       value: code,
       label: countryNameForCode(code, locale) ?? code,
-    })).sort((left, right) => left.label.localeCompare(right.label, locale));
+    })).sort((left, right) => {
+      const leftLabel = left.label.toLowerCase();
+      const rightLabel = right.label.toLowerCase();
+      if (leftLabel < rightLabel) return -1;
+      if (leftLabel > rightLabel) return 1;
+      return left.value < right.value ? -1 : left.value > right.value ? 1 : 0;
+    });
 
     const result: FilterDropdownOption[] = [];
     if (includeWorldwide) result.push({ value: WORLDWIDE_REGION_VALUE, label: locale.startsWith("id") ? "Seluruh dunia" : "Worldwide" });

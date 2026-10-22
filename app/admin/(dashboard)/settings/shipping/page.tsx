@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { apiFetch, errorMessage, formatNumber, formatUSD, useApi, type ApiState } from "@/components/admin/api";
+import { apiFetch, apiUrl, errorMessage, formatNumber, formatUSD, useApi, type ApiState } from "@/components/admin/api";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { toast } from "@/components/admin/toast";
 import { CountryDropdown } from "@/components/country-dropdown";
@@ -114,6 +114,19 @@ type QuoteForm = {
   shippingClass: string;
 };
 
+type ShippingImportPreview = {
+  sheetName: string;
+  carrier: { key: string; label: string; values: string[] } | null;
+  rowCount: number;
+  validCount: number;
+  invalidCount: number;
+  totalIssues: number;
+  issues: Array<{ row: number; messages: string[] }>;
+  createdCount: number;
+  updatedCount: number;
+  canImport: boolean;
+};
+
 const emptyRateForm: RateForm = {
   name: "",
   carrier: "",
@@ -189,6 +202,14 @@ export default function AdminShippingPage() {
   const [rateError, setRateError] = useState<string | null>(null);
   const [savingRate, setSavingRate] = useState(false);
   const [togglingRateId, setTogglingRateId] = useState<string | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importMode, setImportMode] = useState("merge");
+  const [importPreview, setImportPreview] = useState<ShippingImportPreview | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [previewingImport, setPreviewingImport] = useState(false);
+  const [importingRates, setImportingRates] = useState(false);
+  const [exportingCarrier, setExportingCarrier] = useState<string | null>(null);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ShippingProfile | null>(null);
@@ -351,6 +372,116 @@ export default function AdminShippingPage() {
       ratesState.refresh();
     } catch (error) {
       toast.error(errorMessage(error));
+    }
+  };
+
+  const openImportModal = () => {
+    setImportFile(null);
+    setImportMode("merge");
+    setImportPreview(null);
+    setImportError(null);
+    setImportModalOpen(true);
+  };
+
+  const closeImportModal = () => {
+    if (previewingImport || importingRates) return;
+    setImportModalOpen(false);
+  };
+
+  const exportRates = async (carrier: "all" | "dhl" | "fedex" | "post-office") => {
+    setExportingCarrier(carrier);
+    try {
+      const response = await fetch(apiUrl(`/api/admin/shipping/rates/export?carrier=${carrier}`), { credentials: "same-origin" });
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type") ?? "";
+        const payload = contentType.includes("application/json")
+          ? await response.json().catch(() => null)
+          : { message: await response.text().catch(() => "") };
+        const message = Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message;
+        if (response.status === 401) window.location.assign("/admin/login?expired=1");
+        throw new Error(message || `Export failed with status ${response.status}`);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `shipping-rates-${carrier}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      const label = carrier === "all" ? "all carriers" : carrier === "post-office" ? "Post Office (Pos Indonesia)" : carrier.toUpperCase();
+      toast.success(`Shipping rates exported: ${label}`);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setExportingCarrier(null);
+    }
+  };
+
+  const previewImport = async () => {
+    if (!importFile) {
+      setImportError("Choose an .xlsx workbook first.");
+      return;
+    }
+    setPreviewingImport(true);
+    setImportError(null);
+    setImportPreview(null);
+    try {
+      const form = new FormData();
+      form.append("file", importFile);
+      form.append("mode", importMode);
+      const preview = await apiFetch<ShippingImportPreview>("/api/admin/shipping/rates/import/preview", {
+        method: "POST",
+        body: form,
+      });
+      setImportPreview(preview);
+    } catch (error) {
+      setImportError(errorMessage(error));
+    } finally {
+      setPreviewingImport(false);
+    }
+  };
+
+  const applyImport = async () => {
+    if (!importFile || !importPreview?.canImport) return;
+    if (importMode === "replace") {
+      const carrierLabel = importPreview.carrier?.label;
+      if (!carrierLabel) {
+        setImportError("The workbook must contain exactly one carrier group before it can replace rates.");
+        return;
+      }
+      const confirmed = window.confirm(
+        `Replace ${carrierLabel} rates? This will remove ${carrierLabel} rates, including inactive ones, then import ${importPreview.rowCount} rows. Other carriers will be kept.`,
+      );
+      if (!confirmed) return;
+    }
+    setImportingRates(true);
+    setImportError(null);
+    try {
+      const form = new FormData();
+      form.append("file", importFile);
+      form.append("mode", importMode);
+      const result = await apiFetch<{
+        importedCount: number;
+        skippedCount: number;
+        createdCount: number;
+        updatedCount: number;
+        deletedCount: number;
+        mode: string;
+        carrier: string;
+      }>("/api/admin/shipping/rates/import", { method: "POST", body: form });
+      toast.success(
+        result.mode === "replace"
+          ? `Replaced ${result.deletedCount} ${result.carrier} rate(s) with ${result.importedCount} imported rate(s)`
+          : `Imported ${result.importedCount} rate(s): ${result.createdCount} created, ${result.updatedCount} updated${result.skippedCount ? `, ${result.skippedCount} skipped for review` : ""}`,
+      );
+      setImportModalOpen(false);
+      ratesState.refresh();
+    } catch (error) {
+      setImportError(errorMessage(error));
+    } finally {
+      setImportingRates(false);
     }
   };
 
@@ -663,9 +794,26 @@ export default function AdminShippingPage() {
           description="Rates match the destination and total cart weight. Fragile and oversized fees apply when relevant."
           flush
           actions={
-            <Button size="sm" variant="primary" onClick={openCreateRate}>
-              New rate
-            </Button>
+            <div className="rv-inline">
+              <Button size="sm" onClick={() => exportRates("dhl")} loading={exportingCarrier === "dhl"} disabled={Boolean(exportingCarrier)}>
+                Export DHL
+              </Button>
+              <Button size="sm" onClick={() => exportRates("fedex")} loading={exportingCarrier === "fedex"} disabled={Boolean(exportingCarrier)}>
+                Export FedEx
+              </Button>
+              <Button size="sm" onClick={() => exportRates("post-office")} loading={exportingCarrier === "post-office"} disabled={Boolean(exportingCarrier)}>
+                Export Post Office
+              </Button>
+              <Button size="sm" onClick={() => exportRates("all")} loading={exportingCarrier === "all"} disabled={Boolean(exportingCarrier)}>
+                Export all
+              </Button>
+              <Button size="sm" onClick={openImportModal}>
+                Import XLSX
+              </Button>
+              <Button size="sm" variant="primary" onClick={openCreateRate}>
+                New rate
+              </Button>
+            </div>
           }
         >
           <DataTable
@@ -835,6 +983,137 @@ export default function AdminShippingPage() {
           </div>
         </Card>
       </div>
+
+      <Modal
+        open={importModalOpen}
+        title="Import shipping rates"
+        onClose={closeImportModal}
+        wide
+        footer={
+          <>
+            <Button onClick={closeImportModal} disabled={previewingImport || importingRates}>Cancel</Button>
+            <Button onClick={previewImport} loading={previewingImport} disabled={!importFile || importingRates}>
+              Preview import
+            </Button>
+            <Button
+              variant="primary"
+              onClick={applyImport}
+              loading={importingRates}
+              disabled={!importPreview?.canImport || previewingImport || !importFile}
+            >
+              {importMode === "replace"
+                ? "Replace this carrier"
+                : importPreview?.invalidCount
+                  ? `Import ${formatNumber(importPreview.validCount)} reviewed rows`
+                  : "Import rates"}
+            </Button>
+          </>
+        }
+      >
+        <div className="rv-stack">
+          {importError ? <p className="rv-error-text">{importError}</p> : null}
+          <p className="rv-hint">
+            Upload one .xlsx workbook per carrier with a <strong>Data Impor</strong> sheet. The first row must contain
+            name, carrier, region, minWeightGram, maxWeightGram, deliveryMinDays, deliveryMaxDays, price, and importStatus.
+            Set importStatus to <strong>OK</strong> only after reviewing that row.
+          </p>
+          <div className="rv-form-grid">
+            <Field label="XLSX workbook">
+              <input
+                className="rv-input rv-input--file"
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={(event) => {
+                  setImportFile(event.target.files?.[0] ?? null);
+                  setImportPreview(null);
+                  setImportError(null);
+                }}
+              />
+            </Field>
+            <Field label="Import behavior">
+              <Select
+                value={importMode}
+                onChange={(value) => {
+                  setImportMode(value);
+                  setImportPreview(null);
+                  setImportError(null);
+                }}
+                options={[
+                  { value: "merge", label: "Merge: add new rates and update matches" },
+                  { value: "replace", label: "Replace: remove all existing rates first" },
+                ]}
+              />
+            </Field>
+          </div>
+          {importMode === "replace" ? (
+            <p className="rv-error-text">
+              Replace mode removes only rates for the carrier group detected in this workbook, including inactive rates. Other carrier rates are kept.
+            </p>
+          ) : (
+            <p className="rv-hint">
+              Merge mode matches rows by exported ID or by name, carrier, region, and weight range. Existing matches are updated; other rows are added.
+            </p>
+          )}
+
+          {importPreview ? (
+            <section className="rv-stack" aria-live="polite">
+              <KeyValue
+                entries={[
+                  { label: "Worksheet", value: importPreview.sheetName },
+                  { label: "Carrier group", value: importPreview.carrier?.label ?? "Missing or mixed" },
+                  { label: "Rows", value: formatNumber(importPreview.rowCount) },
+                  { label: "Valid rows", value: formatNumber(importPreview.validCount) },
+                  { label: "Rows needing attention", value: formatNumber(importPreview.invalidCount) },
+                  { label: "Will create", value: formatNumber(importPreview.createdCount) },
+                  { label: "Will update", value: formatNumber(importPreview.updatedCount) },
+                ]}
+              />
+              {importPreview.canImport ? (
+                importPreview.invalidCount > 0 ? (
+                  <div>
+                    <Badge tone="green">{formatNumber(importPreview.validCount)} reviewed rows are ready to import.</Badge>
+                    <p className="rv-hint">
+                      Merge will skip {formatNumber(importPreview.invalidCount)} flagged row(s). They will not change existing rates. Fix those rows and import again to add them later.
+                    </p>
+                    <ul className="rv-list">
+                      {importPreview.issues.map((issue) => (
+                        <li className="rv-list__row" key={issue.row}>
+                          <strong>Row {issue.row}</strong>
+                          <span>{issue.messages.join(" · ")}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {importPreview.invalidCount > importPreview.issues.length ? (
+                      <p className="rv-hint">Showing the first {importPreview.issues.length} affected rows.</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Badge tone="green">Preview passed. You can apply these changes.</Badge>
+                )
+              ) : (
+                <div>
+                  <p className="rv-error-text">
+                    {importMode === "replace" && importPreview.invalidCount > 0
+                      ? "Replace requires every row to be valid. Switch to Merge to import the reviewed rows without removing current rates."
+                      : "No rows are ready to import. Fix the flagged rows and run the preview again. Source workbooks can flag ambiguous zones or values that need review in the importStatus column."}
+                  </p>
+                  <ul className="rv-list">
+                    {importPreview.issues.map((issue) => (
+                      <li className="rv-list__row" key={issue.row}>
+                        <strong>Row {issue.row}</strong>
+                        <span>{issue.messages.join(" · ")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {importPreview.invalidCount > importPreview.issues.length ? (
+                    <p className="rv-hint">Showing the first {importPreview.issues.length} affected rows.</p>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          ) : null}
+        </div>
+      </Modal>
 
       <Modal
         open={rateModalOpen}

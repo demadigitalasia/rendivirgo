@@ -880,6 +880,36 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+.rv-input--file {
+  padding: 4px 8px;
+  color: var(--rv-muted);
+  cursor: pointer;
+}
+
+.rv-input--file::file-selector-button {
+  min-height: 40px;
+  margin: 0 12px 0 0;
+  padding: 9px 16px;
+  border: 1px solid #adb9a6;
+  border-radius: 999px;
+  background: var(--rv-surface);
+  color: var(--rv-forest);
+  font-family: var(--font-ui, inherit);
+  font-size: 0.69rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+
+.rv-input--file:hover::file-selector-button {
+  border-color: var(--rv-forest);
+  background: linear-gradient(180deg, var(--rv-forest) 0%, var(--rv-forest-deep) 130%);
+  color: var(--rv-bg);
+  box-shadow: 0 4px 12px rgba(25, 59, 44, 0.14);
+}
+
 .rv-input:focus,
 .rv-select:focus,
 .rv-textarea:focus {

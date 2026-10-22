@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
@@ -11,6 +13,8 @@ import {
   UpdateShippingRateDto,
 } from "./dto/settings.dto";
 import { ShippingService } from "./shipping.service";
+
+type UploadedWorkbookFile = { buffer: Buffer; originalname: string };
 
 @Controller("shipping")
 export class ShippingController {
@@ -26,6 +30,42 @@ export class ShippingController {
 @Controller("admin/shipping/rates")
 export class AdminShippingRatesController {
   constructor(private readonly shippingService: ShippingService) {}
+
+  @Get("export")
+  async exportRates(@Query("carrier") carrier: string | undefined, @Res() response: Response) {
+    const { buffer, carrier: exportCarrier } = await this.shippingService.exportRatesXlsx(carrier);
+    response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    response.setHeader("Content-Disposition", `attachment; filename="shipping-rates-${exportCarrier}-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+    response.setHeader("Cache-Control", "no-store");
+    response.send(buffer);
+  }
+
+  @Post("import/preview")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
+  previewImport(
+    @UploadedFile() file: UploadedWorkbookFile | undefined,
+    @Body("mode") mode: string,
+  ) {
+    if (!file?.buffer) throw new BadRequestException("Choose an XLSX file to preview.");
+    if (!file.originalname.toLowerCase().endsWith(".xlsx")) {
+      throw new BadRequestException("Only .xlsx files are supported.");
+    }
+    return this.shippingService.previewRatesXlsx(file.buffer, mode || "merge");
+  }
+
+  @Post("import")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
+  importRates(
+    @UploadedFile() file: UploadedWorkbookFile | undefined,
+    @Body("mode") mode: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    if (!file?.buffer) throw new BadRequestException("Choose an XLSX file to import.");
+    if (!file.originalname.toLowerCase().endsWith(".xlsx")) {
+      throw new BadRequestException("Only .xlsx files are supported.");
+    }
+    return this.shippingService.importRatesXlsx(file.buffer, mode || "merge", auditContextFrom(request));
+  }
 
   @Get()
   list(@Query() query: ShippingRateQueryDto) {
