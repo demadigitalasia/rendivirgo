@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
+import { CheckIcon, ChevronIcon } from "@/components/icons";
 
 export type FilterDropdownOption = {
   label: string;
@@ -240,7 +241,7 @@ export function FilterDropdown({
               onClick={() => chooseOption(option)}
             >
               <span>{option.label}</span>
-              <span className="filter-dropdown__check" aria-hidden="true">✓</span>
+              <span className="filter-dropdown__check"><CheckIcon size={14} /></span>
             </div>
           );
         }) : <p className={`filter-dropdown__empty${variant === "admin" ? " rv-select-dropdown__empty" : ""}`}>{emptyMessage}</p>}
@@ -301,7 +302,7 @@ export function FilterDropdown({
         >
           <span id={valueId} className="filter-dropdown__value">{selectedLabel}</span>
           <span className="filter-dropdown__chevron" aria-hidden="true">
-            <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5.5 7.5 4.5 4.5 4.5-4.5" /></svg>
+            <ChevronIcon size={16} />
           </span>
         </button>
         {usePortal ? createPortal(menu, document.body) : menu}

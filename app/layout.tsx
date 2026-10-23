@@ -1,3 +1,4 @@
+import { siteUrl } from "@/lib/seo";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -13,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const path = stripLocalePrefix(requestHeaders.get(originalPathHeaderName) ?? "/");
 
   return {
-    metadataBase: new URL("https://rendivirgo.com"),
+    metadataBase: new URL(siteUrl()),
     title,
     description,
     icons: { icon: "/favicon.svg" },

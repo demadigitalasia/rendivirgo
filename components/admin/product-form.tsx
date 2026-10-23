@@ -1,5 +1,8 @@
 "use client";
 
+import { AiDraft } from "./ai-draft";
+import { SeoPanel } from "./seo-panel";
+
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi } from "./api";
 import { MediaPicker } from "./media";
@@ -256,15 +259,12 @@ export function ProductForm({
   const conditionsState = useApi<ApiConditionOption[]>("/api/admin/conditions");
   const etsyStatus = useApi<ApiEtsyStatus>("/api/admin/integrations/etsy");
   const [values, setValues] = useState<FormValues>(() => valuesFromProduct(product));
+  const [imageAlts, setImageAlts] = useState<Record<string, string>>(() => Object.fromEntries((product?.images ?? []).map(image => [image.url, image.alt ?? ""])));
   const [imageUrls, setImageUrls] = useState<string[]>(() => product?.imageUrls ?? []);
   const [videoUrl, setVideoUrl] = useState<string | null>(() => product?.videoUrl ?? null);
   const [variants, setVariants] = useState<VariantRow[]>(() => (product?.variants ?? []).map(toVariantRow));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiBrief, setAiBrief] = useState("");
-  const [generatingCopy, setGeneratingCopy] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiNotice, setAiNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode !== "create" || conditionsState.loading) return;
@@ -293,53 +293,7 @@ export function ProductForm({
     conditionOptions.push({ value: values.condition, label: `${values.condition} (unavailable)` });
   }
 
-  const generateProductCopy = async () => {
-    setAiError(null);
-    setAiNotice(null);
-    setGeneratingCopy(true);
-    try {
-      const copy = await apiFetch<{
-        description: string;
-        metaTitle: string;
-        metaDescription: string;
-        nameId: string;
-        descriptionId: string;
-        metaTitleId: string;
-        metaDescriptionId: string;
-      }>(
-        "/api/admin/products/generate-copy",
-        {
-          json: {
-            name: values.name.trim(),
-            shortDescription: aiBrief.trim(),
-            category: categoriesState.data?.find((category) => category.id === values.categoryId)?.name,
-            stoneType: values.stoneType.trim(),
-            origin: values.origin.trim(),
-            condition: values.condition,
-            unit: values.unit,
-            weightCarat: toNumberOrNull(values.weightCarat) ?? undefined,
-            weightGram: toNumberOrNull(values.weightGram) ?? undefined,
-          },
-        },
-      );
-      setValues((current) => ({
-        ...current,
-        description: copy.description,
-        metaTitle: copy.metaTitle,
-        metaDescription: copy.metaDescription,
-        nameId: copy.nameId,
-        descriptionId: copy.descriptionId,
-        metaTitleId: copy.metaTitleId,
-        metaDescriptionId: copy.metaDescriptionId,
-        idTranslationStatus: "Draft",
-      }));
-      setAiNotice("English copy and Indonesian translation generated as drafts. Review both languages before saving or publishing.");
-    } catch (caught) {
-      setAiError(errorMessage(caught));
-    } finally {
-      setGeneratingCopy(false);
-    }
-  };
+
 
   const addVariant = () => {
     update("workshopStockQuantity", "0");
@@ -450,7 +404,7 @@ export function ProductForm({
       metaTitleId: values.metaTitleId.trim() || null,
       metaDescriptionId: values.metaDescriptionId.trim() || null,
       idTranslationStatus: values.idTranslationStatus,
-      images: imageUrls.map((url, index) => ({ url, alt: values.name.trim(), sortOrder: index })),
+      images: imageUrls.map((url, index) => ({ url, alt: imageAlts[url]?.trim() || values.name.trim(), sortOrder: index })),
       videoUrl,
       variants: variants
         .filter((row) => row.sku.trim() && row.name.trim())
@@ -655,34 +609,10 @@ export function ProductForm({
         title="Description & SEO"
         description="Generate English product copy and SEO, with Indonesian name, description, and metadata drafts."
         className="rv-product-edit-section rv-product-edit-section--copy"
-        actions={
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={generateProductCopy}
-            disabled={(!values.name.trim() && !aiBrief.trim()) || generatingCopy}
-            loading={generatingCopy}
-          >
-            Generate with AI
-          </Button>
-        }
+
       >
         <div className="rv-stack">
-          <Field label="Short brief or key details" hint="Add a few accurate facts, or leave this blank to generate from the product title and details above.">
-            <TextArea
-              value={aiBrief}
-              onChange={(value) => {
-                setAiBrief(value);
-                setAiError(null);
-                setAiNotice(null);
-              }}
-              rows={3}
-              maxLength={1200}
-              placeholder="What makes this piece special? Include only details you can verify."
-            />
-          </Field>
-          {aiError ? <div className="rv-ai-copy-message rv-ai-copy-message--error" role="alert">{aiError}</div> : null}
-          {aiNotice ? <div className="rv-ai-copy-message rv-ai-copy-message--success" role="status">{aiNotice}</div> : null}
+          <AiDraft kind="product" sourceVersion={JSON.stringify(values)} currentValues={values} context={{ ...values, category: categoriesState.data?.find(category => category.id === values.categoryId)?.name }} onApply={draft => setValues(current => ({ ...current, ...draft, idTranslationStatus: "Review" }))} />
           <Field label="Description">
             <TextArea value={values.description} onChange={(value) => update("description", value)} rows={6} />
           </Field>
@@ -695,6 +625,11 @@ export function ProductForm({
         </div>
       </Card>
 
+      <SeoPanel translationStatus={values.idTranslationStatus}
+        input={{ kind: "product", publicPath: `/shop/${categoriesState.data?.find(category => category.id === values.categoryId)?.slug || product?.category.slug || "category"}/${values.slug}`, title: values.name, slug: values.slug, body: values.description, metaTitle: values.metaTitle, metaDescription: values.metaDescription, images: imageUrls.map(url => ({ url, alt: imageAlts[url] || values.name, fallback: !imageAlts[url]?.trim() })) }}
+        translation={{ kind: "product", publicPath: `/shop/${categoriesState.data?.find(category => category.id === values.categoryId)?.slug || product?.category.slug || "category"}/${values.slug}`, title: values.nameId, slug: values.slug, body: values.descriptionId, metaTitle: values.metaTitleId, metaDescription: values.metaDescriptionId, images: imageUrls.map(url => ({ url, alt: imageAlts[url] || values.name, fallback: !imageAlts[url]?.trim() })) }}
+        onMetadata={draft => setValues(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))}
+      />
       <Card title="Bahasa Indonesia" description="The product appears in Indonesian after its translation is ready." className="rv-product-edit-section">
         <div className="rv-stack">
           <Field label="Translation status">
@@ -723,6 +658,7 @@ export function ProductForm({
       <Card title="Images & video" description="Manage the product gallery and its supporting video." className="rv-product-edit-section">
         <div className="rv-stack">
           <MediaPicker value={imageUrls} onChange={setImageUrls} folder="products" label="Product images" />
+          {imageUrls.map((url, index) => <Field key={url} label={`Image ${index + 1} alt text`} hint="Describe the visible stone, angle, or detail. Falls back to the product name."><TextInput value={imageAlts[url] ?? ""} onChange={value => setImageAlts(current => ({ ...current, [url]: value }))} /></Field>)}
           <VideoPicker value={videoUrl} onChange={setVideoUrl} folder="products" />
         </div>
       </Card>

@@ -1,3 +1,4 @@
+import { socialMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { JournalCover } from "@/components/journal-cover";
 import Link from "@/components/localized-link";
@@ -34,10 +35,12 @@ export async function generateMetadata({
       }
     : undefined;
 
+  const title = page > 1
+    ? `${language === "id" ? "Halaman" : "Page"} ${page} — ${journal.eyebrow} — RENDI VIRGO`
+    : `${journal.eyebrow} — RENDI VIRGO`;
   return {
-    title: page > 1
-      ? `${language === "id" ? "Halaman" : "Page"} ${page} — ${journal.eyebrow} — RENDI VIRGO`
-      : `${journal.eyebrow} — RENDI VIRGO`,
+    title,
+    ...socialMetadata(title, journal.intro, currentPath),
     description: journal.intro,
     alternates: activeTag || page > 1
       ? { canonical: currentPath, ...(paginatedLanguages ? { languages: paginatedLanguages } : {}) }

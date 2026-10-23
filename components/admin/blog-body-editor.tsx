@@ -2,8 +2,10 @@
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { PageBody } from "@/components/page-body";
+import { Icon, LinkIcon } from "@/components/icons";
 
 type Alignment = "left" | "center" | "right" | "justify";
+const alignmentIcons = { left: "alignLeft", center: "alignCenter", right: "alignRight", justify: "alignJustify" } as const;
 
 function ToolButton({
   children,
@@ -18,19 +20,6 @@ function ToolButton({
     <button className="rv-rich-editor__tool" type="button" title={title} aria-label={title} onClick={onClick}>
       {children}
     </button>
-  );
-}
-
-function AlignmentIcon({ alignment }: { alignment: Alignment }) {
-  const lengths = alignment === "justify" ? [14, 14, 14, 14] : [14, 9, 12, 7];
-  return (
-    <svg viewBox="0 0 18 18" aria-hidden="true">
-      {lengths.map((length, index) => {
-        const x = alignment === "left" ? 2 : alignment === "right" ? 16 - length : (18 - length) / 2;
-        const y = 3 + index * 4;
-        return <line key={index} x1={x} y1={y} x2={x + length} y2={y} />;
-      })}
-    </svg>
   );
 }
 
@@ -220,15 +209,15 @@ export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (
               <ToolButton title="Italic (⌘/Ctrl+I)" onClick={() => toggleInline("*", "*", "teks miring")}><em>I</em></ToolButton>
               <ToolButton title="Underline (⌘/Ctrl+U)" onClick={() => toggleInline("<u>", "</u>", "teks bergaris bawah")}><u>U</u></ToolButton>
               <ToolButton title="Strikethrough" onClick={() => toggleInline("~~", "~~", "teks dicoret")}><s>S</s></ToolButton>
-              <ToolButton title="Insert link (⌘/Ctrl+K)" onClick={insertLink}>↗</ToolButton>
+              <ToolButton title="Insert link (⌘/Ctrl+K)" onClick={insertLink}><LinkIcon size={16} /></ToolButton>
             </div>
             <div className="rv-rich-editor__group" aria-label="Blocks and lists">
               <ToolButton title="Heading 2" onClick={() => toggleHeading(2)}>H2</ToolButton>
               <ToolButton title="Heading 3" onClick={() => toggleHeading(3)}>H3</ToolButton>
-              <ToolButton title="Bulleted list" onClick={() => toggleList(false)}>•</ToolButton>
-              <ToolButton title="Numbered list" onClick={() => toggleList(true)}>1.</ToolButton>
-              <ToolButton title="Block quote" onClick={toggleQuote}>“</ToolButton>
-              <ToolButton title="Horizontal divider" onClick={insertDivider}><span aria-hidden="true">―</span></ToolButton>
+              <ToolButton title="Bulleted list" onClick={() => toggleList(false)}><Icon name="list" size={17} /></ToolButton>
+              <ToolButton title="Numbered list" onClick={() => toggleList(true)}><Icon name="listOrdered" size={17} /></ToolButton>
+              <ToolButton title="Block quote" onClick={toggleQuote}><Icon name="quote" size={17} /></ToolButton>
+              <ToolButton title="Horizontal divider" onClick={insertDivider}><Icon name="divider" size={17} /></ToolButton>
             </div>
             <div className="rv-rich-editor__group rv-rich-editor__group--last" aria-label="Paragraph alignment">
               {(["left", "center", "right", "justify"] as const).map((alignment) => (
@@ -237,7 +226,7 @@ export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (
                   title={`Align ${alignment}`}
                   onClick={() => applyAlignment(alignment)}
                 >
-                  <AlignmentIcon alignment={alignment} />
+                  <Icon name={alignmentIcons[alignment]} size={17} />
                 </ToolButton>
               ))}
             </div>

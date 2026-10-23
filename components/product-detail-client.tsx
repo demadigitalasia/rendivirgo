@@ -8,7 +8,7 @@ import { formatDimensions, formatUSD, maxQuantityFor } from "@/lib/catalog";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { AddToCartButton } from "@/components/add-to-cart-button";
-import { ArrowIcon, CloseIcon, GlobeIcon } from "@/components/icons";
+import { ArrowIcon, ArrowUpRightIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, GlobeIcon, PlusIcon, ShareIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { ProductReviews } from "@/components/product-reviews";
 import { ProductWatermark } from "@/components/product-watermark";
@@ -65,7 +65,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
           ? t.product.stockOne
           : t.product.stockMany(maxQuantity);
   const imageAlt = (index: number) =>
-    `${product.name} — ${product.stoneType}${product.origin ? ` from ${product.origin}` : ""}, view ${index + 1}`;
+    product.imageAlts?.[index]?.trim() || `${product.name} — ${product.stoneType}${product.origin ? ` from ${product.origin}` : ""}, view ${index + 1}`;
   const descriptionParagraphs = product.description.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
   const introduction = descriptionParagraphs[0] ?? product.description;
   const titleBreak = product.name.lastIndexOf(" ");
@@ -165,7 +165,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               sizes="(max-width: 900px) 100vw, (max-width: 1400px) 52vw, 660px"
             />
             <ProductWatermark />
-            <span className="product-gallery__zoom" aria-hidden="true">+</span>
+            <span className="product-gallery__zoom"><PlusIcon size={19} /></span>
           </button>
           {images.length > 1 ? (
             <div className="product-gallery__thumbs">
@@ -219,7 +219,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
           </div>
           <h1 lang={product.contentLocale}>{titleBreak > 0 ? <>{product.name.slice(0, titleBreak)} <em>{product.name.slice(titleBreak + 1)}</em></> : product.name}</h1>
           <p className="product-detail__description" lang={product.contentLocale}>{introduction}</p>
-          <a className="product-detail__read" href="#stone-details">{t.product.readDetails}<ArrowIcon /></a>
+          <a className="product-detail__read" href="#stone-details">{t.product.readDetails}<ArrowUpRightIcon size={17} /></a>
 
           <div className="product-detail__purchase">
             <div>
@@ -253,7 +253,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
             <AddToCartButton product={selectedProduct} variantId={variant?.id} variantName={variant?.name} />
             <button className="product-detail__share" type="button" onClick={shareProduct}>
               {shareMessage || t.product.share}
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M5 12v8h14v-8" /></svg>
+              <ShareIcon size={18} />
             </button>
           </div>
           <p className="product-detail__note">{t.product.stockNote}</p>
@@ -371,7 +371,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               </button>
             </div>
             <button className="product-lightbox__nav product-lightbox__nav--previous" type="button" aria-label={t.product.previousImage} onClick={() => moveImage(-1)}>
-              ‹
+              <ChevronLeftIcon size={22} />
             </button>
             <div className="product-lightbox__image-wrap">
               <div className="product-lightbox__image-stage">
@@ -387,7 +387,7 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               </div>
             </div>
             <button className="product-lightbox__nav product-lightbox__nav--next" type="button" aria-label={t.product.nextImage} onClick={() => moveImage(1)}>
-              ›
+              <ChevronRightIcon size={22} />
             </button>
           </div>
         </div>

@@ -5,7 +5,8 @@ import { ApiContentUnavailable } from "@/components/api-content-unavailable";
 import { getPage, getPageWithStatus } from "@/lib/storefront";
 import { dictionaries } from "@/lib/i18n";
 import { getRequestLanguage } from "@/lib/server-locale";
-import { localizedAlternates } from "@/lib/locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
+import { socialMetadata } from "@/lib/seo";
 
 const contentPageKeys = {
   faq: "faq",
@@ -25,10 +26,13 @@ export async function contentPageMetadata(
   const fallbackTitle = metadataKey ? metadata[`${metadataKey}Title`] : fallback.title;
   const fallbackDescription = metadataKey ? metadata[`${metadataKey}Description`] : fallback.description;
   const useLocalizedFallback = language === "id" && (!page || page.contentLocale === "en");
+  const title = useLocalizedFallback ? fallbackTitle : page?.metaTitle?.trim() || page?.title || fallbackTitle;
+  const description = useLocalizedFallback ? fallbackDescription : page?.metaDescription?.trim() || fallbackDescription;
   return {
-    title: useLocalizedFallback ? fallbackTitle : page?.metaTitle ?? page?.title ?? fallbackTitle,
-    description: useLocalizedFallback ? fallbackDescription : page?.metaDescription ?? fallbackDescription,
+    title,
+    description,
     alternates: localizedAlternates(`/${slug}`, language),
+    ...socialMetadata(title, description, localizedPath(`/${slug}`, language)),
   };
 }
 

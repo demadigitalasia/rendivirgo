@@ -7,6 +7,7 @@ import { LocalizedLink as Link } from "@/components/localized-link";
 import { CountryDropdown } from "@/components/country-dropdown";
 import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
 import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
+import { ArrowIcon, ArrowLeftIcon, ArrowUpRightIcon, ChevronRightIcon, ClockIcon, Icon, SparkleIcon } from "@/components/icons";
 
 type AccessMode = "login" | "register" | "verify" | "forgot" | "reset";
 type CustomerProfile = {
@@ -33,18 +34,6 @@ type OrderDetail = AccountOrder & {
   shippingAddress: CustomerProfile["address"] & { name: string };
   items: Array<{ name: string; sku: string; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string | null }>;
 };
-
-function CustomerIcon({ name }: { name: "overview" | "orders" | "wholesale" | "signout" | "package" }) {
-  return (
-    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {name === "overview" ? <><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></> : null}
-      {name === "orders" ? <><path d="M7 3.5h7l4 4v13H7z" /><path d="M14 3.5v4h4M10 12h5M10 15.5h5" /></> : null}
-      {name === "wholesale" ? <><path d="m12 2.8 8.5 4.7-8.5 13.7L3.5 7.5 12 2.8Z" /><path d="m3.5 7.5 8.5 3 8.5-3M12 10.5v10.7" /></> : null}
-      {name === "signout" ? <><path d="M10 4H5.5v16H10M14 8l4 4-4 4M8 12h10" /></> : null}
-      {name === "package" ? <><path d="m12 3 8 4.3v9.4L12 21l-8-4.3V7.3L12 3Z" /><path d="m4.5 7.5 7.5 4 7.5-4M12 12v8.5M8 5.2l8 4.3" /></> : null}
-    </svg>
-  );
-}
 
 async function sendJson(path: string, data: unknown) {
   const response = await fetch(path, {
@@ -188,27 +177,14 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
                       aria-pressed={showPassword}
                       onClick={() => setShowPassword((visible) => !visible)}
                     >
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        {showPassword ? (
-                          <>
-                            <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" />
-                            <circle cx="12" cy="12" r="2.5" />
-                          </>
-                        ) : (
-                          <>
-                            <path d="m3 3 18 18" />
-                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                            <path d="M9.9 5.1A10.9 10.9 0 0 1 12 4.9c5.4 0 9.3 4.7 10 7.1a11.8 11.8 0 0 1-3.1 4.3M6.2 6.2C3.8 7.8 2.4 10.2 2 12c.7 2.4 4.6 7.1 10 7.1 1.1 0 2.2-.2 3.2-.6" />
-                          </>
-                        )}
-                      </svg>
+                      <Icon name={showPassword ? "eye" : "eyeOff"} size={18} />
                     </button>
                   </span>
                 </div>
               ) : null}
               {error ? <p className="customer-account__error" role="alert">{error}</p> : null}
               {message ? <p className="customer-account__message" role="status">{message}</p> : null}
-              <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : mode === "register" ? "Create account" : mode === "forgot" ? "Send reset link" : mode === "reset" ? "Update password" : "Sign in"}<span aria-hidden="true">→</span></button>
+              <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : mode === "register" ? "Create account" : mode === "forgot" ? "Send reset link" : mode === "reset" ? "Update password" : "Sign in"}<ArrowIcon size={17} /></button>
               {mode === "register" && verificationRequested ? (
                 <button className="customer-access__resend" type="button" disabled={busy || resendCountdown > 0} onClick={() => void resendVerification()}>
                   {busy ? "Sending…" : resendCountdown > 0 ? `Resend available in ${Math.floor(resendCountdown / 60)}:${String(resendCountdown % 60).padStart(2, "0")}` : "Resend verification email"}
@@ -220,7 +196,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
             {mode === "login" ? <Link href="/account/forgot-password">Forgot password?</Link> : <Link href="/account/login">Back to sign in</Link>}
             {mode === "register" ? <span>Already have an account? <Link href="/account/login">Sign in</Link></span> : <span>New to RENDI VIRGO? <Link href="/account/register">Create account</Link></span>}
           </nav>
-          <Link className="customer-access__guest" href="/orders">Looking for a past guest order? <span>View order history →</span></Link>
+          <Link className="customer-access__guest" href="/orders">Looking for a past guest order? <span>View order history <ArrowIcon size={15} /></span></Link>
         </div>
       </div>
     </section>
@@ -334,14 +310,14 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
         <p className="customer-dashboard__nav-label">{customerNavigation.menu}</p>
         <nav className="customer-dashboard__nav" aria-label={customerNavigation.menu}>
           <Link href={storefrontRoutes.account} className={`customer-dashboard__nav-link${ordersOnly ? "" : " is-active"}`} aria-current={ordersOnly ? undefined : "page"}>
-            <CustomerIcon name="overview" /><span>{customerNavigation.overview}</span><span className="customer-dashboard__nav-arrow" aria-hidden="true">›</span>
+            <Icon name="dashboard" size={19} /><span>{customerNavigation.overview}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
           </Link>
           <Link href={storefrontRoutes.accountOrders} className={`customer-dashboard__nav-link${ordersOnly ? " is-active" : ""}`} aria-current={ordersOnly ? "page" : undefined}>
-            <CustomerIcon name="orders" /><span>{customerNavigation.orders}</span><span className="customer-dashboard__nav-arrow" aria-hidden="true">›</span>
+            <Icon name="fileText" size={19} /><span>{customerNavigation.orders}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
           </Link>
           {wholesaleEnabled ? (
             <Link href={storefrontRoutes.wholesaleCatalog} className="customer-dashboard__nav-link">
-              <CustomerIcon name="wholesale" /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow" aria-hidden="true">›</span>
+              <Icon name="gem" size={19} /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
             </Link>
           ) : null}
         </nav>
@@ -350,7 +326,7 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
           <span><small>{customerNavigation.accountType}</small><strong>{wholesaleEnabled ? customerNavigation.wholesaleApproved : customerNavigation.retailCustomer}</strong></span>
         </div>
         <button className="customer-dashboard__signout" onClick={() => void logout()}>
-          <CustomerIcon name="signout" /><span>{customerNavigation.signOut}</span>
+          <Icon name="logOut" size={19} /><span>{customerNavigation.signOut}</span>
         </button>
       </aside>
 
@@ -369,22 +345,22 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
         {!ordersOnly ? (
           <>
             <div className="customer-account__stats customer-dashboard__stats">
-              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon"><CustomerIcon name="orders" /></span><strong>{summary.total}</strong><span>All orders</span><small>Orders linked to your account</small></div>
-              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-amber"><span aria-hidden="true">◷</span></span><strong>{summary.pendingPayment}</strong><span>Awaiting payment</span><small>Orders that need your attention</small></div>
-              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-sage"><span aria-hidden="true">↗</span></span><strong>{summary.activeOrders}</strong><span>In progress</span><small>Being prepared or delivered</small></div>
+              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon"><Icon name="fileText" size={18} /></span><strong>{summary.total}</strong><span>All orders</span><small>Orders linked to your account</small></div>
+              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-amber"><ClockIcon size={18} /></span><strong>{summary.pendingPayment}</strong><span>Awaiting payment</span><small>Orders that need your attention</small></div>
+              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-sage"><ArrowUpRightIcon size={18} /></span><strong>{summary.activeOrders}</strong><span>In progress</span><small>Being prepared or delivered</small></div>
             </div>
 
             {profile.wholesaleAccess ? (
               <Link className="customer-dashboard__wholesale-banner" href="/wholesale">
-                <span className="customer-dashboard__wholesale-icon"><CustomerIcon name="wholesale" /></span>
+                <span className="customer-dashboard__wholesale-icon"><Icon name="gem" /></span>
                 <span><small>WHOLESALE ACCESS</small><strong>Your private catalog is ready</strong><em>Browse approved wholesale products and pricing.</em></span>
-                <span className="customer-dashboard__wholesale-arrow" aria-hidden="true">→</span>
+                <span className="customer-dashboard__wholesale-arrow"><ArrowIcon size={18} /></span>
               </Link>
             ) : null}
 
             <div className="customer-dashboard__card customer-dashboard__profile-card" id="profile-details">
               <div className="customer-dashboard__card-heading">
-                <span className="customer-dashboard__section-icon"><span aria-hidden="true">✳</span></span>
+                <span className="customer-dashboard__section-icon"><SparkleIcon size={18} /></span>
                 <span><small>PERSONAL DETAILS</small><h2>Profile information</h2><p>Keep your contact and delivery details up to date.</p></span>
               </div>
               <form className="customer-account__form customer-dashboard__profile-form" onSubmit={(event) => void updateProfile(event)}>
@@ -418,7 +394,7 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
                 <label className="customer-account__checkbox customer-dashboard__marketing"><input name="acceptsMarketing" type="checkbox" defaultChecked={profile.acceptsMarketing} /> I agree to receive marketing emails</label>
                 {message ? <p className="customer-account__message" role="status">{message}</p> : null}
                 {error ? <p className="customer-account__error" role="alert">{error}</p> : null}
-                <button className="button button--primary customer-dashboard__save-button" disabled={saving}>{saving ? "Saving…" : "Save profile"}<span aria-hidden="true">→</span></button>
+                <button className="button button--primary customer-dashboard__save-button" disabled={saving}>{saving ? "Saving…" : "Save profile"}<ArrowIcon size={17} /></button>
               </form>
             </div>
           </>
@@ -426,27 +402,27 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
 
         <section className="customer-account__orders customer-dashboard__card customer-dashboard__orders">
           <div className="customer-dashboard__orders-heading">
-            <span className="customer-dashboard__section-icon"><CustomerIcon name="orders" /></span>
+            <span className="customer-dashboard__section-icon"><Icon name="fileText" size={18} /></span>
             <span><small>{ordersOnly ? "YOUR PURCHASES" : "ORDER ACTIVITY"}</small><h2>{ordersOnly ? "All orders" : "Recent orders"}</h2></span>
-            {!ordersOnly ? <Link href="/account/orders">View all <span aria-hidden="true">→</span></Link> : null}
+            {!ordersOnly ? <Link href="/account/orders">View all <ArrowIcon size={16} /></Link> : null}
           </div>
           {orders.length ? orders.map((order) => (
             <Link className="customer-account__order customer-dashboard__order" key={order.id} href={`/account/orders/${encodeURIComponent(order.orderNumber)}`}>
-              <span className="customer-dashboard__order-identity"><span className="customer-dashboard__order-icon"><CustomerIcon name="package" /></span><span><strong>{order.orderNumber}</strong><small>Placed {new Date(order.placedAt).toLocaleDateString()}</small></span></span>
+              <span className="customer-dashboard__order-identity"><span className="customer-dashboard__order-icon"><Icon name="package" size={18} /></span><span><strong>{order.orderNumber}</strong><small>Placed {new Date(order.placedAt).toLocaleDateString()}</small></span></span>
               <span className="customer-dashboard__order-total"><strong>{order.currency} {Number(order.total).toFixed(2)}</strong><small>{order.itemCount} items · {order.status} · {order.paymentStatus}</small></span>
-              <span className="customer-dashboard__order-arrow" aria-hidden="true">↗</span>
+              <span className="customer-dashboard__order-arrow"><ArrowUpRightIcon size={17} /></span>
             </Link>
           )) : (
             <div className="customer-dashboard__empty">
-              <span className="customer-dashboard__empty-icon"><CustomerIcon name="package" /></span>
+              <span className="customer-dashboard__empty-icon"><Icon name="package" size={18} /></span>
               <span><strong>No orders yet</strong><small>Orders placed with this email will appear here.</small></span>
-              <Link href="/shop">Explore the collection <span aria-hidden="true">→</span></Link>
+              <Link href="/shop">Explore the collection <ArrowIcon size={16} /></Link>
             </div>
           )}
           {ordersOnly && pageCount > 1 ? <div className="customer-account__pagination customer-dashboard__pagination">
-            <button className="button button--outline button--compact" type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
+            <button className="button button--outline button--compact" type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ArrowLeftIcon size={15} /> Previous</button>
             <span>Page {page} of {pageCount}</span>
-            <button className="button button--outline button--compact" type="button" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>Next</button>
+            <button className="button button--outline button--compact" type="button" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>Next <ChevronRightIcon size={15} /></button>
           </div> : null}
         </section>
       </div>

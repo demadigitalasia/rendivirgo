@@ -156,6 +156,24 @@
   transform: translateX(2px);
 }
 
+.rv-nav-item__icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  opacity: 0.76;
+  transition: opacity 0.2s ease;
+}
+
+.rv-nav-item:hover .rv-nav-item__icon,
+.rv-nav-item.is-active .rv-nav-item__icon {
+  opacity: 1;
+}
+
+.rv-nav-item__label {
+  flex: 1;
+  min-width: 0;
+}
+
 .rv-nav-item.is-active {
   background: linear-gradient(180deg, #fffdf8 0%, #f0eee4 100%);
   border-color: rgba(216, 196, 155, 0.65);
@@ -182,15 +200,19 @@
 }
 
 .rv-nav-item__warning {
+  display: grid;
   margin-left: auto;
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: var(--rv-warning);
   color: #fff;
-  font-size: 0.72rem;
-  line-height: 18px;
-  text-align: center;
+  place-items: center;
+}
+
+.rv-nav-item__warning .rv-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .rv-sidebar__footer {
@@ -1001,12 +1023,12 @@
   color: var(--rv-jade);
 }
 
-.rv-select-dropdown .filter-dropdown__chevron svg {
+.rv-select-dropdown .filter-dropdown__chevron .rv-icon {
   display: block;
   transition: transform .18s ease;
 }
 
-.rv-select-dropdown.is-open .filter-dropdown__chevron svg {
+.rv-select-dropdown.is-open .filter-dropdown__chevron .rv-icon {
   transform: rotate(180deg);
 }
 
@@ -1083,6 +1105,12 @@
   color: var(--rv-bronze);
   opacity: 0;
   text-align: center;
+}
+.rv-select-dropdown .filter-dropdown__check .rv-icon,
+.rv-select-dropdown__menu .filter-dropdown__check .rv-icon {
+  width: 14px;
+  height: 14px;
+  margin-inline: auto;
 }
 
 .rv-select-dropdown .filter-dropdown__option.is-selected .filter-dropdown__check,
@@ -1188,7 +1216,7 @@
 .rv-rich-editor__tool:hover { border-color: var(--rv-line); background: var(--rv-surface); }
 .rv-rich-editor__tool:focus-visible,
 .rv-rich-editor__modes button:focus-visible { outline: 2px solid var(--rv-jade); outline-offset: 2px; }
-.rv-rich-editor__tool svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.rv-rich-editor__tool .rv-icon { width: 17px; height: 17px; }
 .rv-rich-editor__modes { display: inline-flex; flex: 0 0 auto; gap: 2px; padding: 3px; border: 1px solid var(--rv-line); border-radius: 8px; background: var(--rv-surface); }
 .rv-rich-editor__modes button {
   min-height: 30px;
@@ -1369,13 +1397,18 @@
 }
 
 .rv-modal__header button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
   margin-left: auto;
   border: 0;
+  border-radius: 50%;
   background: transparent;
-  font-size: 1.3rem;
-  line-height: 1;
   color: var(--rv-muted);
 }
+
+.rv-modal__header button:hover { background: var(--rv-surface); color: var(--rv-forest); }
 
 .rv-modal__body {
   padding: 20px;
@@ -1440,6 +1473,8 @@
   color: #faf8f2;
   box-shadow: none;
 }
+
+.rv-sidebar__footer .rv-btn .rv-icon { width: 15px; height: 15px; }
 
 .rv-sidebar__footer .rv-btn:hover:not(:disabled) {
   background: var(--rv-bg);
@@ -1522,6 +1557,8 @@ a.rv-list__row:hover {
 }
 
 .rv-media-item__remove {
+  display: grid;
+  place-items: center;
   position: absolute;
   top: 6px;
   right: 6px;
@@ -1534,6 +1571,11 @@ a.rv-list__row:hover {
   line-height: 1;
 }
 
+.rv-media-item__remove .rv-icon {
+  width: 15px;
+  height: 15px;
+}
+
 .rv-media-item__tag {
   position: absolute;
   left: 6px;
@@ -1543,6 +1585,19 @@ a.rv-list__row:hover {
   background: rgba(20, 26, 22, 0.72);
   color: #fff;
   font-size: 0.68rem;
+}
+
+.rv-media-item__move {
+  display: grid;
+  width: 28px;
+  height: 26px;
+  place-items: center;
+  padding: 0;
+}
+
+.rv-media-item__move .rv-icon {
+  width: 15px;
+  height: 15px;
 }
 
 .rv-upload-zone {
@@ -1558,6 +1613,8 @@ a.rv-list__row:hover {
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
+
+.rv-upload-zone > .rv-icon { width: 23px; height: 23px; color: var(--rv-jade); }
 
 .rv-upload-zone:hover {
   border-color: var(--rv-jade);
@@ -2027,6 +2084,11 @@ a.rv-list__row:hover {
   display: none;
 }
 
+.rv-mobile-nav-toggle .rv-icon {
+  width: 17px;
+  height: 17px;
+}
+
 .rv-mobile-admin-bar {
   display: none;
 }
@@ -2217,6 +2279,14 @@ a.rv-list__row:hover {
 
 .rv-shipping-card--profiles .rv-table {
   min-width: 1160px;
+}
+
+.rv-shipping-rate-value {
+  font-size: 0.875rem;
+}
+
+.rv-shipping-rate-value--price {
+  font-weight: 500;
 }
 
 .rv-shipping-rate-cell {

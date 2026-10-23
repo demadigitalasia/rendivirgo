@@ -1,5 +1,7 @@
 "use client";
 
+import { AiDraft } from "@/components/admin/ai-draft";
+
 import { useState } from "react";
 import { apiFetch, errorMessage, formatNumber, useList } from "@/components/admin/api";
 import { DataTable, TablePagination, type Column } from "@/components/admin/data-table";
@@ -253,6 +255,8 @@ export default function BannersPage() {
         }
       >
         <div className="rv-stack">
+          <AiDraft key={editingId ?? "new"} kind="banner" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ title: form.title, subtitle: form.subtitle, ctaLabel: form.ctaLabel, ctaHref: form.ctaHref }} onApply={draft => setForm(current => ({ ...current, title: draft.title, subtitle: draft.subtitle, ctaLabel: draft.ctaLabel }))} />
+          <p className="rv-hint">Banners are content blocks. Their SEO is measured on the page where they appear, in SEO Audit.</p>
           <div className="rv-form-grid">
             <Field label="Title">
               <TextInput value={form.title} onChange={(value) => update("title", value)} />

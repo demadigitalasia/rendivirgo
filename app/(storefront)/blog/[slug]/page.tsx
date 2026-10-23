@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { JournalCover } from "@/components/journal-cover";
 import { journalCover } from "@/lib/editorial-images";
@@ -17,7 +18,7 @@ const escapeJsonLd = (value: unknown) => JSON.stringify(value).replace(/</g, "\\
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const language = await getRequestLanguage();
-  const post = await getBlogPost(slug, language);
+  const post = await getBlogPost(slug, language, (await headers()).get("x-rv-seo-audit") === "1");
   if (!post) return {};
   const journal = dictionaries[language].journal;
   const englishFallback = language === "id" && post.contentLocale === "en";
@@ -64,7 +65,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
   const language = await getRequestLanguage();
   const t = dictionaries[language];
   const journal = t.journal;
-  const post = await getBlogPost(slug, language);
+  const post = await getBlogPost(slug, language, (await headers()).get("x-rv-seo-audit") === "1");
   if (!post) notFound();
 
   const publishedAt = post.publishedAt ?? post.updatedAt;

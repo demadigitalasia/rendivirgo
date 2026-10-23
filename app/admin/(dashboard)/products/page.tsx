@@ -1,5 +1,8 @@
 "use client";
 
+import { SeoBadge } from "@/components/admin/seo-panel";
+import { productSeoInput } from "@/lib/seo-analysis";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -186,11 +189,23 @@ export default function AdminProductsPage() {
       render: (product) => product.category.name,
     },
     {
+      key: "seo",
+      header: "SEO Score · EN",
+      width: "144px",
+      render: (product) => (
+        <SeoBadge
+          variant="table"
+          input={productSeoInput(product)}
+          onClick={() => router.push(`/admin/products/${product.id}`)}
+        />
+      ),
+    },
+    {
       key: "price",
       header: "Price",
       render: (product) => (
         <div className="rv-product-cell">
-          <span>{formatUSD(product.price)}</span>
+          <span className="rv-product-price">{formatUSD(product.price)}</span>
           {product.compareAtPrice != null && product.compareAtPrice > product.price ? (
             <span className="rv-price-compare">{formatUSD(product.compareAtPrice)}</span>
           ) : null}

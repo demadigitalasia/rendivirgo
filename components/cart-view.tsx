@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { MinusIcon, PlusIcon } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import Link from "@/components/localized-link";
 import { ProductArt } from "@/components/product-art";
@@ -62,9 +63,9 @@ export function CartView() {
             <span className="cart-line__unique">{t.cart.uniqueNote}</span>
           ) : (
             <div className="quantity-control">
-              <button type="button" onClick={() => updateQuantity(key, line.quantity - 1)} aria-label={t.cart.decrease}>−</button>
+              <button type="button" onClick={() => updateQuantity(key, line.quantity - 1)} aria-label={t.cart.decrease}><MinusIcon size={15} /></button>
               <span>{line.quantity}</span>
-              <button type="button" disabled={line.quantity >= line.maxQuantity} onClick={() => updateQuantity(key, line.quantity + 1)} aria-label={t.cart.increase}>+</button>
+              <button type="button" disabled={line.quantity >= line.maxQuantity} onClick={() => updateQuantity(key, line.quantity + 1)} aria-label={t.cart.increase}><PlusIcon size={15} /></button>
             </div>
           )}
           <strong>{formatUSD(line.price * line.quantity, language)}</strong>

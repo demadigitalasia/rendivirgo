@@ -1,3 +1,5 @@
+import { ContentCopyService } from "./content-copy.service";
+import { ContentCopyController } from "./content-copy.controller";
 import { Module } from "@nestjs/common";
 import { BannersService } from "./banners.service";
 import { AdminBannersController, BannersController } from "./banners.controller";
@@ -15,6 +17,7 @@ import { SettingsModule } from "../settings/settings.module";
 @Module({
   imports: [SettingsModule],
   controllers: [
+    ContentCopyController,
     BlogController,
     AdminBlogController,
     PagesController,
@@ -26,7 +29,7 @@ import { SettingsModule } from "../settings/settings.module";
     SiteContentController,
     AdminSiteContentController,
   ],
-  providers: [BlogService, BlogCopyService, PagesService, TestimonialsService, BannersService, SiteContentService],
+  providers: [ContentCopyService, BlogService, BlogCopyService, PagesService, TestimonialsService, BannersService, SiteContentService],
   exports: [BlogService, PagesService, TestimonialsService, BannersService, SiteContentService],
 })
 export class ContentModule {}

@@ -1,8 +1,9 @@
+import { socialMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { AboutContent } from "@/components/about-content";
 import { getPage, getPublicSettings, getSiteContent } from "@/lib/storefront";
 import { getRequestLanguage } from "@/lib/server-locale";
-import { localizedAlternates } from "@/lib/locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
 import { dictionaries } from "@/lib/i18n";
 
 export const revalidate = 60;
@@ -22,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: useLocalizedFallback ? copy.aboutTitle : page?.metaTitle ?? page?.title ?? copy.aboutTitle,
     description: useLocalizedFallback ? copy.aboutDescription : page?.metaDescription ?? copy.aboutDescription,
     alternates: localizedAlternates("/about-us", language),
+    ...socialMetadata(useLocalizedFallback ? copy.aboutTitle : page?.metaTitle || page?.title || copy.aboutTitle, useLocalizedFallback ? copy.aboutDescription : page?.metaDescription || copy.aboutDescription, localizedPath("/about-us", language)),
   };
 }
 

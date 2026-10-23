@@ -10,6 +10,7 @@
     "dev:api": "npm --prefix api run dev",
     "dev:all": "npm run dev:api & npm run dev",
     "test": "npm --prefix api test",
+    "test:seo": "node --import ./api/node_modules/tsx/dist/loader.mjs --test scripts/seo-analysis.spec.ts scripts/ai-draft-state.spec.ts",
     "build:api": "npm --prefix api run build",
     "db:migrate": "npm --prefix api run prisma:migrate",
     "db:seed": "npm --prefix api run db:seed",

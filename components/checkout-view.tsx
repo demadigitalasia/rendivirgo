@@ -4,6 +4,7 @@ import Link from "@/components/localized-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
+import { ArrowIcon, ArrowUpRightIcon, RefreshIcon } from "@/components/icons";
 import { CountryDropdown } from "@/components/country-dropdown";
 import { formatUSD } from "@/lib/catalog";
 import { CheckoutOrderSummary } from "@/components/checkout/order-summary";
@@ -532,16 +533,16 @@ export function CheckoutView() {
           ) : (
             <div className="wholesale-access__actions">
               {unavailable ? (
-                <button className="button button--light" type="button" onClick={() => { setWholesaleAccessStatus("checking"); setWholesaleAccessRetry((key) => key + 1); }}>{accessCopy.retry}<span aria-hidden="true">↻</span></button>
+                <button className="button button--light" type="button" onClick={() => { setWholesaleAccessStatus("checking"); setWholesaleAccessRetry((key) => key + 1); }}>{accessCopy.retry}<RefreshIcon size={16} /></button>
               ) : pending ? (
-                <Link className="button button--light" href="/contact">{accessCopy.contact}<span aria-hidden="true">→</span></Link>
+                <Link className="button button--light" href="/contact">{accessCopy.contact}<ArrowIcon size={16} /></Link>
               ) : (
                 <>
-                  <Link className="button button--light" href="/account/login?next=%2Fwholesale%2Fcheckout">{accessCopy.signIn}<span aria-hidden="true">→</span></Link>
+                  <Link className="button button--light" href="/account/login?next=%2Fwholesale%2Fcheckout">{accessCopy.signIn}<ArrowIcon size={16} /></Link>
                   <Link className="button button--outline" href="/account/register">{accessCopy.register}</Link>
                 </>
               )}
-              <Link className="wholesale-access__shop-link" href="/wholesale">{accessCopy.shopLink}<span aria-hidden="true">↗</span></Link>
+              <Link className="wholesale-access__shop-link" href="/wholesale">{accessCopy.shopLink}<ArrowUpRightIcon size={15} /></Link>
             </div>
           )}
         </div>

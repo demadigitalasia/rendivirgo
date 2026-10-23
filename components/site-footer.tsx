@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "@/components/localized-link";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/components/icons";
 import {
   faFacebook,
   faInstagram,
@@ -143,9 +144,7 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
               <span>Mastercard</span>
             </li>
             <li className="site-footer__payment-mark site-footer__payment-mark--bank" aria-label="Bank transfer">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 9h18M5 9v9m4-9v9m6-9v9m4-9v9M3 21h18M12 3 2 8h20L12 3Z" />
-              </svg>
+              <Icon name="bank" size={18} />
               <span>{t.footer.bankTransfer}</span>
             </li>
           </ul>

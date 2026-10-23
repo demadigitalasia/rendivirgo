@@ -1,6 +1,10 @@
 "use client";
 
+import { SeoBadge } from "@/components/admin/seo-panel";
+import { contentSeoInput } from "@/lib/seo-analysis";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch, errorMessage, formatDateTime, formatNumber, useList } from "@/components/admin/api";
 import { DataTable, TablePagination, type Column } from "@/components/admin/data-table";
 import { toast } from "@/components/admin/toast";
@@ -9,6 +13,7 @@ import { contentStatusOptions, type BlogPost } from "../types";
 import "../blog.css";
 
 export default function BlogListPage() {
+  const router = useRouter();
   const list = useList<BlogPost>("/api/admin/blog", { pageSize: 20 });
 
   const remove = async (post: BlogPost) => {
@@ -34,6 +39,18 @@ export default function BlogListPage() {
           <Link className="rv-blog-post-cell__title" href={`/admin/content/blog/${post.id}`}>{post.title}</Link>
           <div className="rv-blog-post-cell__slug">/{post.slug}</div>
         </div>
+      ),
+    },
+    {
+      key: "seo",
+      header: "SEO Score · EN",
+      width: "144px",
+      render: (post) => (
+        <SeoBadge
+          variant="table"
+          input={contentSeoInput(post, "blog")}
+          onClick={() => router.push(`/admin/content/blog/${post.id}`)}
+        />
       ),
     },
     {

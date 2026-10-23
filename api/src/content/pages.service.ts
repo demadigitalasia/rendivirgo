@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
@@ -16,7 +16,10 @@ export const pageFooterSelect = {
   idTranslationStatus: true,
   sortOrder: true,
   showInFooter: true,
+  updatedAt: true,
 } satisfies Prisma.PageSelect;
+
+const reservedPageSlugs = new Set(["admin", "api", "id", "en", "shop", "blog", "account", "cart", "checkout", "contact", "search", "orders", "returns", "track", "wishlist", "wholesale"]);
 
 @Injectable()
 export class PagesService {
@@ -95,7 +98,8 @@ export class PagesService {
   // ------------------------------------------------------------ mutations
 
   async create(dto: CreatePageDto, context: AuditContext) {
-    const slug = await uniqueSlug(slugify(dto.slug ?? dto.title), (candidate) =>
+    if (reservedPageSlugs.has(slugify(dto.slug || dto.title))) throw new BadRequestException("This slug is reserved for a built-in website page. Choose a different slug.");
+    const slug = await uniqueSlug(slugify(dto.slug?.trim() || dto.title), (candidate) =>
       this.prisma.page.findUnique({ where: { slug: candidate } }),
     );
 
@@ -134,6 +138,8 @@ export class PagesService {
   async update(id: string, dto: UpdatePageDto, context: AuditContext) {
     const existing = await this.prisma.page.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Page not found");
+
+    if (dto.slug && slugify(dto.slug) !== existing.slug && reservedPageSlugs.has(slugify(dto.slug))) throw new BadRequestException("This slug is reserved for a built-in website page. Choose a different slug.");
 
     const slug =
       dto.slug && slugify(dto.slug) !== existing.slug

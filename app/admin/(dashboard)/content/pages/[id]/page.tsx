@@ -1,5 +1,8 @@
 "use client";
 
+import { SeoPanel } from "@/components/admin/seo-panel";
+import { AiDraft } from "@/components/admin/ai-draft";
+
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, formatDateTime, useApi, type ApiState } from "@/components/admin/api";
@@ -39,7 +42,7 @@ const emptyForm: PageForm = {
   title: "",
   slug: "",
   body: "",
-  status: "Published",
+  status: "Draft",
   showInFooter: true,
   sortOrder: "0",
   metaTitle: "",
@@ -179,6 +182,12 @@ export default function PageEditorPage() {
 
         {isNew || state.data ? (
           <>
+            <Card title="Generate page content" description="Use verified facts, especially for policies and legal pages.">
+              <AiDraft kind="page" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ title: form.title, body: form.body, titleId: form.titleId, bodyId: form.bodyId }} onApply={draft => setForm(current => ({ ...current, title: draft.title, body: draft.body, titleId: draft.titleId, bodyId: draft.bodyId, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+            </Card>
+            <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "page", title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription }}
+              translation={{ kind: "page", title: form.titleId, slug: form.slug, body: form.bodyId, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId }}
+              onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
             <Card title="Page">
               <div className="rv-stack">
                 <div className="rv-form-grid">

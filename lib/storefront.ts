@@ -137,6 +137,8 @@ export type ApiBanner = {
 };
 
 export type SiteContent = {
+  metaTitle: string;
+  metaDescription: string;
   heroTitle: string;
   heroSubtitle: string;
   heroImage: string;
@@ -226,9 +228,10 @@ export function mapProduct(item: ApiProduct): Product {
     description: item.description,
     videoUrl: item.videoUrl ?? null,
     images: item.imageUrls.length ? item.imageUrls : ["/images/products/stone-moss.svg"],
+    imageAlts: item.imageUrls.map(url => item.images.find(image => image.url === url)?.alt ?? ""),
     seo: {
       metaTitle: item.seo.metaTitle ?? `${item.name} — ${item.category.name} | RENDI VIRGO`,
-      metaDescription: item.seo.metaDescription ?? `${item.description} ${item.stoneType} from ${item.origin}. ${item.weightGram} g.`,
+      metaDescription: item.seo.metaDescription?.trim() || `${item.description} ${item.stoneType} from ${item.origin}. ${item.weightGram} g.`.slice(0, 160),
     },
     shipping: {
       packageWeightGram: item.weightGram + 45,
@@ -264,10 +267,10 @@ type ApiReadResult<T> =
   | { status: "not-found" }
   | { status: "unavailable"; error: Error };
 
-async function apiGetWithStatus<T>(path: string, options?: { revalidate?: number; language?: Language; tags?: string[] }): Promise<ApiReadResult<T>> {
+async function apiGetWithStatus<T>(path: string, options?: { revalidate?: number; language?: Language; tags?: string[]; seoAudit?: boolean }): Promise<ApiReadResult<T>> {
   try {
     const response = await fetch(`${apiOrigin}${path}`, {
-      headers: { accept: "application/json", "x-rv-language": options?.language ?? "en" },
+      headers: { accept: "application/json", "x-rv-language": options?.language ?? "en", ...(options?.seoAudit ? { "x-rv-seo-audit": "1" } : {}) },
       next: { revalidate: options?.revalidate ?? 60, ...(options?.tags ? { tags: options.tags } : {}) },
     });
     if (response.status === 404) return { status: "not-found" };
@@ -278,7 +281,7 @@ async function apiGetWithStatus<T>(path: string, options?: { revalidate?: number
   }
 }
 
-async function apiGet<T>(path: string, options?: { revalidate?: number; strictError?: boolean; language?: Language; tags?: string[] }): Promise<T | null> {
+async function apiGet<T>(path: string, options?: { revalidate?: number; strictError?: boolean; language?: Language; tags?: string[]; seoAudit?: boolean }): Promise<T | null> {
   const result = await apiGetWithStatus<T>(path, options);
   if (result.status === "ok") return result.data;
   if (result.status === "unavailable" && options?.strictError) throw result.error;
@@ -409,8 +412,8 @@ export async function getBlogPosts(params: { page?: number; pageSize?: number; t
   return { posts: result?.items ?? [], total: result?.total ?? 0, pageCount: result?.pageCount ?? 1 };
 }
 
-export async function getBlogPost(slug: string, language: Language = "en") {
-  return apiGet<ApiBlogPost>(`/api/blog/${encodeURIComponent(slug)}`, { language, tags: ["blog-posts"] });
+export async function getBlogPost(slug: string, language: Language = "en", seoAudit = false) {
+  return apiGet<ApiBlogPost>(`/api/blog/${encodeURIComponent(slug)}`, { language, tags: ["blog-posts"], seoAudit });
 }
 
 export async function getPages(language: Language = "en") {
@@ -435,6 +438,8 @@ export async function getBanners(placement?: ApiBanner["placement"]) {
 }
 
 const defaultSiteContent: SiteContent = {
+  metaTitle: "",
+  metaDescription: "",
   heroTitle: "Explore the Collection",
   heroSubtitle: "Rare semi-precious stones from Indonesia, selected for collectors, makers, and quiet moments of wonder.",
   heroImage: "/images/rendi-virgo-hero-stones.webp",
@@ -461,6 +466,8 @@ export async function getSiteContent(language: Language = "en"): Promise<SiteCon
     return entry as T;
   };
   return {
+    metaTitle: value("home.metaTitle", ""),
+    metaDescription: value("home.metaDescription", ""),
     heroTitle: value("home.heroTitle", defaultSiteContent.heroTitle),
     heroSubtitle: value("home.heroSubtitle", defaultSiteContent.heroSubtitle),
     heroImage: value("home.heroImage", defaultSiteContent.heroImage) || defaultSiteContent.heroImage,

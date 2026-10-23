@@ -25,8 +25,9 @@ export const productInclude = {
 
 export const adminProductInclude = {
   ...productInclude,
-  etsyListingMapping: true,
-  etsySyncJob: true,
+  // Admin rows only need these summary fields, not the complete Etsy mapping.
+  etsyListingMapping: { select: { listingUrl: true, remoteState: true, lastSyncedAt: true, lastError: true } },
+  etsySyncJob: { select: { status: true, lastError: true } },
 } satisfies Prisma.ProductInclude;
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof productInclude }>;

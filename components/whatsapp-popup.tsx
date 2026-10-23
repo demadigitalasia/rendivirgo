@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCopy } from "@/components/providers";
+import { CloseIcon } from "@/components/icons";
 
 export function WhatsAppPopup({ phone, secondaryPhone }: { phone: string; secondaryPhone: string }) {
   const [open, setOpen] = useState(false);
@@ -52,7 +53,7 @@ export function WhatsAppPopup({ phone, secondaryPhone }: { phone: string; second
             aria-label="Close WhatsApp contact"
             onClick={() => setOpen(false)}
           >
-            ×
+            <CloseIcon size={17} />
           </button>
           <div className="whatsapp-widget__brand">RENDI VIRGO · WHATSAPP</div>
           <h2>{t.home.whatsappTitle}</h2>

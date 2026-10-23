@@ -1,3 +1,4 @@
+import { validateCopy } from "../content/content-copy.service";
 import { BadGatewayException, BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SettingsService } from "../settings/settings.service";
@@ -139,13 +140,14 @@ export class CategoryCopyService {
       throw new BadGatewayException(`OpenRouter could not generate category copy (HTTP ${response.status}).`);
     }
 
-    let payload: { choices?: Array<{ message?: { content?: string | null } }> };
+    let payload: { choices?: Array<{ finish_reason?: string; message?: { content?: string | null } }> };
     try {
       payload = (await response.json()) as typeof payload;
     } catch {
       throw new BadGatewayException("OpenRouter returned an invalid response. Please try again.");
     }
 
+    if (payload.choices?.[0]?.finish_reason === "length") throw new BadGatewayException("The AI returned truncated content. Please try again.");
     const outputText = payload.choices?.[0]?.message?.content;
     if (!outputText) throw new BadGatewayException("OpenRouter returned an empty response. Please try again.");
 
@@ -160,14 +162,15 @@ export class CategoryCopyService {
       throw new BadGatewayException("OpenRouter returned incomplete category copy. Please try again.");
     }
 
+    validateCopy(generated, "category");
     return {
-      description: generated.description.trim().slice(0, 600),
-      metaTitle: generated.metaTitle.trim().slice(0, 60),
-      metaDescription: generated.metaDescription.trim().slice(0, 160),
-      nameId: generated.nameId.trim().slice(0, 120),
-      descriptionId: generated.descriptionId.trim().slice(0, 600),
-      metaTitleId: generated.metaTitleId.trim().slice(0, 60),
-      metaDescriptionId: generated.metaDescriptionId.trim().slice(0, 160),
+      description: generated.description.trim(),
+      metaTitle: generated.metaTitle.trim(),
+      metaDescription: generated.metaDescription.trim(),
+      nameId: generated.nameId.trim(),
+      descriptionId: generated.descriptionId.trim(),
+      metaTitleId: generated.metaTitleId.trim(),
+      metaDescriptionId: generated.metaDescriptionId.trim(),
     };
   }
 }

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/seo";
-import { getAllPublishedProducts, getBlogPosts, getCategories } from "@/lib/storefront";
+import { getAllPublishedProducts, getBlogPosts, getCategories, getPages } from "@/lib/storefront";
 import { localizedPath } from "@/lib/locale";
 
 const baseUrl = siteUrl();
@@ -14,10 +14,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const date = value ? new Date(value) : null;
     return date && !Number.isNaN(date.getTime()) ? date : now;
   };
-  const [products, categories, firstPage] = await Promise.all([
+  const [products, categories, firstPage, pages] = await Promise.all([
     getAllPublishedProducts(),
     getCategories(),
     getBlogPosts({ pageSize: 100 }),
+    getPages(),
   ]);
 
   const posts = [...firstPage.posts];
@@ -53,7 +54,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   };
 
-  return [
+  const entries: MetadataRoute.Sitemap = [
     ...staticPaths.map((entry) => localizedEntry({
       url: `${baseUrl}${entry.path}`,
       lastModified: now,
@@ -78,6 +79,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.9,
     })),
+    ...pages.filter(page => !["admin", "api", "id", "en", "shop", "blog", "account", "cart", "checkout", "search", "orders", "returns", "wishlist", "wholesale"].includes(page.slug)).map(page => localizedEntry({ url: `${baseUrl}/${page.slug}`, lastModified: toDate(page.updatedAt), changeFrequency: "monthly" as const, priority: 0.5 })),
     ...posts.map((post) => localizedEntry({
       url: `${baseUrl}/blog/${post.slug}`,
       lastModified: toDate(post.updatedAt ?? post.publishedAt),
@@ -85,4 +87,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     })),
   ];
+  return [...new Map(entries.map(entry => [entry.url, entry])).values()];
 }

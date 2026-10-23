@@ -1,3 +1,4 @@
+import { siteUrl } from "@/lib/seo";
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
@@ -5,8 +6,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/cart", "/checkout", "/search"],
+      disallow: ["/admin", "/api", "/id/admin", "/id/api"],
     },
-    sitemap: "https://rendivirgo.com/sitemap.xml",
+    sitemap: `${siteUrl()}/sitemap.xml`,
   };
 }

@@ -43,12 +43,20 @@ export async function proxyRequest(request: NextRequest, targetPath: string): Pr
   const isBlogMutation =
     upstream.ok &&
     ["POST", "PATCH", "DELETE"].includes(request.method) &&
-    /^\/api\/admin\/blog(?:\/[^/]+)?$/.test(targetPath);
+    /^\/api\/admin\/blog(?:\/[^/]+)?$/.test(targetPath) && !targetPath.endsWith("/generate-copy");
 
   if (isBlogMutation) {
     revalidateTag("blog-posts", { expire: 0 });
     revalidatePath("/blog");
     revalidatePath("/blog/[slug]", "page");
+    revalidatePath("/sitemap.xml");
+  }
+
+  const isContentMutation = upstream.ok && ["POST", "PATCH", "DELETE"].includes(request.method) &&
+    /^\/api\/admin\/(?:products|categories|pages|site-content)(?:\/[^/]+)?$/.test(targetPath) && !targetPath.endsWith("/generate-copy");
+  if (isContentMutation) {
+    revalidatePath("/", "layout");
+    revalidatePath("/sitemap.xml");
   }
 
   for (const cookie of upstream.headers.getSetCookie?.() ?? []) {

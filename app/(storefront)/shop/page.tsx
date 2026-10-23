@@ -1,9 +1,10 @@
+import { socialMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ShopCatalog } from "@/components/shop-catalog";
 import { getCategories, getProductFilters, getProducts } from "@/lib/storefront";
 import { getRequestLanguage } from "@/lib/server-locale";
-import { localizedAlternates } from "@/lib/locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
 import { dictionaries } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: t.shopTitle,
     description: t.shopDescription,
     alternates: localizedAlternates("/shop", language),
+    ...socialMetadata(t.shopTitle, t.shopDescription, localizedPath("/shop", language)),
   };
 }
 

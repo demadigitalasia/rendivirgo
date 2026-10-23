@@ -26,8 +26,8 @@ export class BlogController {
 
   @Public()
   @Get(":slug")
-  detail(@Param("slug") slug: string, @Headers("x-rv-language") language?: string) {
-    return this.blogService.getPublicBySlug(slug, storefrontLanguage(language));
+  detail(@Param("slug") slug: string, @Headers("x-rv-language") language?: string, @Headers("x-rv-seo-audit") seoAudit?: string) {
+    return this.blogService.getPublicBySlug(slug, storefrontLanguage(language), seoAudit !== "1");
   }
 }
 

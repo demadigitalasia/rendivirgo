@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
 import { HomeContent } from "@/components/home-content";
-import { absoluteUrl, siteUrl } from "@/lib/seo";
+import { absoluteUrl, siteUrl, socialMetadata } from "@/lib/seo";
 import { getCategories, getProducts, getPublicSettings, getSiteContent, getTestimonials } from "@/lib/storefront";
 import { dictionaries } from "@/lib/i18n";
 import { getRequestLanguage } from "@/lib/server-locale";
-import { localizedAlternates } from "@/lib/locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
 
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const language = await getRequestLanguage();
-  const home = dictionaries[language].home;
+  const content = await getSiteContent(language);
+  const translated = language !== "id" || content.contentLocale === "id";
+  const title = (translated && content.metaTitle?.trim()) || `RENDI VIRGO | ${dictionaries[language].metadata.homeTitle}`;
+  const description = (translated && content.metaDescription?.trim()) || dictionaries[language].metadata.homeDescription;
   return {
-    title: `RENDI VIRGO | ${dictionaries[language].metadata.homeTitle}`,
-    description: dictionaries[language].metadata.homeDescription,
+    title,
+    description,
+    ...socialMetadata(title, description, localizedPath("/", language), content.heroImage),
     alternates: localizedAlternates("/", language),
   };
 }
@@ -60,8 +64,8 @@ export default async function HomePage() {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organization).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website).replace(/</g, "\\u003c") }} />
       <HomeContent
         featured={featured}
         categories={categories

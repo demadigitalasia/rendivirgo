@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch, errorMessage } from "./api";
 import { toast } from "./toast";
 import { Button, Modal } from "./ui";
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, UploadIcon } from "@/components/icons";
 
 export type MediaAsset = {
   id: string;
@@ -112,23 +113,24 @@ export function MediaPicker({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" />
               <button className="rv-media-item__remove" type="button" aria-label="Remove image" onClick={() => onChange(value.filter((_, position) => position !== index))}>
-                ×
+                <CloseIcon size={15} />
               </button>
               {multiple && value.length > 1 ? (
                 <>
                   {index > 0 ? (
                     <button
-                      className="rv-media-item__tag"
+                      className="rv-media-item__tag rv-media-item__move"
                       style={{ left: 6, bottom: 30 }}
                       type="button"
+                      aria-label="Move image earlier"
                       onClick={() => move(index, -1)}
                     >
-                      ←
+                      <ArrowLeftIcon size={15} />
                     </button>
                   ) : null}
                   {index < value.length - 1 ? (
-                    <button className="rv-media-item__tag" type="button" onClick={() => move(index, 1)}>
-                      →
+                    <button className="rv-media-item__tag rv-media-item__move" type="button" aria-label="Move image later" onClick={() => move(index, 1)}>
+                      <ArrowRightIcon size={15} />
                     </button>
                   ) : null}
                 </>
@@ -138,6 +140,7 @@ export function MediaPicker({
         </div>
       ) : (
         <div className="rv-upload-zone" onClick={() => inputRef.current?.click()} role="button" tabIndex={0}>
+          <UploadIcon size={23} />
           <strong>Drop images or click to upload</strong>
           <span className="rv-hint">JPEG, PNG, WebP, GIF, AVIF up to 8 MB</span>
         </div>

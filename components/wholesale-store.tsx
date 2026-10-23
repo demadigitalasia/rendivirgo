@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
-import { SearchIcon } from "@/components/icons";
+import { ArrowIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpRightIcon, ChevronIcon, CloseIcon, PlusIcon, RefreshIcon, SearchIcon, SparkleIcon } from "@/components/icons";
 import { FilterDropdown } from "@/components/filter-dropdown";
 import { useCart, useCopy } from "@/components/providers";
 import { LocalizedLink as Link } from "@/components/localized-link";
@@ -169,7 +169,7 @@ function WholesaleCard({ item }: { item: WholesaleProduct }) {
           <div className={`wholesale-product__placeholder wholesale-product__placeholder--${item.tone}`} role="img" aria-label={`${item.stoneType} product image unavailable`}>
             <span className="wholesale-product__visual-label">RENDI VIRGO · WHOLESALE</span>
             <span className="wholesale-product__stone">{item.stoneType}</span>
-            <span className="wholesale-product__visual-mark" aria-hidden="true">✳</span>
+            <span className="wholesale-product__visual-mark"><SparkleIcon size={28} /></span>
           </div>
         )}
         <span className={`wholesale-product__availability${available <= 0 ? " is-out" : ""}`}>
@@ -223,7 +223,7 @@ function WholesaleCard({ item }: { item: WholesaleProduct }) {
             disabled={!canAdd}
             onClick={() => addToCart(product, quantity, variantId || undefined, variant?.name)}
           >
-            <span>{selectedInCart ? `In order · ${selectedInCart}` : "Add to order"}</span><span aria-hidden="true">+</span>
+            <span>{selectedInCart ? `In order · ${selectedInCart}` : "Add to order"}</span><PlusIcon size={15} />
           </button>
         </div>
       </div>
@@ -250,9 +250,9 @@ function WholesalePagination({
 }) {
   return (
     <nav className={`wholesale-pagination${position === "top" ? " is-top" : ""}`} aria-label={`Wholesale catalog ${position} pagination`}>
-      <button type="button" aria-label="Previous catalog page" disabled={page <= 1} onClick={() => onNavigate(page - 1)}>← <span>Previous</span></button>
+      <button type="button" aria-label="Previous catalog page" disabled={page <= 1} onClick={() => onNavigate(page - 1)}><ArrowLeftIcon size={15} /><span>Previous</span></button>
       <div>{pageNumbers.map((number) => <button key={number} type="button" className={number === page ? "is-current" : ""} aria-current={number === page ? "page" : undefined} onClick={() => onNavigate(number)}>{number}</button>)}</div>
-      <button type="button" aria-label="Next catalog page" disabled={page >= pageCount} onClick={() => onNavigate(page + 1)}><span>Next</span> →</button>
+      <button type="button" aria-label="Next catalog page" disabled={page >= pageCount} onClick={() => onNavigate(page + 1)}><span>Next</span><ArrowRightIcon size={15} /></button>
       <small>Page {page} of {pageCount.toLocaleString("en-US")}</small>
     </nav>
   );
@@ -463,16 +463,16 @@ export function WholesaleStore() {
           ) : (
             <div className="wholesale-access__actions">
               {isUnavailable ? (
-                <button className="button button--light" type="button" onClick={() => setReloadKey((key) => key + 1)}>{copy.retry}<span aria-hidden="true">↻</span></button>
+                <button className="button button--light" type="button" onClick={() => setReloadKey((key) => key + 1)}>{copy.retry}<RefreshIcon size={16} /></button>
               ) : isPending ? (
-                <Link className="button button--light" href="/contact">{copy.contact}<span aria-hidden="true">→</span></Link>
+                <Link className="button button--light" href="/contact">{copy.contact}<ArrowIcon size={16} /></Link>
               ) : (
                 <>
-                  <Link className="button button--light" href="/account/login?next=%2Fwholesale">{copy.signIn}<span aria-hidden="true">→</span></Link>
+                  <Link className="button button--light" href="/account/login?next=%2Fwholesale">{copy.signIn}<ArrowIcon size={16} /></Link>
                   <Link className="button button--outline" href="/account/register">{copy.register}</Link>
                 </>
               )}
-              <Link className="wholesale-access__shop-link" href="/shop">{copy.shopLink}<span aria-hidden="true">↗</span></Link>
+              <Link className="wholesale-access__shop-link" href="/shop">{copy.shopLink}<ArrowUpRightIcon size={15} /></Link>
             </div>
           )}
         </div>
@@ -514,12 +514,12 @@ export function WholesaleStore() {
         <aside className={`wholesale-filters${mobileFiltersOpen ? " is-open" : ""}`}>
           <div className="wholesale-filters__header">
             <div><p>CATALOG FILTERS</p><h2>Refine collection</h2></div>
-            {activeFilterCount > 0 ? <button type="button" onClick={clearFilters} aria-label={`Clear ${activeFilterCount} active filters`}>{activeFilterCount} active <span aria-hidden="true">×</span></button> : <span>Browse all</span>}
+            {activeFilterCount > 0 ? <button type="button" onClick={clearFilters} aria-label={`Clear ${activeFilterCount} active filters`}>{activeFilterCount} active <CloseIcon size={13} /></button> : <span>Browse all</span>}
           </div>
           <button className="wholesale-filters__mobile-toggle" type="button" aria-expanded={mobileFiltersOpen} aria-controls="wholesale-filter-content" onClick={() => setMobileFiltersOpen((open) => !open)}>
             <span>{mobileFiltersOpen ? "Hide filters" : "Show filters"}</span>
             {activeFilterCount > 0 ? <span className="wholesale-filters__mobile-count">{activeFilterCount} active</span> : null}
-            <span className="wholesale-filters__mobile-chevron" aria-hidden="true">⌄</span>
+            <span className="wholesale-filters__mobile-chevron"><ChevronIcon size={17} /></span>
           </button>
           <div className="wholesale-filters__content" id="wholesale-filter-content">
             <div className="wholesale-filters__section">
@@ -527,7 +527,7 @@ export function WholesaleStore() {
               <label className="wholesale-category-search">
                 <SearchIcon />
                 <input type="search" value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="Find a category" aria-label="Find a wholesale category" />
-                {categorySearch ? <button type="button" aria-label="Clear category search" onClick={() => setCategorySearch("")}>×</button> : null}
+                {categorySearch ? <button type="button" aria-label="Clear category search" onClick={() => setCategorySearch("")}><CloseIcon size={13} /></button> : null}
               </label>
               <div className="wholesale-filters__categories">
                 <button type="button" className={category === "all" ? "is-active" : ""} aria-pressed={category === "all"} onClick={() => updateParam("category", "all")}>
@@ -540,7 +540,7 @@ export function WholesaleStore() {
                 ))}
                 {categorySearch.trim() && visibleCategories.length === 0 ? <p className="wholesale-filters__no-categories">No categories match “{categorySearch.trim()}”.</p> : null}
               </div>
-              {!categorySearch.trim() && matchingCategories.length > 8 ? <button className="wholesale-filters__show-categories" type="button" onClick={() => setShowAllCategories((show) => !show)}>{showAllCategories ? "Show fewer" : `Show all ${matchingCategories.length} categories`}<span aria-hidden="true">{showAllCategories ? "↑" : "↓"}</span></button> : null}
+              {!categorySearch.trim() && matchingCategories.length > 8 ? <button className="wholesale-filters__show-categories" type="button" onClick={() => setShowAllCategories((show) => !show)}>{showAllCategories ? "Show fewer" : `Show all ${matchingCategories.length} categories`}<ChevronIcon className={showAllCategories ? "is-up" : undefined} size={15} /></button> : null}
             </div>
             <div className="wholesale-filters__section">
               <div className="wholesale-filters__section-head"><h3>Availability</h3></div>
@@ -588,7 +588,7 @@ export function WholesaleStore() {
             <label className="wholesale-search">
               <SearchIcon />
               <input type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search name, stone, SKU or category" aria-label="Search wholesale catalog" />
-              {searchDraft ? <button type="button" aria-label="Clear search" onClick={() => setSearchDraft("")}>×</button> : null}
+                {searchDraft ? <button type="button" aria-label="Clear search" onClick={() => setSearchDraft("")}><CloseIcon size={13} /></button> : null}
             </label>
           </div>
 
@@ -598,7 +598,7 @@ export function WholesaleStore() {
               <div className="wholesale-active-filters__chips">
                 {activeFilterChips.map((chip) => (
                   <button key={chip.key} type="button" onClick={() => removeFilter(chip.key)} aria-label={`Remove filter ${chip.label}`}>
-                    <span>{chip.label}</span><span aria-hidden="true">×</span>
+                    <span>{chip.label}</span><CloseIcon size={13} />
                   </button>
                 ))}
                 <button className="wholesale-active-filters__clear" type="button" onClick={clearFilters}>Clear all</button>
@@ -630,10 +630,10 @@ export function WholesaleStore() {
 
           {catalog && pageCount > 1 ? <WholesalePagination page={page} pageCount={pageCount} pageNumbers={pageNumbers} onNavigate={navigateCatalogPage} position="top" /> : null}
 
-          {error ? <div className="wholesale-catalog__error" role="alert"><p>{error}</p><button type="button" onClick={() => setReloadKey((current) => current + 1)}>Try again</button></div> : null}
+          {error ? <div className="wholesale-catalog__error" role="alert"><p>{error}</p><button type="button" onClick={() => setReloadKey((current) => current + 1)}><RefreshIcon size={15} /> Try again</button></div> : null}
           {!error && busy && !catalog ? <div className="wholesale-store__grid">{Array.from({ length: 8 }, (_, index) => <ProductSkeleton key={index} />)}</div> : null}
           {!error && catalog && catalog.items.length === 0 && !busy ? (
-            <div className="wholesale-catalog__empty"><span aria-hidden="true">⌕</span><h2>No matching pieces</h2><p>Try a broader search or clear a filter to see more of the collection.</p><button className="wholesale-filters__apply" type="button" onClick={clearFilters}>Clear filters</button></div>
+            <div className="wholesale-catalog__empty"><span><SearchIcon size={34} /></span><h2>No matching pieces</h2><p>Try a broader search or clear a filter to see more of the collection.</p><button className="wholesale-filters__apply" type="button" onClick={clearFilters}>Clear filters</button></div>
           ) : null}
           {!error && catalog && catalog.items.length > 0 ? (
             <div className={`wholesale-store__grid${busy ? " is-updating" : ""}`} aria-busy={busy}>
@@ -656,7 +656,7 @@ export function WholesaleStore() {
           {belowMinimum ? (
             <button className="wholesale-store__cart-cta is-disabled" type="button" disabled>Minimum not met</button>
           ) : (
-            <Link className="wholesale-store__cart-cta" href="/wholesale/checkout">Review order <span aria-hidden="true">→</span></Link>
+            <Link className="wholesale-store__cart-cta" href="/wholesale/checkout">Review order <ArrowIcon size={16} /></Link>
           )}
         </aside>
       ) : null}

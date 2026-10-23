@@ -1,7 +1,10 @@
 "use client";
 
+import { AiDraft } from "@/components/admin/ai-draft";
+import { SeoPanel } from "@/components/admin/seo-panel";
+
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   apiFetch,
   errorMessage,
@@ -55,19 +58,6 @@ type BlogForm = {
   idTranslationStatus: TranslationStatus;
 };
 
-type GeneratedBlogCopy = Pick<
-  BlogForm,
-  | "title"
-  | "excerpt"
-  | "body"
-  | "metaTitle"
-  | "metaDescription"
-  | "titleId"
-  | "excerptId"
-  | "bodyId"
-  | "metaTitleId"
-  | "metaDescriptionId"
-> & { tags: string[]; tagsId: string[] };
 
 const emptyForm: BlogForm = {
   title: "",
@@ -132,81 +122,16 @@ export default function BlogEditorPage() {
   const state: ApiState<BlogPost> = useApi<BlogPost>(isNew ? null : `/api/admin/blog/${id}`);
   const [form, setForm] = useState<BlogForm>(emptyForm);
   const [busy, setBusy] = useState(false);
-  const [aiBrief, setAiBrief] = useState("");
-  const [generatingCopy, setGeneratingCopy] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiNotice, setAiNotice] = useState<string | null>(null);
-  const formRevision = useRef(0);
 
   useEffect(() => {
     if (state.data) setForm(formFrom(state.data));
   }, [state.data]);
 
   const update = <K extends keyof BlogForm>(key: K, value: BlogForm[K]) => {
-    formRevision.current += 1;
-    setAiError(null);
-    setAiNotice(null);
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const generateCopy = async () => {
-    const titleSeed = form.title.trim();
-    const briefSeed = aiBrief.trim();
-    if (titleSeed.length < 2 && briefSeed.length < 2) {
-      setAiError("Enter a title or a short brief before generating copy.");
-      return;
-    }
 
-    const generatedFields: Array<keyof GeneratedBlogCopy> = [
-      "excerpt", "body", "tags", "metaTitle", "metaDescription", "titleId", "excerptId", "bodyId", "tagsId", "metaTitleId", "metaDescriptionId",
-    ];
-    const hasExistingCopy = generatedFields.some((field) => {
-      const value = form[field];
-      return Array.isArray(value) ? value.length > 0 : value.trim().length > 0;
-    });
-    if (hasExistingCopy && !window.confirm("Generate new copy and replace the existing English and Indonesian article text and SEO drafts?")) {
-      return;
-    }
-
-    setGeneratingCopy(true);
-    setAiError(null);
-    setAiNotice(null);
-    const requestRevision = formRevision.current;
-    try {
-      const copy = await apiFetch<GeneratedBlogCopy>("/api/admin/blog/generate-copy", {
-        json: {
-          title: titleSeed.length >= 2 ? titleSeed : undefined,
-          brief: briefSeed || undefined,
-        },
-      });
-      if (formRevision.current !== requestRevision) {
-        setAiNotice("The article form changed while copy was generating, so the result was not applied. Generate again to use the latest details.");
-        return;
-      }
-      setForm((current) => ({
-        ...current,
-        title: current.title.trim().length >= 2 ? current.title : copy.title,
-        excerpt: copy.excerpt,
-        body: copy.body,
-        tags: copy.tags.join(", "),
-        metaTitle: copy.metaTitle,
-        metaDescription: copy.metaDescription,
-        titleId: copy.titleId,
-        excerptId: copy.excerptId,
-        bodyId: copy.bodyId,
-        tagsId: copy.tagsId.join(", "),
-        metaTitleId: copy.metaTitleId,
-        metaDescriptionId: copy.metaDescriptionId,
-        idTranslationStatus: "Draft",
-        status: "Draft",
-      }));
-      setAiNotice("English and Indonesian article drafts are ready. Review the copy, add a cover if needed, then save the post manually.");
-    } catch (error) {
-      setAiError(errorMessage(error));
-    } finally {
-      setGeneratingCopy(false);
-    }
-  };
 
   const save = async () => {
     const title = form.title.trim();
@@ -320,43 +245,13 @@ export default function BlogEditorPage() {
                 className="rv-blog-editor-card rv-blog-editor-article"
                 title="Article"
                 description="Shape the story, then preview how it reads before publishing."
-                actions={isNew ? (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={generateCopy}
-                    disabled={(form.title.trim().length < 2 && aiBrief.trim().length < 2) || generatingCopy}
-                    loading={generatingCopy}
-                  >
-                    Generate with AI
-                  </Button>
-                ) : undefined}
+
               >
                 <div className="rv-stack">
                   <Field label="Title">
                     <TextInput value={form.title} onChange={(value) => update("title", value)} placeholder="Post title" />
                   </Field>
-                  {isNew ? (
-                    <div className="rv-blog-ai-copy">
-                      <Field label="Brief for AI" hint="Share the topic, audience, angle, keywords, and facts you have verified. Leave it blank to generate from the title.">
-                        <TextArea
-                          value={aiBrief}
-                          onChange={(value) => {
-                            formRevision.current += 1;
-                            setAiBrief(value);
-                            setAiError(null);
-                            setAiNotice(null);
-                          }}
-                          placeholder="For example: Explain how to identify natural inclusions in quartz for beginner collectors. Avoid claims about origin or treatment unless listed here."
-                          maxLength={1200}
-                          rows={3}
-                        />
-                      </Field>
-                      <p className="rv-hint">Generates English and Indonesian drafts for the article, excerpt, tags, and SEO. The brief is sent to OpenRouter.</p>
-                      {aiError ? <div className="rv-ai-copy-message rv-ai-copy-message--error" role="alert">{aiError}</div> : null}
-                      {aiNotice ? <div className="rv-ai-copy-message rv-ai-copy-message--success" role="status">{aiNotice}</div> : null}
-                    </div>
-                  ) : null}
+                  <AiDraft kind="blog" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ title: form.title, body: form.body, titleId: form.titleId, bodyId: form.bodyId, excerpt: form.excerpt, tags: form.tags }} onApply={draft => setForm(current => ({ ...current, ...draft, idTranslationStatus: "Review" }))} />
                   <div className="rv-form-grid">
                     <Field label="Slug" hint="Leave blank to generate from the title">
                       <TextInput value={form.slug} onChange={(value) => update("slug", value)} placeholder="post-slug" />
@@ -440,6 +335,11 @@ export default function BlogEditorPage() {
                 </div>
               </Card>
 
+              <SeoPanel translationStatus={form.idTranslationStatus}
+                input={{ kind: "blog", title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription, images: [{ url: form.coverImage, alt: form.coverAlt }] }}
+                translation={{ kind: "blog", title: form.titleId, slug: form.slug, body: form.bodyId, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, images: [{ url: form.coverImage, alt: form.coverAltId }] }}
+                onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))}
+              />
               <Card className="rv-blog-editor-card" title="Cover & SEO" description="Choose the cover image and search preview.">
                 <div className="rv-stack">
                   <MediaPicker

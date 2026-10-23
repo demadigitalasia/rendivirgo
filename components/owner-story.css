@@ -35,11 +35,11 @@
 .storefront .owner-story__arrows { display: flex; gap: 8px; }
 .storefront .owner-story__arrows button { display: grid; place-items: center; width: 44px; height: 44px; padding: 12px; border: 1px solid var(--line); background: transparent; border-radius: 50%; color: var(--forest); transition: background .2s; }
 .storefront .owner-story__arrows button:hover { background: var(--jade-light); }
-.storefront .owner-story__arrows svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; }
-.storefront .owner-story__arrows button:first-child svg { transform: rotate(180deg); }
+.storefront .owner-story__arrows .rv-icon { width: 17px; height: 17px; }
+.storefront .owner-story__arrows button:first-child .rv-icon { transform: rotate(180deg); }
 .storefront .owner-story__values { display: flex; flex-wrap: wrap; gap: 12px 22px; list-style: none; padding: 23px 0 0; margin: 25px 0 27px; border-top: 1px solid var(--line); }
 .storefront .owner-story__values li { display: flex; align-items: center; gap: 8px; }
-.storefront .owner-story__values svg { width: 17px; height: 17px; stroke: var(--jade); stroke-width: 1.5; fill: none; }
+.storefront .owner-story__values .rv-icon { width: 17px; height: 17px; color: var(--jade); }
 .storefront .owner-story__values span { font: .65rem/1.6 var(--font-ui); color: var(--muted); }
 .storefront .owner-story[data-visible="true"] .owner-story__cutout,
 .storefront .owner-story[data-visible="true"] .owner-story__wash { animation-play-state: running; }

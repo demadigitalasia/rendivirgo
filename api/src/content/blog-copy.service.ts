@@ -1,3 +1,4 @@
+import { validateCopy } from "./content-copy.service";
 import { BadGatewayException, BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SettingsService } from "../settings/settings.service";
@@ -178,13 +179,14 @@ export class BlogCopyService {
       throw new BadGatewayException(`OpenRouter could not generate blog copy (HTTP ${response.status}).`);
     }
 
-    let payload: { choices?: Array<{ message?: { content?: string | null } }> };
+    let payload: { choices?: Array<{ finish_reason?: string; message?: { content?: string | null } }> };
     try {
       payload = (await response.json()) as typeof payload;
     } catch {
       throw new BadGatewayException("OpenRouter returned an invalid response. Please try again.");
     }
 
+    if (payload.choices?.[0]?.finish_reason === "length") throw new BadGatewayException("The AI returned truncated content. Please try again.");
     const outputText = payload.choices?.[0]?.message?.content;
     if (!outputText) throw new BadGatewayException("OpenRouter returned an empty response. Please try again.");
 
@@ -199,19 +201,20 @@ export class BlogCopyService {
       throw new BadGatewayException("OpenRouter returned incomplete blog copy. Please try again.");
     }
 
+    validateCopy({ ...generated, tags: generated.tags.join(", "), tagsId: generated.tagsId.join(", ") }, "blog");
     return {
-      title: generated.title.trim().slice(0, 200),
-      excerpt: generated.excerpt.trim().slice(0, 600),
-      body: generated.body.trim().slice(0, 12_000),
+      title: generated.title.trim(),
+      excerpt: generated.excerpt.trim(),
+      body: generated.body.trim(),
       tags: cleanTags(generated.tags),
-      metaTitle: generated.metaTitle.trim().slice(0, 60),
-      metaDescription: generated.metaDescription.trim().slice(0, 160),
-      titleId: generated.titleId.trim().slice(0, 200),
-      excerptId: generated.excerptId.trim().slice(0, 600),
-      bodyId: generated.bodyId.trim().slice(0, 12_000),
+      metaTitle: generated.metaTitle.trim(),
+      metaDescription: generated.metaDescription.trim(),
+      titleId: generated.titleId.trim(),
+      excerptId: generated.excerptId.trim(),
+      bodyId: generated.bodyId.trim(),
       tagsId: cleanTags(generated.tagsId),
-      metaTitleId: generated.metaTitleId.trim().slice(0, 60),
-      metaDescriptionId: generated.metaDescriptionId.trim().slice(0, 160),
+      metaTitleId: generated.metaTitleId.trim(),
+      metaDescriptionId: generated.metaDescriptionId.trim(),
     };
   }
 }

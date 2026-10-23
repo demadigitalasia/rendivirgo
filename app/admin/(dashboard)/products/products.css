@@ -94,6 +94,14 @@
   min-width: 1080px;
 }
 
+.rv-products-table .rv-table td {
+  font-size: 0.875rem;
+}
+
+.rv-products-table .rv-product-price {
+  font-weight: 500;
+}
+
 .rv-products-table .rv-table__thumb,
 .rv-products-table .rv-thumb-empty {
   width: 48px;

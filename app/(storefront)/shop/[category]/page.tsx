@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CategoryView } from "@/components/category-view";
-import { breadcrumbJsonLd } from "@/lib/seo";
+import { breadcrumbJsonLd, socialMetadata } from "@/lib/seo";
 import { getCategory, getProducts } from "@/lib/storefront";
 import { getRequestLanguage } from "@/lib/server-locale";
-import { localizedAlternates } from "@/lib/locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
 import { dictionaries } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +18,15 @@ export async function generateMetadata({ params }: { params: Promise<{ category:
   if (!category) return {};
   const englishFallback = language === "id" && category.contentLocale === "en";
   const note = category.description ?? (language === "id" ? "Batu alam dari Indonesia" : "Indonesian natural stones");
-  const title = englishFallback ? `${category.name} | RENDI VIRGO` : `${category.name} — ${note} | RENDI VIRGO`;
+  const title = (!englishFallback && category.metaTitle?.trim()) || `${category.name} | RENDI VIRGO`;
   const description = englishFallback
     ? `${dictionaries.id.draft.fallback} ${category.name}. ${note}.`
-    : `${category.name} from RENDI VIRGO. ${note}. Every piece is documented with its origin, condition, weight, and availability.`;
+    : category.metaDescription?.trim() || `${category.name} from RENDI VIRGO. ${note}`.slice(0, 160);
   return {
     title,
     description,
     alternates: localizedAlternates(`/shop/${category.slug}`, language),
+    ...socialMetadata(title, description, localizedPath(`/shop/${category.slug}`, language), category.imageUrl || undefined),
   };
 }
 

@@ -820,17 +820,18 @@ export default function AdminShippingPage() {
         </div>
       ),
     },
-    { key: "region", header: "Destination", width: "10%", render: (rate) => destinationName(rate.region) },
+    { key: "region", header: "Destination", width: "10%", render: (rate) => <span className="rv-shipping-rate-value">{destinationName(rate.region)}</span> },
     {
       key: "weight",
       header: "Weight range",
       width: "13%",
-      render: (rate) =>
-        rate.maxWeightGram === null
+      render: (rate) => (
+        <span className="rv-shipping-rate-value">{rate.maxWeightGram === null
           ? `${formatNumber(rate.minWeightGram)} g and up`
-          : `${formatNumber(rate.minWeightGram)}–${formatNumber(rate.maxWeightGram)} g`,
+          : `${formatNumber(rate.minWeightGram)}–${formatNumber(rate.maxWeightGram)} g`}</span>
+      ),
     },
-    { key: "price", header: "Base rate", align: "right", width: "9%", render: (rate) => formatUSD(rate.price) },
+    { key: "price", header: "Base rate", align: "right", width: "9%", render: (rate) => <span className="rv-shipping-rate-value rv-shipping-rate-value--price">{formatUSD(rate.price)}</span> },
     {
       key: "fees",
       header: "Extra fees",

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
-import { ArrowIcon, BagIcon, CloseIcon, GlobeIcon, HeartIcon, MenuIcon, SearchIcon } from "@/components/icons";
+import { ArrowIcon, ArrowUpRightIcon, BagIcon, ChevronIcon, CloseIcon, GlobeIcon, HeartIcon, MenuIcon, SearchIcon, SparkleIcon } from "@/components/icons";
 import { LocalizedLink as Link } from "@/components/localized-link";
 import { localizedPath, stripLocalePrefix, type Language } from "@/lib/locale";
 import { isStorefrontRouteActive, storefrontRoutes } from "@/lib/navigation";
@@ -150,23 +150,23 @@ export function SiteHeader({ languages, categories }: { languages: Language[]; c
               aria-controls="shop-category-navigation"
               onClick={() => setShopMenuOpen((open) => !open)}
             >
-              <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg>
+              <ChevronIcon size={14} />
             </button>
             <div id="shop-category-navigation" className="main-nav__shop-panel" hidden={!shopMenuOpen}>
               <div className="main-nav__shop-panel-head">
                 <p className="main-nav__shop-heading">{t.nav.shopCategories}</p>
-                <span className="main-nav__shop-panel-mark" aria-hidden="true">✦</span>
+                <span className="main-nav__shop-panel-mark"><SparkleIcon size={15} /></span>
               </div>
               <div className="main-nav__shop-links">
                 {shopCategories.map((category) => {
                   const categoryPath = `${storefrontRoutes.shop}/${category.slug}`;
                   const active = isStorefrontRouteActive(routePath, categoryPath);
                   return <Link key={category.slug} href={categoryPath} aria-current={active ? "page" : undefined}
-                    onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}><span>{category.name}</span><span aria-hidden="true">↗</span></Link>;
+                    onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}><span>{category.name}</span><ArrowUpRightIcon size={13} /></Link>;
                 })}
               </div>
               <Link className="main-nav__shop-all" href={storefrontRoutes.shop} aria-current={routePath === storefrontRoutes.shop ? "page" : undefined}
-                onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.shopAll}<span aria-hidden="true">→</span></Link>
+                onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.shopAll}<ArrowIcon size={15} /></Link>
             </div>
           </div>
           <Link href={storefrontRoutes.wholesaleCatalog} className={`nav-link ${isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleCatalog) ? "is-active" : ""}`}

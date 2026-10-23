@@ -1,5 +1,8 @@
 "use client";
 
+import { AiDraft } from "@/components/admin/ai-draft";
+import { SeoPanel } from "@/components/admin/seo-panel";
+
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi, type ApiState } from "@/components/admin/api";
 import { MediaPicker } from "@/components/admin/media";
@@ -12,6 +15,11 @@ import "./home.css";
 type SiteContent = Record<string, unknown>;
 
 type HomeForm = {
+  metaTitle: string;
+  metaDescription: string;
+  metaTitleId: string;
+  metaDescriptionId: string;
+
   heroTitle: string;
   heroSubtitle: string;
   heroTitleId: string;
@@ -34,6 +42,11 @@ type HomeForm = {
 };
 
 const emptyForm: HomeForm = {
+  metaTitle: "",
+  metaDescription: "",
+  metaTitleId: "",
+  metaDescriptionId: "",
+
   heroTitle: "",
   heroSubtitle: "",
   heroTitleId: "",
@@ -67,6 +80,11 @@ function asBool(value: unknown): boolean {
 
 function formFrom(data: SiteContent): HomeForm {
   return {
+    metaTitle: asText(data["home.metaTitle"]),
+    metaDescription: asText(data["home.metaDescription"]),
+    metaTitleId: asText(data["home.metaTitleId"]),
+    metaDescriptionId: asText(data["home.metaDescriptionId"]),
+
     heroTitle: asText(data["home.heroTitle"]),
     heroSubtitle: asText(data["home.heroSubtitle"]),
     heroTitleId: asText(data["home.heroTitleId"]),
@@ -119,6 +137,11 @@ export default function ContentHomePage() {
     }
 
     const payload: Record<string, unknown> = {};
+    if (form.metaTitle !== saved.metaTitle) payload["home.metaTitle"] = form.metaTitle;
+    if (form.metaDescription !== saved.metaDescription) payload["home.metaDescription"] = form.metaDescription;
+    if (form.metaTitleId !== saved.metaTitleId) payload["home.metaTitleId"] = form.metaTitleId;
+    if (form.metaDescriptionId !== saved.metaDescriptionId) payload["home.metaDescriptionId"] = form.metaDescriptionId;
+
     if (form.heroTitle !== saved.heroTitle) payload["home.heroTitle"] = form.heroTitle;
     if (form.heroSubtitle !== saved.heroSubtitle) payload["home.heroSubtitle"] = form.heroSubtitle;
     if (form.heroTitleId !== saved.heroTitleId) payload["home.heroTitleId"] = form.heroTitleId;
@@ -196,6 +219,20 @@ export default function ContentHomePage() {
         {data ? (
           <div className="rv-home-layout">
             <div className="rv-stack rv-home-form">
+              <Card title="AI content assistant" description="Draft homepage copy from your existing content and verified facts.">
+                <AiDraft kind="home" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle, ownerName: form.ownerName, ownerRole: form.ownerRole, ownerBio: form.ownerBio }} onApply={draft => setForm(current => ({ ...current, heroTitle: draft.heroTitle, heroSubtitle: draft.heroSubtitle, heroTitleId: draft.heroTitleId, heroSubtitleId: draft.heroSubtitleId, ownerBio: draft.ownerBio, ownerBioId: draft.ownerBioId, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+              </Card>
+              <Card title="Home SEO">
+                <div className="rv-stack">
+                  <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "home", title: form.heroTitle, slug: "", body: `${form.heroSubtitle}\n\n${form.ownerBio}`, metaTitle: form.metaTitle, metaDescription: form.metaDescription, images: [{ url: form.heroImage, alt: form.heroTitle, fallback: true }] }}
+                    translation={{ kind: "home", title: form.heroTitleId, slug: "", body: `${form.heroSubtitleId}\n\n${form.ownerBioId}`, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, images: [{ url: form.heroImage, alt: form.heroTitleId, fallback: true }] }}
+                    onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+                  <Field label="SEO title (English)"><TextArea rows={2} value={form.metaTitle} onChange={value => update("metaTitle", value)} /></Field>
+                  <Field label="Meta description (English)"><TextArea rows={2} value={form.metaDescription} onChange={value => update("metaDescription", value)} /></Field>
+                  <Field label="SEO title (Bahasa Indonesia)"><TextArea rows={2} value={form.metaTitleId} onChange={value => update("metaTitleId", value)} /></Field>
+                  <Field label="Meta description (Bahasa Indonesia)"><TextArea rows={2} value={form.metaDescriptionId} onChange={value => update("metaDescriptionId", value)} /></Field>
+                </div>
+              </Card>
               <Card title="Hero" description="Top of the home page" className="rv-home-section rv-home-section--hero">
                 <div className="rv-stack">
                   <div className="rv-form-grid">

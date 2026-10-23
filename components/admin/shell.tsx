@@ -6,8 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api";
 import { Toaster, toast } from "./toast";
+import { AlertTriangleIcon, CloseIcon, Icon, LogOutIcon, MenuIcon, StoreIcon, type IconName } from "@/components/icons";
 
-type NavItem = { href: string; label: string; exact?: boolean; badge?: number; warning?: string };
+type NavItem = { href: string; label: string; icon: IconName; exact?: boolean; badge?: number; warning?: string };
 
 type NavGroup = { label: string; items: NavItem[] };
 
@@ -100,47 +101,48 @@ export function AdminShell({
   const groups: NavGroup[] = [
     {
       label: "Overview",
-      items: [{ href: "/admin", label: "Dashboard", exact: true }],
+      items: [{ href: "/admin", label: "Dashboard", icon: "dashboard", exact: true }],
     },
     {
       label: "Catalog",
       items: [
-        { href: "/admin/products", label: "Products" },
-        { href: "/admin/categories", label: "Categories" },
-        { href: "/admin/conditions", label: "Conditions" },
-        { href: "/admin/catalog", label: "PDF catalog" },
+        { href: "/admin/products", label: "Products", icon: "box" },
+        { href: "/admin/categories", label: "Categories", icon: "layers" },
+        { href: "/admin/conditions", label: "Conditions", icon: "shieldCheck" },
+        { href: "/admin/catalog", label: "PDF catalog", icon: "book" },
       ],
     },
     {
       label: "Sales",
       items: [
-        { href: "/admin/pos", label: "Workshop POS" },
-        { href: "/admin/orders", label: "Orders" },
-        { href: "/admin/customers", label: "Customers" },
-        { href: "/admin/wholesale", label: "Wholesale" },
-        { href: "/admin/discounts", label: "Discounts" },
+        { href: "/admin/pos", label: "Workshop POS", icon: "receipt" },
+        { href: "/admin/orders", label: "Orders", icon: "fileText" },
+        { href: "/admin/customers", label: "Customers", icon: "users" },
+        { href: "/admin/wholesale", label: "Wholesale", icon: "gem" },
+        { href: "/admin/discounts", label: "Discounts", icon: "tag" },
       ],
     },
     {
       label: "Content",
       items: [
-        { href: "/admin/content/home", label: "Home page" },
-        { href: "/admin/content/blog", label: "Blog" },
-        { href: "/admin/content/pages", label: "Pages" },
-        { href: "/admin/content/testimonials", label: "Testimonials" },
-        { href: "/admin/content/banners", label: "Banners" },
+        { href: "/admin/seo", label: "SEO Audit", icon: "seo" },
+        { href: "/admin/content/home", label: "Home page", icon: "home" },
+        { href: "/admin/content/blog", label: "Blog", icon: "notebook" },
+        { href: "/admin/content/pages", label: "Pages", icon: "fileText" },
+        { href: "/admin/content/testimonials", label: "Testimonials", icon: "message" },
+        { href: "/admin/content/banners", label: "Banners", icon: "image" },
       ],
     },
     {
       label: "Operations",
       items: [
-        { href: "/admin/messages", label: "Inbox", badge: unread, warning: unreadSyncError ? "Inbox count unavailable" : undefined },
-        { href: "/admin/reviews", label: "Reviews" },
-        { href: "/admin/newsletter", label: "Newsletter" },
-        { href: "/admin/reports", label: "Reports" },
-        { href: "/admin/settings", label: "Settings", exact: true },
-        { href: "/admin/settings/shipping", label: "Shipping" },
-        { href: "/admin/system", label: "System & audit" },
+        { href: "/admin/messages", label: "Inbox", icon: "inbox", badge: unread, warning: unreadSyncError ? "Inbox count unavailable" : undefined },
+        { href: "/admin/reviews", label: "Reviews", icon: "star" },
+        { href: "/admin/newsletter", label: "Newsletter", icon: "mail" },
+        { href: "/admin/reports", label: "Reports", icon: "chart" },
+        { href: "/admin/settings", label: "Settings", icon: "settings", exact: true },
+        { href: "/admin/settings/shipping", label: "Shipping", icon: "truck" },
+        { href: "/admin/system", label: "System & audit", icon: "shieldCheck" },
       ],
     },
   ];
@@ -185,9 +187,10 @@ export function AdminShell({
                   className={isActive(item) ? "rv-nav-item is-active" : "rv-nav-item"}
                   aria-current={isActive(item) ? "page" : undefined}
                 >
-                  {item.label}
+                  <Icon name={item.icon} className="rv-nav-item__icon" />
+                  <span className="rv-nav-item__label">{item.label}</span>
                   {item.badge ? <span className="rv-nav-item__badge">{item.badge}</span> : null}
-                  {item.warning ? <span className="rv-nav-item__warning" title={item.warning} aria-label={item.warning}>!</span> : null}
+                  {item.warning ? <span className="rv-nav-item__warning" title={item.warning} aria-label={item.warning}><AlertTriangleIcon size={14} /></span> : null}
                 </Link>
               ))}
             </div>
@@ -197,11 +200,11 @@ export function AdminShell({
           <strong>{admin.name}</strong>
           <span>{admin.email}</span>
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-            <Link className="rv-btn rv-btn--sm" href="/" target="_blank">
-              View store
+            <Link className="rv-btn rv-btn--sm" href="/" target="_blank" rel="noreferrer noopener">
+              <StoreIcon size={15} /> View store <span className="rv-sr-only">in a new tab</span><Icon name="externalLink" size={14} />
             </Link>
             <button className="rv-btn rv-btn--sm" type="button" onClick={signOut} disabled={signingOut}>
-              {signingOut ? "Signing out…" : "Sign out"}
+              <LogOutIcon size={15} /> {signingOut ? "Signing out…" : "Sign out"}
             </button>
           </div>
         </div>
@@ -217,6 +220,7 @@ export function AdminShell({
             aria-controls="admin-navigation"
             onClick={() => setNavOpen((value) => !value)}
           >
+            {navOpen ? <CloseIcon size={17} /> : <MenuIcon size={17} />}
             {navOpen ? "Close menu" : "Menu"}
           </button>
           <span className="rv-mobile-admin-bar__label">RENDI VIRGO · Admin workspace</span>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetailClient } from "@/components/product-detail-client";
 import { formatDimensions } from "@/lib/catalog";
-import { absoluteUrl, breadcrumbJsonLd } from "@/lib/seo";
+import { absoluteUrl, breadcrumbJsonLd, socialMetadata } from "@/lib/seo";
 import { getProductBySlug, getProductReviewSummary, getRelatedProducts } from "@/lib/storefront";
 import { getRequestLanguage } from "@/lib/server-locale";
 import { localizedAlternates, localizedPath } from "@/lib/locale";
@@ -26,12 +26,12 @@ export async function generateMetadata({ params }: { params: Promise<{ category:
     : product.seo.metaDescription ||
       [product.description, product.stoneType, product.origin ? `from ${product.origin}` : "", `${product.weightGram} g`, formatDimensions(product.dimensionsMm)]
         .filter(Boolean)
-        .join(" ");
+        .join(" ").slice(0, 160);
   return {
     title,
     description,
     alternates: localizedAlternates(`/shop/${product.categorySlug}/${product.slug}`, language),
-    openGraph: { title, description, type: "website", images: product.images.slice(0, 1) },
+    ...socialMetadata(title, description, localizedPath(`/shop/${product.categorySlug}/${product.slug}`, language), product.images[0]),
   };
 }
 

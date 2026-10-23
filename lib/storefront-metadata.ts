@@ -1,6 +1,7 @@
+import { socialMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { dictionaries } from "@/lib/i18n";
-import { localizedAlternates } from "@/lib/locale";
+import { localizedAlternates, localizedPath } from "@/lib/locale";
 import { getRequestLanguage } from "@/lib/server-locale";
 
 export type StorefrontMetadataKey =
@@ -18,6 +19,7 @@ export async function storefrontMetadata(
     title: metadata[`${key}Title`],
     description: metadata[`${key}Description`],
     alternates: localizedAlternates(path, language),
+    ...socialMetadata(metadata[`${key}Title`], metadata[`${key}Description`], localizedPath(path, language)),
     ...options,
   };
 }

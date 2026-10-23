@@ -6,6 +6,10 @@ import { PrismaService } from "../prisma/prisma.service";
 import type { StorefrontLanguage } from "../common/utils/storefront-language";
 
 export const SITE_CONTENT_DEFAULTS: Record<string, unknown> = {
+  "home.metaTitle": "",
+  "home.metaDescription": "",
+  "home.metaTitleId": "",
+  "home.metaDescriptionId": "",
   "home.heroTitle": "",
   "home.heroSubtitle": "",
   "home.heroTitleId": "",
@@ -66,7 +70,7 @@ export class SiteContentService {
         key !== "home.idTranslationStatus"
       ) result[key] = value;
     }
-    const translatedFields = ["home.heroTitle", "home.heroSubtitle", "home.ownerRole", "home.ownerBio", "home.ownerCtaLabel"];
+    const translatedFields = ["home.metaTitle", "home.metaDescription", "home.heroTitle", "home.heroSubtitle", "home.ownerRole", "home.ownerBio", "home.ownerCtaLabel"];
     const isIndonesianReady = language === "id" && merged["home.idTranslationStatus"] === "Ready" &&
       Boolean(String(merged["home.heroTitleId"] ?? "").trim()) && Boolean(String(merged["home.heroSubtitleId"] ?? "").trim()) &&
       translatedFields.every((key) => {
@@ -112,6 +116,9 @@ export class SiteContentService {
     }
     if (key.startsWith("home.") && value !== null && typeof value !== "string") {
       throw new BadRequestException(`"${key}" must be a string`);
+    }
+    if (/^home\.meta(?:Title|Description)(?:Id)?$/.test(key) && typeof value === "string" && value.length > (key.includes("Title") ? 200 : 400)) {
+      throw new BadRequestException(`SEO metadata for "${key}" is too long`);
     }
     if (key === "home.idTranslationStatus" && !["Missing", "Draft", "Review", "Ready"].includes(String(value))) {
       throw new BadRequestException(`"${key}" is not a supported translation status`);

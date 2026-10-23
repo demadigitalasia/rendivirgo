@@ -1,6 +1,10 @@
 "use client";
 
+import { SeoBadge } from "@/components/admin/seo-panel";
+import { contentSeoInput } from "@/lib/seo-analysis";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch, errorMessage, formatDateTime, formatNumber, useList } from "@/components/admin/api";
 import { DataTable, TablePagination, type Column } from "@/components/admin/data-table";
 import { toast } from "@/components/admin/toast";
@@ -8,6 +12,7 @@ import { Badge, Button, Card, ConfirmButton, PageHeader, Select, StatusBadge, Te
 import { contentStatusOptions, type ContentPage } from "../types";
 
 export default function PagesListPage() {
+  const router = useRouter();
   const list = useList<ContentPage>("/api/admin/pages", { pageSize: 20 });
 
   const remove = async (page: ContentPage) => {
@@ -30,6 +35,18 @@ export default function PagesListPage() {
           <Link href={`/admin/content/pages/${page.id}`}>{page.title}</Link>
           <div className="rv-hint">/{page.slug}</div>
         </div>
+      ),
+    },
+    {
+      key: "seo",
+      header: "SEO Score · EN",
+      width: "144px",
+      render: (page) => (
+        <SeoBadge
+          variant="table"
+          input={contentSeoInput(page, "page")}
+          onClick={() => router.push(`/admin/content/pages/${page.id}`)}
+        />
       ),
     },
     {

@@ -124,7 +124,7 @@
   overflow-wrap: anywhere;
 }
 
-.rv-blog-list-table .rv-table td:nth-child(2) {
+.rv-blog-list-table .rv-table td:first-child {
   min-width: 190px;
 }
 

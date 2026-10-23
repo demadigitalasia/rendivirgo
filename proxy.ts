@@ -4,9 +4,7 @@ import {
   languageCookieName,
   languageCookiePresentHeaderName,
   languageHeaderName,
-  localizedPath,
   originalPathHeaderName,
-  normalizeLanguage,
 } from "@/lib/locale";
 
 const SESSION_COOKIE = "rv_admin_session";
@@ -79,10 +77,10 @@ export function proxy(request: NextRequest) {
     return response;
   }
 
-  const language = normalizeLanguage(request.cookies.get(languageCookieName)?.value);
-  if (language === "id") {
-    return NextResponse.redirect(new URL(`${localizedPath(pathname, "id")}${query}`, request.url));
-  }
+  // Public URLs determine their language. A preference cookie must not send
+  // the unprefixed destination of an /id rewrite back to /id, or make the
+  // English canonical URL depend on a previous visitor preference.
+  const language = "en";
 
   const headers = new Headers(request.headers);
   headers.set(languageHeaderName, language);

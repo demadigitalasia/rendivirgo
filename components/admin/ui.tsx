@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { FilterDropdown } from "@/components/filter-dropdown";
+import { CloseIcon } from "@/components/icons";
 
 export function PageHeader({
   title,
@@ -553,7 +554,7 @@ export function Modal({
         <div className="rv-modal__header">
           <h2 id={titleId}>{title}</h2>
           <button type="button" onClick={() => onCloseRef.current()} aria-label="Close dialog">
-            ×
+            <CloseIcon size={17} />
           </button>
         </div>
         <div className="rv-modal__body">{children}</div>

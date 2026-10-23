@@ -118,13 +118,13 @@ export class BlogService {
     return paginated(posts.map((post) => this.toPublic(post, language)), total, query.page, query.pageSize);
   }
 
-  async getPublicBySlug(slug: string, language: StorefrontLanguage = "en") {
+  async getPublicBySlug(slug: string, language: StorefrontLanguage = "en", countView = true) {
     const post = await this.prisma.blogPost.findFirst({
       where: { slug, status: "Published", publishedAt: { lte: new Date() } },
     });
     if (!post) throw new NotFoundException("Post not found");
 
-    void this.prisma.blogPost
+    if (countView) void this.prisma.blogPost
       .update({ where: { id: post.id }, data: { views: { increment: 1 } } })
       .catch(() => undefined);
 
