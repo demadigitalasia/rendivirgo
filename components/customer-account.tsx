@@ -70,7 +70,10 @@ function formatCountdown(seconds: number): string {
 async function sendJson(path: string, data: unknown) {
   const response = await fetch(path, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "accept-language": document.documentElement.lang.toLowerCase().startsWith("id") ? "id-ID" : "en-GB",
+    },
     credentials: "same-origin",
     body: JSON.stringify(data),
   });

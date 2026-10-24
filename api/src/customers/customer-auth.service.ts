@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import * as bcrypt from "bcryptjs";
 import type { Prisma } from "../../generated/prisma";
 import { AuthEmailOutboxService } from "../email/auth-email-outbox.service";
-import { renderCustomerPasswordResetEmail, renderCustomerVerificationEmail } from "../email/email.templates";
+import { renderCustomerPasswordResetEmail, renderCustomerVerificationEmail, renderCustomerVerificationEmailText, type CustomerEmailLanguage } from "../email/email.templates";
 import { PrismaService } from "../prisma/prisma.service";
 import type { UpdateCustomerProfileDto } from "./customer-auth.dto";
 
@@ -49,6 +49,7 @@ export class CustomerAuthService {
   private async enqueueVerificationLink(
     tx: Prisma.TransactionClient,
     customer: { id: string; email: string; name: string },
+    language: CustomerEmailLanguage = "en",
   ): Promise<void> {
     const token = randomBytes(32).toString("base64url");
     const tokenHash = this.hashToken(token);
@@ -57,6 +58,7 @@ export class CustomerAuthService {
       where: { id: customer.id },
       data: { verificationTokenHash: tokenHash, verificationTokenExpiresAt: expiresAt },
     });
+    const link = `${this.appOrigin()}/account/verify-email?token=${encodeURIComponent(token)}`;
     await this.emailOutbox.enqueue(tx, {
       kind: "CustomerVerification",
       targetId: customer.id,
@@ -64,20 +66,21 @@ export class CustomerAuthService {
       expiresAt,
       email: {
         to: customer.email,
-        subject: "Finish setting up your RENDI VIRGO customer account",
-        html: renderCustomerVerificationEmail({
-          link: `${this.appOrigin()}/account/verify-email?token=${encodeURIComponent(token)}`,
-          expiresMinutes: VERIFY_TTL_MINUTES,
-        }),
+        subject: language === "id" ? "Verifikasi email RENDI VIRGO Anda" : "Verify your RENDI VIRGO email",
+        html: renderCustomerVerificationEmail({ link, expiresMinutes: VERIFY_TTL_MINUTES, language }),
+        text: renderCustomerVerificationEmailText({ link, expiresMinutes: VERIFY_TTL_MINUTES, language }),
       },
     });
   }
 
-  private async issueVerificationLink(customer: { id: string; email: string; name: string }): Promise<void> {
-    await this.prisma.$transaction((tx) => this.enqueueVerificationLink(tx, customer));
+  private async issueVerificationLink(
+    customer: { id: string; email: string; name: string },
+    language: CustomerEmailLanguage = "en",
+  ): Promise<void> {
+    await this.prisma.$transaction((tx) => this.enqueueVerificationLink(tx, customer, language));
   }
 
-  async register(input: { email: string }): Promise<{ ok: true }> {
+  async register(input: { email: string }, language: CustomerEmailLanguage = "en"): Promise<{ ok: true }> {
     const email = input.email.trim().toLowerCase();
     await this.equalizePasswordWork();
     const existing = await this.prisma.customer.findUnique({ where: { email } });
@@ -93,12 +96,12 @@ export class CustomerAuthService {
             name: "Customer",
           },
         });
-      await this.enqueueVerificationLink(tx, customer);
+      await this.enqueueVerificationLink(tx, customer, language);
     });
     return { ok: true };
   }
 
-  async resendVerification(emailInput: string): Promise<{ ok: true }> {
+  async resendVerification(emailInput: string, language: CustomerEmailLanguage = "en"): Promise<{ ok: true }> {
     const email = emailInput.trim().toLowerCase();
     await this.equalizePasswordWork();
     const customer = await this.prisma.customer.findUnique({
@@ -114,7 +117,7 @@ export class CustomerAuthService {
     if (!customer || customer.emailVerifiedAt) return { ok: true };
     if (this.verificationSentRecently(customer.verificationTokenExpiresAt)) return { ok: true };
 
-    await this.issueVerificationLink(customer);
+    await this.issueVerificationLink(customer, language);
     return { ok: true };
   }
 

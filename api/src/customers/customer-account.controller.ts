@@ -20,6 +20,12 @@ export class CustomerAuthController {
     private readonly rateLimit: AuthRateLimitService,
   ) {}
 
+  private emailLanguage(request: Request): "en" | "id" {
+    const header = request.headers["accept-language"];
+    const preferred = (Array.isArray(header) ? header[0] : header)?.split(",")[0]?.trim().toLowerCase();
+    return preferred?.startsWith("id") ? "id" : "en";
+  }
+
   private cookieOptions(expires?: Date) {
     return {
       httpOnly: true,
@@ -35,7 +41,7 @@ export class CustomerAuthController {
   async register(@Body() dto: CustomerRegisterDto, @Req() request: Request) {
     await this.rateLimit.consume("customer-register", request.ip, 5, 60_000);
     await this.rateLimit.consume("customer-register-account", dto.email.trim().toLowerCase(), 5, 60_000);
-    const result = await this.auth.register(dto);
+    const result = await this.auth.register(dto, this.emailLanguage(request));
     await this.audit.log({
       action: "customer_auth.registration_requested",
       entityType: "Customer",
@@ -51,7 +57,7 @@ export class CustomerAuthController {
   async resendVerification(@Body() dto: CustomerForgotPasswordDto, @Req() request: Request) {
     await this.rateLimit.consume("customer-resend-verification", request.ip, 3, 60_000);
     await this.rateLimit.consume("customer-resend-verification-account", dto.email.trim().toLowerCase(), 1, 2 * 60_000);
-    const result = await this.auth.resendVerification(dto.email);
+    const result = await this.auth.resendVerification(dto.email, this.emailLanguage(request));
     await this.audit.log({
       action: "customer_auth.verification_requested",
       entityType: "Customer",

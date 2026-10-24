@@ -228,15 +228,105 @@ export const renderPasswordResetEmail = (data: { name: string; link: string; exp
     footer: "If you did not request this, you can ignore this email — your password stays unchanged.",
   });
 
-export const renderCustomerVerificationEmail = (data: { link: string; expiresMinutes: number }): string =>
-  layout({
-    heading: "Finish setting up your account",
-    intro: "Confirm your email address, then choose your name and password to finish setting up your RENDI VIRGO customer account.",
-    body: `<p style="margin:0 0 8px;"><a href="${escapeHtml(data.link)}" style="display:inline-block;background:#22201c;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-size:14px;">Continue account setup</a></p>
-      <p style="font-size:12px;color:#8a8477;">This link expires in ${data.expiresMinutes} minutes.</p>
-      <p style="font-size:12px;color:#8a8477;word-break:break-all;">${escapeHtml(data.link)}</p>`,
-    footer: "If you did not create this account, you can safely ignore this email.",
-  });
+export type CustomerEmailLanguage = "en" | "id";
+
+type CustomerVerificationEmailData = {
+  link: string;
+  expiresMinutes: number;
+  language?: CustomerEmailLanguage;
+};
+
+const customerVerificationCopy = (language: CustomerEmailLanguage, expiresMinutes: number) =>
+  language === "id"
+    ? {
+        preheader: "Satu langkah lagi untuk menyelesaikan akun pelanggan RENDI VIRGO Anda.",
+        label: "AKUN PELANGGAN · LANGKAH 1 DARI 2",
+        heading: "Verifikasi email Anda",
+        intro: "Konfirmasi alamat email ini untuk melanjutkan. Setelah itu, pilih nama dan kata sandi untuk menyelesaikan akun pelanggan Anda.",
+        button: "Verifikasi email & lanjutkan",
+        expiry: `Tautan aman ini berlaku selama ${expiresMinutes} menit dan hanya dapat digunakan satu kali.`,
+        fallback: "Tombol tidak berfungsi?",
+        fallbackLink: "Buka tautan verifikasi",
+        ignore: "Jika Anda tidak meminta pembuatan akun ini, abaikan email ini.",
+        support: "Butuh bantuan? Hubungi tim kami.",
+        tagline: "BATU ALAM ASLI INDONESIA",
+      }
+    : {
+        preheader: "One quick step to finish setting up your RENDI VIRGO customer account.",
+        label: "CUSTOMER ACCOUNT · STEP 1 OF 2",
+        heading: "Verify your email",
+        intro: "Confirm this email address to continue. Next, choose your name and password to finish setting up your customer account.",
+        button: "Verify email & continue",
+        expiry: `This secure link expires in ${expiresMinutes} minutes and can only be used once.`,
+        fallback: "Button not working?",
+        fallbackLink: "Open the secure setup link",
+        ignore: "If you did not request this account, you can safely ignore this email.",
+        support: "Need help? Contact our team.",
+        tagline: "AUTHENTIC INDONESIAN STONES",
+      };
+
+export const renderCustomerVerificationEmail = (data: CustomerVerificationEmailData): string => {
+  const language = data.language ?? "en";
+  const copy = customerVerificationCopy(language, data.expiresMinutes);
+  const origin = new URL(data.link).origin;
+  const link = escapeHtml(data.link);
+  const logo = escapeHtml(`${origin}/brand/rendi-virgo-logo.png`);
+  const contact = escapeHtml(`${origin}/contact`);
+
+  return `<!doctype html>
+<html lang="${language}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${escapeHtml(copy.heading)}</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f6f4ef;color:#202a23;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;">
+    <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${escapeHtml(copy.preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f6f4ef" style="width:100%;border-collapse:collapse;background-color:#f6f4ef;">
+      <tr>
+        <td align="center" style="padding:32px 16px 24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;border-collapse:collapse;">
+            <tr>
+              <td align="left" style="padding:0 8px 16px;">
+                <img src="${logo}" width="160" alt="RENDI VIRGO" style="display:block;width:160px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
+              </td>
+            </tr>
+            <tr>
+              <td bgcolor="#ffffff" style="padding:32px;border:1px solid #e7e2d8;border-radius:14px;background-color:#ffffff;">
+                <p style="margin:0 0 12px;color:#9a7844;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;line-height:1.5;letter-spacing:1.7px;text-transform:uppercase;">${escapeHtml(copy.label)}</p>
+                <h1 style="margin:0 0 12px;color:#202a23;font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:400;line-height:1.2;">${escapeHtml(copy.heading)}</h1>
+                <p style="margin:0 0 24px;color:#4c554d;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.7;">${escapeHtml(copy.intro)}</p>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;">
+                  <tr>
+                    <td align="center" bgcolor="#123c2f" style="border:1px solid #123c2f;border-radius:7px;background-color:#123c2f;">
+                      <a href="${link}" style="display:inline-block;padding:15px 22px;border-radius:7px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;line-height:18px;text-align:center;text-decoration:none;">${escapeHtml(copy.button)}</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:14px 0 22px;color:#6f766e;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;">${escapeHtml(copy.expiry)}</p>
+                <div style="height:1px;background-color:#ece8df;line-height:1px;font-size:1px;">&nbsp;</div>
+                <p style="margin:18px 0 8px;color:#4c554d;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.6;">${escapeHtml(copy.fallback)} <a href="${link}" style="color:#123c2f;font-weight:700;text-decoration:underline;">${escapeHtml(copy.fallbackLink)}</a>.</p>
+                <p style="margin:0;color:#777d74;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;">${escapeHtml(copy.ignore)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:18px 12px 0;color:#85877f;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.7;">
+                <p style="margin:0 0 5px;letter-spacing:1.2px;">RENDI VIRGO · ${escapeHtml(copy.tagline)}</p>
+                <p style="margin:0;"><a href="${contact}" style="color:#536252;text-decoration:underline;">${escapeHtml(copy.support)}</a> &nbsp;·&nbsp; rendivirgo.com</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+};
+
+export const renderCustomerVerificationEmailText = (data: CustomerVerificationEmailData): string => {
+  const copy = customerVerificationCopy(data.language ?? "en", data.expiresMinutes);
+  return `${copy.heading}\n\n${copy.intro}\n\n${copy.button}:\n${data.link}\n\n${copy.expiry}\n\n${copy.ignore}\n\n${copy.support} https://rendivirgo.com/contact\nRENDI VIRGO · ${copy.tagline}`;
+};
 
 export const renderCustomerPasswordResetEmail = (data: { name: string; link: string; expiresMinutes: number }): string =>
   layout({
