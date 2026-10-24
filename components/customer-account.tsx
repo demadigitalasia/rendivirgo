@@ -35,6 +35,38 @@ type OrderDetail = AccountOrder & {
   items: Array<{ name: string; sku: string; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string | null }>;
 };
 
+function customerApiError(payload: unknown, status: number): string {
+  const body = payload && typeof payload === "object" ? payload as { message?: unknown } : {};
+  const messages = Array.isArray(body.message)
+    ? body.message.map((message) => String(message))
+    : typeof body.message === "string" ? [body.message] : [];
+  const combined = messages.join(" ").toLowerCase();
+  const invalidName = combined.includes("name must") || combined.includes("enter your name");
+  const invalidPassword = combined.includes("password must");
+
+  if (invalidName && invalidPassword) return "Enter your name and a password between 12 and 200 characters.";
+  if (invalidName) return "Enter your name (up to 200 characters).";
+  if (invalidPassword) return "Your password must be between 12 and 200 characters.";
+  if (combined.includes("token must") || combined.includes("verification link is invalid") || combined.includes("verification link has expired")) {
+    return "This verification link is invalid or has expired. Request a new one.";
+  }
+  if (combined.includes("verify your email before signing in")) return "Please verify your email before signing in.";
+  if (combined.includes("invalid email or password")) return "Email or password is incorrect.";
+  if (combined.includes("email must")) return "Enter a valid email address.";
+  if (status === 429) return "Too many attempts. Please wait a moment and try again.";
+  if (status >= 500) return "We couldn't complete your request right now. Please try again shortly.";
+  return "Please check your details and try again.";
+}
+
+function customerErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof TypeError) return "We couldn't connect to the server. Please try again shortly.";
+  return error instanceof Error ? error.message : fallback;
+}
+
+function formatCountdown(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 async function sendJson(path: string, data: unknown) {
   const response = await fetch(path, {
     method: "POST",
@@ -43,7 +75,7 @@ async function sendJson(path: string, data: unknown) {
     body: JSON.stringify(data),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message || "Request failed");
+  if (!response.ok) throw new Error(customerApiError(payload, response.status));
   return payload;
 }
 
@@ -74,7 +106,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     event.preventDefault();
     if (!token) return;
     if (password !== confirmPassword) {
-      setError("The passwords do not match.");
+      setError("The passwords do not match. Enter the same password in both fields.");
       return;
     }
     setBusy(true);
@@ -89,7 +121,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
       setConfirmPassword("");
       window.history.replaceState(window.history.state, "", window.location.pathname);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Verification failed");
+      setError(customerErrorMessage(caught, "We couldn't verify your email."));
     } finally {
       setBusy(false);
     }
@@ -102,9 +134,9 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     try {
       await sendJson("/api/customer-auth/resend-verification", { email });
       setResendAfter(Date.now() + 2 * 60_000);
-      setMessage("If this email has a pending registration, we’ll attempt to send a new verification link.");
+      setMessage("If this email has a pending registration, we'll send another setup link shortly.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Request failed");
+      setError(customerErrorMessage(caught, "We couldn't request another email."));
     } finally {
       setBusy(false);
     }
@@ -120,7 +152,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
         await sendJson("/api/customer-auth/register", { email });
         setVerificationRequested(true);
         setResendAfter(Date.now() + 2 * 60_000);
-        setMessage("If this email can be registered, we’ll attempt to send a setup link. Open it to choose your name and password. Check your inbox and spam folder; use Resend if it doesn’t arrive.");
+        setMessage("If this email can be registered, we'll send a setup link shortly. Check your inbox and spam folder. You can request another email after two minutes.");
       } else if (mode === "login") {
         await sendJson("/api/customer-auth/login", { email, password });
         const requestedPath = new URLSearchParams(window.location.search).get("next");
@@ -135,7 +167,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
         setMessage("Password updated. Sign in with your new password.");
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Request failed");
+      setError(customerErrorMessage(caught, "We couldn't complete your request."));
     } finally {
       if (mode === "reset" && token) {
         window.history.replaceState(window.history.state, "", window.location.pathname);
@@ -148,7 +180,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
   const description = mode === "login"
     ? "Welcome back. Your orders, tracking, and collection details are waiting for you."
     : mode === "register"
-      ? "Create an account to keep your orders and delivery updates together."
+      ? "Enter your email and we’ll send a setup link so you can choose your name and password."
       : mode === "verify"
         ? "Confirm you own this email, then choose your name and password to finish setting up your customer account."
         : mode === "reset"
@@ -186,8 +218,31 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
                   <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : "Verify email & create account"}<ArrowIcon /></button>
                 </form>
               ) : null}
+              {verified ? <Link className="button button--primary customer-access__continue" href="/account/login">Sign in now<ArrowIcon size={17} /></Link> : null}
               {!token && !verified ? <p className="customer-account__error" role="alert">The verification link is missing. Register again to request a new setup link.</p> : null}
             </>
+          ) : mode === "register" && verificationRequested ? (
+            <div className="customer-access__pending-registration">
+              <p className="customer-access__notice" role={error ? "alert" : "status"}>{busy ? "Sending…" : error || message}</p>
+              <p className="customer-access__pending-email">Setup link requested for <strong>{email}</strong></p>
+              <button className="customer-access__resend" type="button" disabled={busy || resendCountdown > 0} onClick={() => void resendVerification()}>
+                {busy ? "Sending…" : resendCountdown > 0 ? `Didn't receive it? Request another in ${formatCountdown(resendCountdown)}` : "Resend setup email"}
+              </button>
+              <button
+                className="customer-access__resend customer-access__change-email"
+                type="button"
+                onClick={() => {
+                  setVerificationRequested(false);
+                  setEmail("");
+                  setResendAfter(0);
+                  setResendCountdown(0);
+                  setMessage("");
+                  setError("");
+                }}
+              >
+                Use a different email
+              </button>
+            </div>
           ) : (
             <form className="customer-account__form" onSubmit={(event) => void submit(event)}>
               {mode !== "reset" ? <label>Email<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label> : null}
@@ -211,16 +266,11 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
               {error ? <p className="customer-account__error" role="alert">{error}</p> : null}
               {message ? <p className="customer-account__message" role="status">{message}</p> : null}
               <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : mode === "register" ? "Create account" : mode === "forgot" ? "Send reset link" : mode === "reset" ? "Update password" : "Sign in"}<ArrowIcon size={17} /></button>
-              {mode === "register" && verificationRequested ? (
-                <button className="customer-access__resend" type="button" disabled={busy || resendCountdown > 0} onClick={() => void resendVerification()}>
-                  {busy ? "Sending…" : resendCountdown > 0 ? `Resend available in ${Math.floor(resendCountdown / 60)}:${String(resendCountdown % 60).padStart(2, "0")}` : "Resend verification email"}
-                </button>
-              ) : null}
             </form>
           )}
           <nav className="customer-access__links" aria-label="Account options">
-            {mode === "login" ? <Link href="/account/forgot-password">Forgot password?</Link> : <Link href="/account/login">Back to sign in</Link>}
-            {mode === "register" ? <span>Already have an account? <Link href="/account/login">Sign in</Link></span> : <span>New to RENDI VIRGO? <Link href="/account/register">Create account</Link></span>}
+            {mode === "login" ? <Link href="/account/forgot-password">Forgot password?</Link> : !verified ? <Link href="/account/login">Back to sign in</Link> : null}
+            {mode === "register" ? <span>Already have an account? <Link href="/account/login">Sign in</Link></span> : !verified ? <span>New to RENDI VIRGO? <Link href="/account/register">Create account</Link></span> : null}
           </nav>
           <Link className="customer-access__guest" href="/orders">Looking for a past guest order? <span>View order history <ArrowIcon size={15} /></span></Link>
         </div>

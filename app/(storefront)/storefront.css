@@ -723,8 +723,12 @@
 .customer-access .customer-account__form .button:hover span { transform: translateX(3px); }
 .customer-access .customer-account__form .button:disabled { cursor: wait; opacity: .72; }
 .customer-access__notice { margin: 16px 0 0; padding: 11px 13px; border: 1px solid #dce2d6; border-left: 3px solid #587458; background: #f4f6f0; color: #485746; font-size: .82rem; line-height: 1.45; }
-.customer-access__resend { display: inline-flex; margin-top: 10px; padding: 6px 0; border: 0; background: transparent; color: #284a37; font: inherit; font-size: .78rem; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.customer-access__resend { display: inline-flex; margin-top: 10px; padding: 6px 0; border: 0; background: transparent; color: #284a37; font: inherit; font-size: .78rem; font-weight: 600; line-height: 1.45; text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .customer-access__resend:disabled { color: #77786e; cursor: not-allowed; text-decoration: none; }
+.customer-access__pending-email { margin: 12px 0 0; color: #77786e; font-size: .76rem; line-height: 1.5; overflow-wrap: anywhere; }
+.customer-access__pending-email strong { color: #353b33; font-weight: 600; }
+.customer-access__change-email { display: flex; margin-top: 2px; }
+.customer-access__continue { display: flex; width: 100%; min-height: 42px; margin-top: 16px; padding: 8px 13px; align-items: center; justify-content: space-between; border-radius: 5px; font-size: .7rem; letter-spacing: .04em; text-decoration: none; }
 .customer-access__links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 12px; color: #77786e; font-size: .66rem; }
 .customer-access__links a { color: #284a37; font-weight: 600; text-decoration: none; text-underline-offset: 4px; }
 .customer-access__links a:hover, .customer-access__guest:hover span { text-decoration: underline; }
