@@ -6,6 +6,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { wholesalePriceQuery } from "./wholesale-catalog-price";
 import { ConfigService } from "@nestjs/config";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Prisma, type OrderStatus } from "../../generated/prisma";
@@ -391,6 +392,7 @@ export class OrdersService {
     const baseWhere: Prisma.ProductWhereInput = {
       status: "Published",
       sellInWholesale: true,
+      isBulkMaterial: false,
       AND: [stockModelEligibility],
     };
     const constraints: Prisma.ProductWhereInput[] = [];
@@ -421,28 +423,6 @@ export class OrdersService {
     if (query.availability === "in-stock") constraints.push(inStock);
     if (query.availability === "out-of-stock") constraints.push({ NOT: inStock });
 
-    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
-      const range = {
-        ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
-        ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
-      };
-      constraints.push({
-        OR: [
-          { variants: { none: {} }, wholesalePrice: range },
-          {
-            variants: {
-              some: {
-                OR: [
-                  { wholesalePrice: range },
-                  { wholesalePrice: null, product: { is: { wholesalePrice: range } } },
-                ],
-              },
-            },
-          },
-        ],
-      });
-    }
-
     const where: Prisma.ProductWhereInput = {
       ...baseWhere,
       AND: [stockModelEligibility, ...constraints],
@@ -457,8 +437,12 @@ export class OrdersService {
     };
     const orderBy = wholesaleSort[query.sort];
 
-    const [total, categories, stoneTypes, origins] = await this.prisma.$transaction([
-      this.prisma.product.count({ where }),
+    const useEffectivePrice = query.sort.startsWith("price-") || query.minPrice !== undefined || query.maxPrice !== undefined;
+    const priceQuery = wholesalePriceQuery(query);
+    const [countResult, categories, stoneTypes, origins] = await this.prisma.$transaction([
+      useEffectivePrice
+        ? this.prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`SELECT COUNT(*) AS total FROM (${priceQuery.rows}) matches`)
+        : this.prisma.product.count({ where }),
       this.prisma.category.findMany({
         where: { isActive: true, products: { some: baseWhere } },
         select: {
@@ -472,15 +456,17 @@ export class OrdersService {
       this.prisma.product.groupBy({ by: ["origin"], where: baseWhere, orderBy: { origin: "asc" } }),
     ]);
 
+    const total = typeof countResult === "number" ? countResult : Number(countResult[0]?.total ?? 0);
     const pageCount = Math.max(1, Math.ceil(total / query.pageSize));
     const page = Math.min(query.page, pageCount);
-    const products = await this.prisma.product.findMany({
-      where,
+    const ranked = useEffectivePrice ? await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`${priceQuery.rows} ORDER BY ${priceQuery.ordering} OFFSET ${(page - 1) * query.pageSize} LIMIT ${query.pageSize}`) : null;
+    const pageProducts = await this.prisma.product.findMany({
+      where: ranked ? { ...where, id: { in: ranked.map((row) => row.id) } } : where,
       include: checkoutProductInclude,
       orderBy,
-      skip: (page - 1) * query.pageSize,
-      take: query.pageSize,
+      ...(ranked ? {} : { skip: (page - 1) * query.pageSize, take: query.pageSize }),
     });
+    const products = ranked ? ranked.flatMap(({ id }) => { const product = pageProducts.find((entry) => entry.id === id); return product ? [product] : []; }) : pageProducts;
     return {
       items: products.map((product) => ({
         id: product.id,
@@ -504,6 +490,12 @@ export class OrdersService {
           : product.stockModel === "Unique" ? 1 : product.stockQuantity ?? 0,
         imageUrl: product.images[0]?.url ?? null,
         wholesalePrice: product.wholesalePrice === null ? null : Number(product.wholesalePrice),
+        wholesaleFromPrice: product.variants.length
+          ? product.variants.reduce<number | null>((minimum, variant) => {
+            const price = variant.wholesalePrice ?? product.wholesalePrice;
+            return price === null ? minimum : minimum === null ? Number(price) : Math.min(minimum, Number(price));
+          }, null)
+          : product.wholesalePrice === null ? null : Number(product.wholesalePrice),
         wholesalePiecesPerUnit: product.wholesalePiecesPerUnit,
         variants: product.variants.map((variant) => ({
           id: variant.id,
@@ -619,10 +611,13 @@ export class OrdersService {
     for (const item of dto.items) {
       const product = productById.get(item.productId);
       if (!product) throw new BadRequestException(`Product "${item.productId}" was not found`);
-      if (product.status !== "Published" || (source === "Wholesale" ? !product.sellInWholesale : !product.sellOnWeb)) {
+      if (product.isBulkMaterial || product.status !== "Published" || (source === "Wholesale" ? !product.sellInWholesale : !product.sellOnWeb)) {
         throw new BadRequestException(`"${product.name}" is not available`);
       }
 
+      if (product.variants.length > 0 && !item.variantId) {
+        throw new BadRequestException(`Select a variant of "${product.name}" before ordering`);
+      }
       const variant = item.variantId ? (product.variants.find((entry) => entry.id === item.variantId) ?? null) : null;
       if (item.variantId && !variant) throw new BadRequestException(`The selected variant of "${product.name}" was not found`);
       if (product.stockModel === "Unique" && product.variants.length > 0) {

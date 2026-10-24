@@ -43,7 +43,7 @@ export default async function HomePage() {
     "@type": "Organization",
     name: store.store.name || "RENDI VIRGO",
     url: siteUrl(),
-    logo: absoluteUrl("/brand/rendi-virgo-logo-black-silver.webp"),
+    logo: absoluteUrl("/brand/rendi-virgo-primary.webp"),
     email: store.store.email || undefined,
     address: store.store.address
       ? { "@type": "PostalAddress", streetAddress: store.store.address }

@@ -1,3 +1,4 @@
+import { internationalWhatsAppNumber } from "../common/utils/whatsapp";
 import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
@@ -17,7 +18,7 @@ export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "store.address": "",
   "store.socials": { instagram: "", facebook: "", youtube: "", tiktok: "" },
   "store.productWatermarkEnabled": true,
-  "store.productWatermarkLogo": "/brand/rendi-virgo-logo-white.webp",
+  "store.productWatermarkLogo": "/brand/rendi-virgo-primary.webp",
   "store.productWatermarkOpacity": 0.35,
   "store.productWatermarkSize": 18,
   "store.productWatermarkX": 69,
@@ -462,6 +463,11 @@ export class SettingsService {
   }
 
   private assertValue(key: string, value: unknown): void {
+    if (["store.whatsapp", "store.whatsappSecondary"].includes(key)) {
+      if (typeof value !== "string" || (value.trim() && !internationalWhatsAppNumber(value))) {
+        throw new BadRequestException("Use an international WhatsApp number, e.g. +62 followed by the number without its leading 0 (8–15 digits total), or leave it blank");
+      }
+    }
     if (typeof value === "number" && !Number.isFinite(value)) {
       throw new BadRequestException(`Value for "${key}" must be a finite number`);
     }

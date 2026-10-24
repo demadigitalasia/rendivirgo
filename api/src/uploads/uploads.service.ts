@@ -8,7 +8,7 @@ import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
 import { ALLOWED_IMAGE_MIME, detectImageType, type DetectedImage } from "./image-validation";
 
-const ALLOWED_FOLDERS = new Set(["products", "blog", "banners", "pages", "brand", "misc"]);
+const ALLOWED_FOLDERS = new Set(["products", "rough-materials", "blog", "banners", "pages", "brand", "misc"]);
 
 export type UploadedFileInfo = {
   originalname: string;

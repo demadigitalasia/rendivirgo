@@ -414,13 +414,13 @@ export default function AdminSettingsPage() {
                       <TextInput type="email" value={form.adminEmail} onChange={(value) => update("adminEmail", value)} />
                     </Field>
                     <Field label="WhatsApp number 1 (main)">
-                      <TextInput value={form.whatsapp} onChange={(value) => update("whatsapp", value)} placeholder="+62…" />
+                      <TextInput value={form.whatsapp} onChange={(value) => update("whatsapp", value)} placeholder="+62812… (international format)" />
                     </Field>
                     <Field label="WhatsApp number 2">
                       <TextInput
                         value={form.whatsappSecondary}
                         onChange={(value) => update("whatsappSecondary", value)}
-                        placeholder="+62…"
+                        placeholder="+62812… (international format)"
                       />
                     </Field>
                     <Field label="Currency" hint="ISO code, e.g. USD">

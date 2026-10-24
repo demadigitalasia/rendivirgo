@@ -89,7 +89,7 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
       <div className="page-container site-footer__grid">
         <div className="site-footer__brand">
           <Link href="/" className="footer-logo-plate" aria-label="RENDI VIRGO">
-            <Image src="/brand/rendi-virgo-logo-footer.png" alt="RENDI VIRGO" width={780} height={260} sizes="200px" />
+            <Image src="/brand/rendi-virgo-footer-selected.png" alt="RENDI VIRGO" width={780} height={260} sizes="200px" />
           </Link>
           <p>{t.footer.tagline}</p>
         </div>

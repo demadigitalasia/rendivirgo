@@ -104,7 +104,7 @@ export class PosService implements OnModuleInit, OnModuleDestroy {
 
       for (const item of items) {
         const product = productById.get(item.productId);
-        if (!product || product.status !== "Published" || !product.sellInWorkshop) {
+        if (!product || product.isBulkMaterial || product.status !== "Published" || !product.sellInWorkshop) {
           throw new BadRequestException("One or more items are unavailable for Workshop POS");
         }
         const variant = item.variantId ? product.variants.find((entry) => entry.id === item.variantId) : null;
@@ -372,7 +372,7 @@ export class PosService implements OnModuleInit, OnModuleDestroy {
 
         for (const requested of normalizedItems) {
           const product = productById.get(requested.productId);
-          if (!product || !product.sellInWorkshop) {
+          if (!product || product.isBulkMaterial || !product.sellInWorkshop) {
             throw new BadRequestException("One or more items are unavailable for Workshop POS");
           }
           const variant = requested.variantId ? product.variants.find((entry) => entry.id === requested.variantId) : null;

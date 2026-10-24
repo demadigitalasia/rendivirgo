@@ -1,3 +1,4 @@
+import { RoughMaterialsModule } from "./rough-materials/rough-materials.module";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
@@ -34,6 +35,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     AuthRateLimitModule,
     AuthModule,
     CatalogModule,
+    RoughMaterialsModule,
     ContentModule,
     CustomersModule,
     DiscountsModule,

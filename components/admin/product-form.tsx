@@ -54,6 +54,7 @@ export type ApiProduct = {
   sellOnWeb: boolean;
   sellInWorkshop: boolean;
   sellInWholesale: boolean;
+  isBulkMaterial: boolean;
   sellInEtsy: boolean;
   etsySync?: {
     status: string;
@@ -136,6 +137,7 @@ type FormValues = {
   sellOnWeb: boolean;
   sellInWorkshop: boolean;
   sellInWholesale: boolean;
+  isBulkMaterial: boolean;
   sellInEtsy: boolean;
   wholesalePrice: string;
   wholesalePiecesPerUnit: string;
@@ -220,6 +222,7 @@ function valuesFromProduct(product?: ApiProduct | null): FormValues {
     sellOnWeb: product?.sellOnWeb ?? true,
     sellInWorkshop: product?.sellInWorkshop ?? true,
     sellInWholesale: product?.sellInWholesale ?? false,
+    isBulkMaterial: product?.isBulkMaterial ?? false,
     sellInEtsy: product?.sellInEtsy ?? false,
     wholesalePrice: product?.wholesalePrice != null ? String(product.wholesalePrice) : "",
     wholesalePiecesPerUnit: product?.wholesalePiecesPerUnit != null ? String(product.wholesalePiecesPerUnit) : "",
@@ -351,7 +354,7 @@ export function ProductForm({
       setError("Weight in grams is required.");
       return;
     }
-    if (!values.sellOnWeb && !values.sellInWorkshop && !values.sellInWholesale && !values.sellInEtsy) {
+    if (!values.isBulkMaterial && !values.sellOnWeb && !values.sellInWorkshop && !values.sellInWholesale && !values.sellInEtsy) {
       setError("Select at least one sales channel.");
       return;
     }
@@ -382,6 +385,7 @@ export function ProductForm({
       sellOnWeb: values.sellOnWeb,
       sellInWorkshop: values.sellInWorkshop,
       sellInWholesale: values.sellInWholesale,
+      isBulkMaterial: values.isBulkMaterial,
       sellInEtsy: values.sellInEtsy,
       wholesalePrice: toNumberOrNull(values.wholesalePrice),
       wholesalePiecesPerUnit: toIntOrNull(values.wholesalePiecesPerUnit),
@@ -519,16 +523,19 @@ export function ProductForm({
               <Switch checked={values.fragile} onChange={(checked) => update("fragile", checked)} label="Fragile" />
             </div>
           </Field>
+          <Field label="Bulk rough classification" className="rv-span-2" hint="Use only for bulk supply handled manually. Small rough pieces sold individually can remain ordinary products. Publish bulk photos and USD/kg pricing in Admin → Rough Materials.">
+            <Switch checked={values.isBulkMaterial} onChange={(checked) => setValues((current) => ({ ...current, isBulkMaterial: checked, ...(checked ? { sellOnWeb: false, sellInWholesale: false, sellInEtsy: false, sellInWorkshop: false } : {}) }))} label="Bulk rough — manual inquiries only" />
+          </Field>
           <Field label="Sales channels" className="rv-span-2">
             <div className="rv-inline">
-              <Switch checked={values.sellOnWeb} onChange={(checked) => update("sellOnWeb", checked)} label="Website" />
-              <Switch checked={values.sellInWorkshop} onChange={(checked) => update("sellInWorkshop", checked)} label="Workshop POS" />
-              <Switch checked={values.sellInWholesale} onChange={(checked) => update("sellInWholesale", checked)} label="Wholesale" />
+              <Switch disabled={values.isBulkMaterial} checked={values.sellOnWeb} onChange={(checked) => update("sellOnWeb", checked)} label="Website" />
+              <Switch disabled={values.isBulkMaterial} checked={values.sellInWorkshop} onChange={(checked) => update("sellInWorkshop", checked)} label="Workshop POS" />
+              <Switch disabled={values.isBulkMaterial} checked={values.sellInWholesale} onChange={(checked) => update("sellInWholesale", checked)} label="Wholesale — Finished Products" />
               <Switch
                 checked={values.sellInEtsy}
                 onChange={(checked) => update("sellInEtsy", checked)}
                 label="Etsy"
-                disabled={saving || etsyStatus.loading || (!values.sellInEtsy && (!etsyReady || hasVariants))}
+                disabled={values.isBulkMaterial || saving || etsyStatus.loading || (!values.sellInEtsy && (!etsyReady || hasVariants))}
               />
             </div>
             <div className="rv-hint">Choose the sales channels where this product can be purchased.</div>

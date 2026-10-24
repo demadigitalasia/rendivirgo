@@ -144,6 +144,8 @@ enum AuthEmailOutboxKind {
   CustomerVerification
   CustomerPasswordReset
   AdminPasswordReset
+  WholesaleCustomerNotification
+  WholesaleAdminNotification
 }
 
 enum AuthEmailOutboxStatus {
@@ -328,6 +330,7 @@ model Product {
   sellOnWeb      Boolean       @default(true)
   sellInWorkshop Boolean       @default(true)
   sellInWholesale Boolean      @default(false)
+  isBulkMaterial Boolean       @default(false)
   sellInEtsy     Boolean       @default(false)
   wholesalePrice Decimal?      @db.Decimal(12, 2)
   wholesalePiecesPerUnit Int?
@@ -539,6 +542,13 @@ model ShippingRate {
 
 // ---------------------------------------------------------------- customers & orders
 
+enum WholesaleApplicationStatus {
+  None
+  Pending
+  Approved
+  Rejected
+}
+
 model Customer {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -560,6 +570,15 @@ model Customer {
   verificationTokenExpiresAt DateTime?
   resetTokenHash String? @unique
   resetTokenExpiresAt DateTime?
+  wholesaleStatus WholesaleApplicationStatus @default(None)
+  wholesaleBusinessName String?
+  wholesaleBuyerType String?
+  wholesaleBusinessCountry String?
+  wholesaleBusinessWebsite String?
+  wholesaleBusinessNeeds String?
+  wholesaleReviewReason String?
+  wholesaleReviewedAt DateTime?
+  wholesaleRevision Int @default(0)
   wholesaleAccess Boolean @default(false)
   wholesaleRequestedAt DateTime?
   wholesaleApprovedAt DateTime?
@@ -977,4 +996,25 @@ model MediaAsset {
 model Sequence {
   key   String @id
   value Int    @default(0)
+}
+
+// Public bulk-material catalog. Each record represents one material type.
+model RoughMaterial {
+  id String @id @default(cuid())
+  sku String @unique
+  name String @unique
+  stoneType String
+  origin String
+  description String @default("")
+  sizeNotes String @default("")
+  images String[] @default([])
+  pricePerKg Decimal @db.Decimal(12, 2)
+  availableKg Decimal? @db.Decimal(14, 3)
+  isAvailable Boolean @default(true)
+  isPublished Boolean @default(false)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
 }

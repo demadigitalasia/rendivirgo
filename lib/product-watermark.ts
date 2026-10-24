@@ -9,7 +9,7 @@ export type ProductWatermarkSettings = {
 
 export const defaultProductWatermark: ProductWatermarkSettings = {
   enabled: true,
-  logo: "/brand/rendi-virgo-logo-white.webp",
+  logo: "/brand/rendi-virgo-primary.webp",
   opacity: 0.35,
   size: 18,
   x: 69,

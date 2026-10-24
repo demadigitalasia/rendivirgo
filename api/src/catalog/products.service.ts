@@ -98,6 +98,7 @@ export class ProductsService {
       price: Number(product.price),
       ...(includeTranslations ? {
         sellInWholesale: product.sellInWholesale,
+        isBulkMaterial: product.isBulkMaterial,
         sellInEtsy: product.sellInEtsy,
         wholesalePrice: product.wholesalePrice === null ? null : Number(product.wholesalePrice),
         wholesalePiecesPerUnit: product.wholesalePiecesPerUnit,
@@ -395,8 +396,13 @@ export class ProductsService {
     return data;
   }
 
+  private validateBulkChannels(bulk: boolean, web: boolean, wholesale: boolean, etsy: boolean, workshop: boolean) {
+    if (bulk && (web || wholesale || etsy || workshop)) throw new BadRequestException("Bulk rough materials use manual inquiries. Disable Website, Finished Products wholesale, Workshop POS and Etsy; manage public bulk pricing in Rough Materials.");
+  }
+
   async create(dto: CreateProductDto, context: AuditContext) {
-    this.validateSalesChannels(dto.sellOnWeb ?? true, dto.sellInWorkshop ?? true, dto.workshopStockQuantity ?? 0, dto.stockModel ?? "Unique", dto.variants ?? [], dto.sellInWholesale ?? false, dto.sellInEtsy ?? false);
+    this.validateBulkChannels(dto.isBulkMaterial ?? false, dto.sellOnWeb ?? true, dto.sellInWholesale ?? false, dto.sellInEtsy ?? false, dto.sellInWorkshop ?? true);
+    this.validateSalesChannels(dto.sellOnWeb ?? true, dto.sellInWorkshop ?? true, dto.workshopStockQuantity ?? 0, dto.stockModel ?? "Unique", dto.variants ?? [], dto.sellInWholesale ?? false, dto.sellInEtsy ?? false, dto.isBulkMaterial ?? false);
     this.validateWholesaleChannel(dto.sellInWholesale ?? false, dto.wholesalePrice, dto.variants ?? []);
     if (dto.sellInEtsy && (dto.variants?.length ?? 0) > 0) {
       throw new BadRequestException("Etsy variation mapping is not configured yet. Create this product without variants or leave Etsy disabled.");
@@ -444,6 +450,7 @@ export class ProductsService {
         sellOnWeb: dto.sellOnWeb ?? true,
         sellInWorkshop: dto.sellInWorkshop ?? true,
         sellInWholesale: dto.sellInWholesale ?? false,
+        isBulkMaterial: dto.isBulkMaterial ?? false,
         sellInEtsy: dto.sellInEtsy ?? false,
         wholesalePrice: dto.wholesalePrice === undefined || dto.wholesalePrice === null ? null : new Prisma.Decimal(dto.wholesalePrice),
         wholesalePiecesPerUnit: dto.wholesalePiecesPerUnit ?? null,
@@ -524,8 +531,9 @@ export class ProductsService {
     variants: Array<{ workshopStockQuantity?: number | null }>,
     sellInWholesale = false,
     sellInEtsy = false,
+    manualOnly = false,
   ): void {
-    if (!sellOnWeb && !sellInWorkshop && !sellInWholesale && !sellInEtsy) throw new BadRequestException("Select at least one sales channel");
+    if (!manualOnly && !sellOnWeb && !sellInWorkshop && !sellInWholesale && !sellInEtsy) throw new BadRequestException("Select at least one sales channel");
     if (workshopStockQuantity > 0 || variants.some((variant) => (variant.workshopStockQuantity ?? 0) > 0)) {
       throw new BadRequestException("Inventory is shared across Retail, Wholesale and POS. Workshop stock allocation is no longer supported.");
     }
@@ -617,6 +625,7 @@ export class ProductsService {
     const nextSellInEtsy = dto.sellInEtsy ?? existing.sellInEtsy;
     const nextWorkshopStock = dto.workshopStockQuantity ?? existing.workshopStockQuantity;
     const nextStockModel = dto.stockModel ?? existing.stockModel;
+    this.validateBulkChannels(dto.isBulkMaterial ?? existing.isBulkMaterial, nextSellOnWeb, dto.sellInWholesale ?? existing.sellInWholesale, nextSellInEtsy, nextSellInWorkshop);
     this.validateSalesChannels(
       nextSellOnWeb,
       nextSellInWorkshop,
@@ -625,6 +634,7 @@ export class ProductsService {
       dto.variants ?? existing.variants,
       dto.sellInWholesale ?? existing.sellInWholesale,
       nextSellInEtsy,
+      dto.isBulkMaterial ?? existing.isBulkMaterial,
     );
     if (nextSellInEtsy && (dto.variants ?? existing.variants).length > 0) {
       throw new BadRequestException("Etsy variation mapping is not configured yet. Disable Etsy before adding or editing product variants.");
@@ -668,6 +678,7 @@ export class ProductsService {
           ...(dto.sellOnWeb !== undefined ? { sellOnWeb: dto.sellOnWeb } : {}),
           ...(dto.sellInWorkshop !== undefined ? { sellInWorkshop: dto.sellInWorkshop } : {}),
           ...(dto.sellInWholesale !== undefined ? { sellInWholesale: dto.sellInWholesale } : {}),
+          ...(dto.isBulkMaterial !== undefined ? { isBulkMaterial: dto.isBulkMaterial } : {}),
           ...(dto.sellInEtsy !== undefined ? { sellInEtsy: dto.sellInEtsy } : {}),
           ...(dto.wholesalePrice !== undefined ? { wholesalePrice: dto.wholesalePrice === null ? null : new Prisma.Decimal(dto.wholesalePrice) } : {}),
           ...(dto.wholesalePiecesPerUnit !== undefined ? { wholesalePiecesPerUnit: dto.wholesalePiecesPerUnit } : {}),
@@ -864,6 +875,7 @@ export class ProductsService {
         sellOnWeb: source.sellOnWeb,
         sellInWorkshop: source.sellInWorkshop,
         sellInWholesale: false,
+        isBulkMaterial: source.isBulkMaterial,
         sellInEtsy: false,
         workshopStockQuantity: 0,
         weightGram: source.weightGram,

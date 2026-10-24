@@ -119,6 +119,7 @@ export function AdminShell({
         { href: "/admin/orders", label: "Orders", icon: "fileText" },
         { href: "/admin/customers", label: "Customers", icon: "users" },
         { href: "/admin/wholesale", label: "Wholesale", icon: "gem" },
+        { href: "/admin/rough-materials", label: "Rough Materials", icon: "gem" },
         { href: "/admin/discounts", label: "Discounts", icon: "tag" },
       ],
     },
@@ -166,7 +167,7 @@ export function AdminShell({
         <div className="rv-sidebar__brand">
           <Link href="/admin" aria-label="RENDI VIRGO admin dashboard">
             <Image
-              src="/brand/rendi-virgo-logo-footer.png"
+              src="/brand/rendi-virgo-primary.png"
               alt="RENDI VIRGO"
               width={780}
               height={260}

@@ -14,6 +14,7 @@ export function WholesaleNavigation() {
   const t = useCopy();
   const [hasWholesaleAccess, setHasWholesaleAccess] = useState(false);
   const [minimums, setMinimums] = useState<WholesaleMinimums | null>(null);
+  const inFinishedWorkspace = pathname.endsWith(storefrontRoutes.wholesaleCatalog) || pathname.endsWith(storefrontRoutes.wholesaleCheckout);
   const isCheckout = pathname.endsWith(storefrontRoutes.wholesaleCheckout);
   const wholesaleLines = lines.filter((line) => line.wholesale);
   const wholesaleCount = wholesaleLines.reduce((count, line) => count + line.quantity, 0);
@@ -26,20 +27,42 @@ export function WholesaleNavigation() {
   const orderHref = wholesaleCount > 0 ? storefrontRoutes.wholesaleCheckout : `${storefrontRoutes.wholesaleCatalog}#wholesale-catalog`;
 
   useEffect(() => {
+    setHasWholesaleAccess(false);
+    setMinimums(null);
+    if (!inFinishedWorkspace) return;
     const controller = new AbortController();
-    fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store", signal: controller.signal })
-      .then(async (response) => response.ok ? await response.json() as { wholesaleAccess?: boolean } : null)
-      .then(async (profile) => {
-        if (profile?.wholesaleAccess !== true || controller.signal.aborted) return;
-        setHasWholesaleAccess(true);
-        const response = await fetch("/api/wholesale/minimums", { credentials: "same-origin", cache: "no-store", signal: controller.signal });
-        if (response.ok) setMinimums(await response.json() as WholesaleMinimums);
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, []);
+    let checking = false;
+    const check = async () => {
+      if (checking || document.visibilityState === "hidden") return;
+      checking = true;
+      try {
+        const response = await fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store", signal: controller.signal });
+        const profile = response.ok ? await response.json() as { wholesaleAccess?: boolean } : null;
+        if (controller.signal.aborted) return;
+        setHasWholesaleAccess(profile?.wholesaleAccess === true);
+        if (!profile?.wholesaleAccess) { setMinimums(null); return; }
+        const minimumResponse = await fetch("/api/wholesale/minimums", { credentials: "same-origin", cache: "no-store", signal: controller.signal });
+        if (!controller.signal.aborted) {
+          if (minimumResponse.ok) setMinimums(await minimumResponse.json() as WholesaleMinimums);
+          else { setMinimums(null); if ([401, 403].includes(minimumResponse.status)) setHasWholesaleAccess(false); }
+        }
+      } catch { if (!controller.signal.aborted) { setHasWholesaleAccess(false); setMinimums(null); } }
+      finally { checking = false; }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 30_000);
+    window.addEventListener("focus", check);
+    window.addEventListener("customer-access-changed", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      controller.abort(); window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+      window.removeEventListener("customer-access-changed", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [inFinishedWorkspace, pathname]);
 
-  if (!hasWholesaleAccess) return null;
+  if (!inFinishedWorkspace || !hasWholesaleAccess) return null;
 
   return (
     <div className="wholesale-workspace-nav-wrap">

@@ -46,7 +46,7 @@ export function ResetPasswordForm() {
     <main className="rv-login">
       <section className="rv-login__card" aria-labelledby="admin-reset-title">
         <div className="rv-login__brand">
-          <Image src="/brand/rendi-virgo-logo.webp" alt="RENDI VIRGO" width={780} height={260} sizes="200px" priority />
+          <Image src="/brand/rendi-virgo-primary.webp" alt="RENDI VIRGO" width={780} height={260} sizes="200px" priority />
           <span className="rv-login__eyebrow">Admin workspace</span>
         </div>
         <h1 id="admin-reset-title" className="rv-login__title">Choose a new password</h1>

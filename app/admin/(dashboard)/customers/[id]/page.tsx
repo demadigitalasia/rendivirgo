@@ -45,6 +45,14 @@ type CustomerDetail = {
   acceptsMarketing: boolean;
   emailVerifiedAt: string | null;
   wholesaleAccess: boolean;
+  wholesaleStatus: "None" | "Pending" | "Approved" | "Rejected";
+  wholesaleBusinessName: string | null;
+  wholesaleBuyerType: string | null;
+  wholesaleBusinessCountry: string | null;
+  wholesaleBusinessWebsite: string | null;
+  wholesaleBusinessNeeds: string | null;
+  wholesaleReviewReason: string | null;
+  wholesaleReviewedAt: string | null;
   wholesaleRequestedAt: string | null;
   wholesaleApprovedAt: string | null;
   address: {
@@ -108,6 +116,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [wholesaleSaving, setWholesaleSaving] = useState(false);
+  const [reviewReason, setReviewReason] = useState("");
 
   useEffect(() => {
     if (!customer) return;
@@ -174,10 +183,11 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
     try {
       const updated = await apiFetch<Omit<CustomerDetail, "orders">>(`/api/admin/customers/${id}`, {
         method: "PATCH",
-        json: { wholesaleAccess: enabled },
+        json: { wholesaleStatus: enabled ? "Approved" : "Rejected", ...(enabled ? {} : { wholesaleReviewReason: reviewReason.trim() }) },
       });
       state.setData((current) => (current ? { ...current, ...updated } : { ...updated, orders: [] }));
-      toast.success(enabled ? "Wholesale access granted" : "Wholesale access revoked");
+      toast.success(enabled ? "Wholesale access approved. Customer notification queued." : "Wholesale access rejected or revoked. Customer notification queued.");
+      setReviewReason("");
     } catch (caught) {
       toast.error(errorMessage(caught));
     } finally {
@@ -365,18 +375,30 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
                   <div className="rv-stack">
                     <KeyValue entries={[
                       { label: "Account email", value: customer.emailVerifiedAt ? "Verified" : "Not verified" },
+                      { label: "Status", value: customer.wholesaleStatus },
                       { label: "Access", value: customer.wholesaleAccess ? "Enabled" : "Not enabled" },
+                      { label: "Business", value: customer.wholesaleBusinessName || "—" },
+                      { label: "Buyer type", value: customer.wholesaleBuyerType || "—" },
+                      { label: "Business country", value: customer.wholesaleBusinessCountry || "—" },
+                      { label: "Business website", value: customer.wholesaleBusinessWebsite || "—" },
+                      { label: "Purchasing needs", value: customer.wholesaleBusinessNeeds || "—" },
+                      { label: "Review reason", value: customer.wholesaleReviewReason || "—" },
+                      { label: "Reviewed", value: customer.wholesaleReviewedAt ? formatDateTime(customer.wholesaleReviewedAt) : "—" },
                       { label: "Request received", value: customer.wholesaleRequestedAt ? formatDateTime(customer.wholesaleRequestedAt) : "—" },
                       { label: "Granted", value: customer.wholesaleApprovedAt ? formatDateTime(customer.wholesaleApprovedAt) : "—" },
                     ]} />
-                    <Button
-                      variant={customer.wholesaleAccess ? undefined : "primary"}
-                      loading={wholesaleSaving}
-                      disabled={!customer.wholesaleAccess && !customer.emailVerifiedAt}
-                      onClick={() => void setWholesaleAccess(!customer.wholesaleAccess)}
-                    >
-                      {customer.wholesaleAccess ? "Revoke Wholesale access" : "Grant Wholesale access"}
-                    </Button>
+                    {!customer.wholesaleAccess ? <Button variant="primary" loading={wholesaleSaving} disabled={!customer.emailVerifiedAt} onClick={() => void setWholesaleAccess(true)}>
+                      Approve Wholesale access
+                    </Button> : null}
+                    {customer.wholesaleStatus === "Pending" || customer.wholesaleAccess ? <>
+                      <Field label={customer.wholesaleAccess ? "Reason for revoking access (sent to customer)" : "Reason for rejection (sent to customer)"}>
+                        <TextArea value={reviewReason} onChange={setReviewReason} placeholder="Explain the decision and what the customer can improve." />
+                      </Field>
+                      <Button variant="danger" disabled={!reviewReason.trim() || reviewReason.length > 1500} loading={wholesaleSaving} onClick={() => void setWholesaleAccess(false)}>
+                        {customer.wholesaleAccess ? "Revoke Wholesale access" : "Reject application"}
+                      </Button>
+                    </> : null}
+                    <p className="rv-hint">Decisions are emailed to the customer. Rejected customers may update their details and apply again.</p>
                   </div>
                 </Card>
 

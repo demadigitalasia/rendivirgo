@@ -130,7 +130,7 @@ export function SiteHeader({ languages, categories }: { languages: Language[]; c
       </div>
       <div className="site-header">
         <Link href="/" className="brand-lockup" aria-label="RENDI VIRGO">
-          <Image src="/brand/rendi-virgo-logo.webp" alt="RENDI VIRGO" width={780} height={260}
+          <Image src="/brand/rendi-virgo-primary.webp" alt="RENDI VIRGO" width={780} height={260}
             sizes="(max-width: 370px) 136px, (max-width: 980px) 144px, 184px" loading="eager" />
         </Link>
         <nav ref={navRef} id="primary-navigation" className={`main-nav ${menuOpen ? "is-open" : ""}`} aria-label={t.nav.primary}>
@@ -169,8 +169,8 @@ export function SiteHeader({ languages, categories }: { languages: Language[]; c
                 onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.shopAll}<ArrowIcon size={15} /></Link>
             </div>
           </div>
-          <Link href={storefrontRoutes.wholesaleCatalog} className={`nav-link ${isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleCatalog) ? "is-active" : ""}`}
-            aria-current={isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleCatalog) ? "page" : undefined}
+          <Link href={storefrontRoutes.wholesaleHome} className={`nav-link ${isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleHome) ? "is-active" : ""}`}
+            aria-current={isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleHome) ? "page" : undefined}
             onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.wholesale}</Link>
           {navItems.slice(1).map(({ href, label }) => {
             const active = isStorefrontRouteActive(routePath, href);

@@ -9,6 +9,8 @@ import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
 import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
 import { ArrowIcon, ArrowLeftIcon, ArrowUpRightIcon, ChevronRightIcon, ClockIcon, Icon, SparkleIcon } from "@/components/icons";
 
+import { safeCustomerReturnPath, wholesaleRegistrationIntent } from "@/lib/customer-return-path";
+
 type AccessMode = "login" | "register" | "verify" | "forgot" | "reset";
 type CustomerProfile = {
   id: string;
@@ -17,6 +19,8 @@ type CustomerProfile = {
   phone: string | null;
   acceptsMarketing: boolean;
   wholesaleAccess: boolean;
+  wholesaleStatus?: "None" | "Pending" | "Approved" | "Rejected";
+  wholesaleReviewReason?: string | null;
   address: { line1: string | null; line2: string | null; city: string | null; state: string | null; postalCode: string | null; country: string | null; countryCode: string | null };
 };
 type AccountOrder = { id: string; orderNumber: string; source: string; status: string; paymentStatus: string; currency: string; total: number; itemCount: number; placedAt: string };
@@ -83,6 +87,11 @@ async function sendJson(path: string, data: unknown) {
 
 export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?: string }) {
   const router = useRouter();
+  const [returnPath, setReturnPath] = useState("/account");
+  useEffect(() => {
+    setReturnPath(safeCustomerReturnPath(new URLSearchParams(window.location.search).get("next")));
+  }, []);
+  const accountLink = (path: string) => returnPath === "/account" ? path : `${path}?next=${encodeURIComponent(returnPath)}`;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -135,7 +144,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     setError("");
     setMessage("");
     try {
-      await sendJson("/api/customer-auth/resend-verification", { email });
+      await sendJson("/api/customer-auth/resend-verification", { email, next: wholesaleRegistrationIntent(returnPath) });
       setResendAfter(Date.now() + 2 * 60_000);
       setMessage("If this email has a pending registration, we'll send another setup link shortly.");
     } catch (caught) {
@@ -152,14 +161,14 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     setMessage("");
     try {
       if (mode === "register") {
-        await sendJson("/api/customer-auth/register", { email });
+        await sendJson("/api/customer-auth/register", { email, next: wholesaleRegistrationIntent(returnPath) });
         setVerificationRequested(true);
         setResendAfter(Date.now() + 2 * 60_000);
         setMessage("If this email can be registered, we'll send a setup link shortly. Check your inbox and spam folder. You can request another email after two minutes.");
       } else if (mode === "login") {
         await sendJson("/api/customer-auth/login", { email, password });
         const requestedPath = new URLSearchParams(window.location.search).get("next");
-        const safePath = requestedPath?.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "/account";
+        const safePath = safeCustomerReturnPath(requestedPath);
         router.replace(safePath);
         router.refresh();
       } else if (mode === "forgot") {
@@ -202,7 +211,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
             verified ? (
               <div className="customer-access__success">
                 <p className="customer-access__notice" role="status">{message}</p>
-                <Link className="button button--primary" href="/account/login">Sign in now<ArrowIcon size={17} /></Link>
+                <Link className="button button--primary" href={accountLink("/account/login")}>Sign in now<ArrowIcon size={17} /></Link>
               </div>
             ) : <>
               <p className="customer-access__notice" role={error ? "alert" : "status"}>{busy ? "Setting up your account…" : error || message || "Choose your account name and password to continue."}</p>
@@ -242,7 +251,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
                   <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : "Verify email & create account"}<ArrowIcon size={17} /></button>
                 </form>
               ) : null}
-              {verified ? <Link className="button button--primary customer-access__continue" href="/account/login">Sign in now<ArrowIcon size={17} /></Link> : null}
+              {verified ? <Link className="button button--primary customer-access__continue" href={accountLink("/account/login")}>Sign in now<ArrowIcon size={17} /></Link> : null}
               {!token && !verified ? <p className="customer-account__error" role="alert">The verification link is missing. Register again to request a new setup link.</p> : null}
             </>
           ) : mode === "register" && verificationRequested ? (
@@ -293,8 +302,8 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
             </form>
           )}
           <nav className="customer-access__links" aria-label="Account options">
-            {mode === "login" ? <Link href="/account/forgot-password">Forgot password?</Link> : !verified ? <Link href="/account/login">Back to sign in</Link> : null}
-            {mode === "register" ? <span>Already have an account? <Link href="/account/login">Sign in</Link></span> : !verified ? <span>New to RENDI VIRGO? <Link href="/account/register">Create account</Link></span> : null}
+            {mode === "login" ? <Link href={accountLink("/account/forgot-password")}>Forgot password?</Link> : !verified ? <Link href={accountLink("/account/login")}>Back to sign in</Link> : null}
+            {mode === "register" ? <span>Already have an account? <Link href={accountLink("/account/login")}>Sign in</Link></span> : !verified ? <span>New to RENDI VIRGO? <Link href={accountLink("/account/register")}>Create account</Link></span> : null}
           </nav>
           <Link className="customer-access__guest" href="/orders">Looking for a past guest order? <span>View order history <ArrowIcon size={15} /></span></Link>
         </div>
@@ -415,11 +424,9 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
           <Link href={storefrontRoutes.accountOrders} className={`customer-dashboard__nav-link${ordersOnly ? " is-active" : ""}`} aria-current={ordersOnly ? "page" : undefined}>
             <Icon name="fileText" size={19} /><span>{customerNavigation.orders}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
           </Link>
-          {wholesaleEnabled ? (
-            <Link href={storefrontRoutes.wholesaleCatalog} className="customer-dashboard__nav-link">
-              <Icon name="gem" size={19} /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
-            </Link>
-          ) : null}
+          <Link href={storefrontRoutes.wholesaleCatalog} className="customer-dashboard__nav-link">
+            <Icon name="gem" size={19} /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
+          </Link>
         </nav>
         <div className="customer-dashboard__account-status">
           <span className="customer-dashboard__status-mark" />
@@ -451,12 +458,18 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
             </div>
 
             {profile.wholesaleAccess ? (
-              <Link className="customer-dashboard__wholesale-banner" href="/wholesale">
+              <Link className="customer-dashboard__wholesale-banner" href="/wholesale/finished">
                 <span className="customer-dashboard__wholesale-icon"><Icon name="gem" /></span>
                 <span><small>WHOLESALE ACCESS</small><strong>Your private catalog is ready</strong><em>Browse approved wholesale products and pricing.</em></span>
                 <span className="customer-dashboard__wholesale-arrow"><ArrowIcon size={18} /></span>
               </Link>
-            ) : null}
+            ) : (
+              <Link className="customer-dashboard__wholesale-banner" href={storefrontRoutes.wholesaleCatalog}>
+                <span className="customer-dashboard__wholesale-icon"><Icon name="gem" /></span>
+                <span><small>FINISHED PRODUCTS WHOLESALE</small><strong>{profile.wholesaleStatus === "Pending" ? "Your request is under review" : profile.wholesaleStatus === "Rejected" ? "Review your wholesale application" : "Apply for wholesale access"}</strong><em>{profile.wholesaleStatus === "Pending" ? "We will email you when a decision is ready." : profile.wholesaleStatus === "Rejected" ? profile.wholesaleReviewReason || "View the decision and update your business details." : "Tell us about your business to request private catalog access."}</em></span>
+                <span className="customer-dashboard__wholesale-arrow"><ArrowIcon size={18} /></span>
+              </Link>
+            )}
 
             <div className="customer-dashboard__card customer-dashboard__profile-card" id="profile-details">
               <div className="customer-dashboard__card-heading">

@@ -15,6 +15,7 @@ type CustomerRow = {
   tags: string[];
   wholesaleAccess: boolean;
   wholesaleRequestedAt: string | null;
+  wholesaleStatus: "None" | "Pending" | "Approved" | "Rejected";
   acceptsMarketing: boolean;
   address: {
     line1: string | null;
@@ -77,8 +78,9 @@ export default function AdminCustomersPage() {
       header: "Wholesale",
       render: (customer) => customer.wholesaleAccess
         ? <Badge tone="green">Enabled</Badge>
-        : customer.wholesaleRequestedAt
+        : customer.wholesaleStatus === "Pending"
           ? <Badge tone="amber">Under review</Badge>
+          : customer.wholesaleStatus === "Rejected" ? <Badge tone="red">Rejected</Badge>
           : <span className="rv-hint">—</span>,
     },
     {

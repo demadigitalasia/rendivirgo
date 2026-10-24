@@ -270,7 +270,7 @@ export const renderCustomerVerificationEmail = (data: CustomerVerificationEmailD
   const copy = customerVerificationCopy(language, data.expiresMinutes);
   const origin = new URL(data.link).origin;
   const link = escapeHtml(data.link);
-  const logo = escapeHtml(`${origin}/brand/rendi-virgo-logo.png`);
+  const logo = escapeHtml(`${origin}/brand/rendi-virgo-primary.png`);
   const contact = escapeHtml(`${origin}/contact`);
 
   return `<!doctype html>

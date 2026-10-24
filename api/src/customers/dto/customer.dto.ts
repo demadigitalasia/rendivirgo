@@ -21,6 +21,15 @@ export class CustomerQueryDto extends PaginationQueryDto {
 
 export class UpdateCustomerDto {
   @IsOptional()
+  @IsIn(["Approved", "Rejected"])
+  wholesaleStatus?: "Approved" | "Rejected";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1500)
+  wholesaleReviewReason?: string;
+
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(200)

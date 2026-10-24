@@ -8,7 +8,9 @@ export const storefrontRoutes = {
   accountOrders: "/account/orders",
   wishlist: "/wishlist",
   cart: "/cart",
-  wholesaleCatalog: "/wholesale",
+  wholesaleHome: "/wholesale",
+  wholesaleCatalog: "/wholesale/finished",
+  roughMaterials: "/wholesale/rough",
   wholesaleCheckout: "/wholesale/checkout",
 } as const;
 

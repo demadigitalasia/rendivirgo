@@ -7,6 +7,8 @@ import type { AuditContext } from "../common/types/audit-context";
 import { PrismaService } from "../prisma/prisma.service";
 import { CustomerQueryDto, UpdateCustomerDto } from "./dto/customer.dto";
 
+import { WholesaleApplicationsService } from "./wholesale-applications.service";
+
 type CustomerStats = {
   orderCount: number;
   totalSpent: number;
@@ -19,6 +21,7 @@ export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly wholesale: WholesaleApplicationsService,
   ) {}
 
   // ------------------------------------------------------------ mapping
@@ -36,6 +39,14 @@ export class CustomersService {
       wholesaleAccess: customer.wholesaleAccess,
       wholesaleRequestedAt: customer.wholesaleRequestedAt,
       wholesaleApprovedAt: customer.wholesaleApprovedAt,
+      wholesaleStatus: customer.wholesaleStatus,
+      wholesaleReviewReason: customer.wholesaleReviewReason,
+      wholesaleReviewedAt: customer.wholesaleReviewedAt,
+      wholesaleBusinessName: customer.wholesaleBusinessName,
+      wholesaleBuyerType: customer.wholesaleBuyerType,
+      wholesaleBusinessCountry: customer.wholesaleBusinessCountry,
+      wholesaleBusinessWebsite: customer.wholesaleBusinessWebsite,
+      wholesaleBusinessNeeds: customer.wholesaleBusinessNeeds,
       address: {
         line1: customer.addressLine1,
         line2: customer.addressLine2,
@@ -73,7 +84,7 @@ export class CustomersService {
     }
 
     if (query.wholesaleRequested === "true") {
-      where.wholesaleRequestedAt = { not: null };
+      where.wholesaleStatus = "Pending";
       where.wholesaleAccess = false;
     }
 
@@ -173,27 +184,26 @@ export class CustomersService {
       throw new BadRequestException("Verify the customer email before granting Wholesale access");
     }
 
-    const customer = await this.prisma.customer.update({
-      where: { id },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
-        ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
-        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
-        ...(dto.acceptsMarketing !== undefined ? { acceptsMarketing: dto.acceptsMarketing } : {}),
-        ...(dto.wholesaleAccess !== undefined ? {
-          wholesaleAccess: dto.wholesaleAccess,
-          wholesaleApprovedAt: dto.wholesaleAccess ? existing.wholesaleApprovedAt ?? new Date() : null,
-          ...(dto.wholesaleAccess ? {} : { wholesaleRequestedAt: null }),
-        } : {}),
-        ...(dto.addressLine1 !== undefined ? { addressLine1: dto.addressLine1 } : {}),
-        ...(dto.addressLine2 !== undefined ? { addressLine2: dto.addressLine2 } : {}),
-        ...(dto.city !== undefined ? { city: dto.city } : {}),
-        ...(dto.state !== undefined ? { state: dto.state } : {}),
-        ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
-        ...(dto.country !== undefined ? { country: dto.country } : {}),
-        ...(dto.countryCode !== undefined ? { countryCode: dto.countryCode } : {}),
-      },
+    const customer = await this.prisma.$transaction(async (tx) => {
+      const latest = await tx.customer.findUniqueOrThrow({ where: { id } });
+      await this.wholesale.review(tx, latest, dto);
+      return tx.customer.update({
+        where: { id },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name } : {}),
+          ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+          ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
+          ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+          ...(dto.acceptsMarketing !== undefined ? { acceptsMarketing: dto.acceptsMarketing } : {}),
+          ...(dto.addressLine1 !== undefined ? { addressLine1: dto.addressLine1 } : {}),
+          ...(dto.addressLine2 !== undefined ? { addressLine2: dto.addressLine2 } : {}),
+          ...(dto.city !== undefined ? { city: dto.city } : {}),
+          ...(dto.state !== undefined ? { state: dto.state } : {}),
+          ...(dto.postalCode !== undefined ? { postalCode: dto.postalCode } : {}),
+          ...(dto.country !== undefined ? { country: dto.country } : {}),
+          ...(dto.countryCode !== undefined ? { countryCode: dto.countryCode } : {}),
+        },
+      });
     });
 
     const stats = await this.orderStats([id]);

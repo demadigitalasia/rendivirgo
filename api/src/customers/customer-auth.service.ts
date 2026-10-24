@@ -50,6 +50,7 @@ export class CustomerAuthService {
     tx: Prisma.TransactionClient,
     customer: { id: string; email: string; name: string },
     language: CustomerEmailLanguage = "en",
+    next?: string,
   ): Promise<void> {
     const token = randomBytes(32).toString("base64url");
     const tokenHash = this.hashToken(token);
@@ -58,7 +59,8 @@ export class CustomerAuthService {
       where: { id: customer.id },
       data: { verificationTokenHash: tokenHash, verificationTokenExpiresAt: expiresAt },
     });
-    const link = `${this.appOrigin()}/account/verify-email?token=${encodeURIComponent(token)}`;
+    const allowedNext = ["/wholesale/finished", "/wholesale/checkout", "/id/wholesale/finished", "/id/wholesale/checkout"].includes(next ?? "") ? next : undefined;
+    const link = `${this.appOrigin()}/account/verify-email?token=${encodeURIComponent(token)}${allowedNext ? `&next=${encodeURIComponent(allowedNext)}` : ""}`;
     await this.emailOutbox.enqueue(tx, {
       kind: "CustomerVerification",
       targetId: customer.id,
@@ -76,11 +78,12 @@ export class CustomerAuthService {
   private async issueVerificationLink(
     customer: { id: string; email: string; name: string },
     language: CustomerEmailLanguage = "en",
+    next?: string,
   ): Promise<void> {
-    await this.prisma.$transaction((tx) => this.enqueueVerificationLink(tx, customer, language));
+    await this.prisma.$transaction((tx) => this.enqueueVerificationLink(tx, customer, language, next));
   }
 
-  async register(input: { email: string }, language: CustomerEmailLanguage = "en"): Promise<{ ok: true }> {
+  async register(input: { email: string; next?: string }, language: CustomerEmailLanguage = "en"): Promise<{ ok: true }> {
     const email = input.email.trim().toLowerCase();
     await this.equalizePasswordWork();
     const existing = await this.prisma.customer.findUnique({ where: { email } });
@@ -96,12 +99,12 @@ export class CustomerAuthService {
             name: "Customer",
           },
         });
-      await this.enqueueVerificationLink(tx, customer, language);
+      await this.enqueueVerificationLink(tx, customer, language, input.next);
     });
     return { ok: true };
   }
 
-  async resendVerification(emailInput: string, language: CustomerEmailLanguage = "en"): Promise<{ ok: true }> {
+  async resendVerification(emailInput: string, language: CustomerEmailLanguage = "en", next?: string): Promise<{ ok: true }> {
     const email = emailInput.trim().toLowerCase();
     await this.equalizePasswordWork();
     const customer = await this.prisma.customer.findUnique({
@@ -117,7 +120,7 @@ export class CustomerAuthService {
     if (!customer || customer.emailVerifiedAt) return { ok: true };
     if (this.verificationSentRecently(customer.verificationTokenExpiresAt)) return { ok: true };
 
-    await this.issueVerificationLink(customer, language);
+    await this.issueVerificationLink(customer, language, next);
     return { ok: true };
   }
 
@@ -278,6 +281,14 @@ export class CustomerAuthService {
       acceptsMarketing: customer.acceptsMarketing,
       wholesaleAccess: customer.wholesaleAccess,
       wholesaleRequestedAt: customer.wholesaleRequestedAt,
+      wholesaleStatus: customer.wholesaleStatus,
+      wholesaleReviewReason: customer.wholesaleReviewReason,
+      wholesaleReviewedAt: customer.wholesaleReviewedAt,
+      wholesaleBusinessName: customer.wholesaleBusinessName,
+      wholesaleBuyerType: customer.wholesaleBuyerType,
+      wholesaleBusinessCountry: customer.wholesaleBusinessCountry,
+      wholesaleBusinessWebsite: customer.wholesaleBusinessWebsite,
+      wholesaleBusinessNeeds: customer.wholesaleBusinessNeeds,
       address: {
         line1: customer.addressLine1,
         line2: customer.addressLine2,
@@ -288,29 +299,6 @@ export class CustomerAuthService {
         countryCode: customer.countryCode,
       },
     };
-  }
-
-  async requestWholesaleAccess(customerId: string) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id: customerId },
-      select: { id: true, emailVerifiedAt: true, wholesaleAccess: true, wholesaleRequestedAt: true },
-    });
-    if (!customer) throw new UnauthorizedException("Customer account is unavailable");
-    if (!customer.emailVerifiedAt) throw new ForbiddenException("Verify your email before requesting Wholesale access");
-    if (customer.wholesaleAccess || customer.wholesaleRequestedAt) {
-      return { wholesaleAccess: customer.wholesaleAccess, wholesaleRequestedAt: customer.wholesaleRequestedAt, requestCreated: false };
-    }
-
-    const created = await this.prisma.customer.updateMany({
-      where: { id: customer.id, wholesaleAccess: false, wholesaleRequestedAt: null, emailVerifiedAt: { not: null } },
-      data: { wholesaleRequestedAt: new Date() },
-    });
-    const updated = await this.prisma.customer.findUnique({
-      where: { id: customer.id },
-      select: { wholesaleAccess: true, wholesaleRequestedAt: true },
-    });
-    if (!updated) throw new UnauthorizedException("Customer account is unavailable");
-    return { ...updated, requestCreated: created.count === 1 };
   }
 
   async updateProfile(customerId: string, dto: UpdateCustomerProfileDto) {

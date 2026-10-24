@@ -83,6 +83,7 @@
 }
 
 .rv-sidebar__brand img {
+  filter: drop-shadow(0 0 1px rgba(233, 215, 174, 0.9));
   width: min(184px, 100%);
   height: auto;
   display: block;
@@ -2568,5 +2569,513 @@ a.rv-list__row:hover {
 @media (max-width: 560px) {
   .rv-shipping-form-grid--two {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Admin sign-in: editorial founder story paired with a focused credential panel. */
+.rv-admin-login {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.14fr) minmax(390px, 0.86fr);
+  background: var(--rv-bg);
+  color: var(--rv-ink);
+  font-family: var(--font-body, "Avenir Next", "Helvetica Neue", Arial, sans-serif);
+}
+
+.rv-admin-login__story {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(28px, 4vw, 62px) clamp(28px, 5.2vw, 80px) 24px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(78% 54% at 84% 88%, rgba(139, 156, 103, 0.2), transparent 72%),
+    linear-gradient(142deg, #174738 0%, #10362b 44%, #09271f 100%);
+  color: #f8f5eb;
+}
+
+.rv-admin-login__story::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(180deg, rgba(9, 39, 31, 0.28), rgba(9, 39, 31, 0.12) 42%, rgba(7, 30, 23, 0.72)), url("/images/rendi-virgo-hero-stones.webp") center / cover;
+  opacity: 0.28;
+  mix-blend-mode: screen;
+}
+
+.rv-admin-login__story::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -17vw;
+  bottom: -34vw;
+  width: min(78vw, 920px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(216, 196, 155, 0.17);
+  border-radius: 50%;
+  box-shadow: 0 0 0 56px rgba(216, 196, 155, 0.025), 0 0 0 112px rgba(216, 196, 155, 0.02);
+  pointer-events: none;
+}
+
+.rv-admin-login__story-top,
+.rv-admin-login__intro,
+.rv-admin-login__founders,
+.rv-admin-login__story-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.rv-admin-login__story-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.rv-admin-login__brand-mark {
+  width: min(210px, 46%);
+  height: auto;
+  filter: drop-shadow(0 0 1px rgba(233, 215, 174, 0.9)) drop-shadow(0 5px 14px rgba(4, 20, 15, 0.18));
+  object-fit: contain;
+}
+
+.rv-admin-login__workspace-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(248, 245, 235, 0.24);
+  border-radius: 999px;
+  color: rgba(248, 245, 235, 0.84);
+  font-size: 0.67rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.rv-admin-login__workspace-tag > span,
+.rv-admin-login__origin > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rv-bronze-light);
+  box-shadow: 0 0 0 4px rgba(216, 196, 155, 0.1);
+}
+
+.rv-admin-login__intro {
+  margin-top: clamp(42px, 8vh, 104px);
+  max-width: 600px;
+}
+
+.rv-admin-login__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--rv-bronze-light);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.rv-admin-login__intro h2 {
+  margin: 18px 0 12px;
+  color: #f8f5eb;
+  font-family: var(--font-display, "Iowan Old Style", Baskerville, Georgia, serif);
+  font-size: clamp(3.25rem, 5.15vw, 5.25rem);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.rv-admin-login__intro h2 em {
+  color: #d8c49b;
+  font-weight: 400;
+}
+
+.rv-admin-login__intro p {
+  max-width: 390px;
+  color: rgba(248, 245, 235, 0.72);
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(1rem, 1.25vw, 1.18rem);
+  line-height: 1.65;
+}
+
+.rv-admin-login__founders {
+  min-height: clamp(270px, 39vh, 420px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(8px, 2.3vw, 34px);
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.rv-admin-login__founder {
+  min-width: 0;
+  min-height: 250px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+}
+
+.rv-admin-login__founder::before {
+  content: "";
+  position: absolute;
+  inset: 4% 4% 0;
+  border-radius: 50% 50% 8px 8px;
+  background: radial-gradient(ellipse at 50% 38%, rgba(201, 194, 153, 0.2), rgba(160, 167, 125, 0.1) 42%, transparent 73%);
+}
+
+.rv-admin-login__portrait {
+  position: absolute;
+  inset: 0 0 4px;
+  overflow: hidden;
+}
+
+.rv-admin-login__portrait img {
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.22));
+}
+
+.rv-admin-login__founder-caption {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 28px 12px 10px;
+  background: linear-gradient(180deg, transparent, rgba(7, 30, 23, 0.72));
+}
+
+.rv-admin-login__founder-caption span {
+  color: rgba(248, 245, 235, 0.65);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.rv-admin-login__founder-caption strong {
+  color: #f8f5eb;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(1rem, 1.5vw, 1.28rem);
+  font-weight: 400;
+}
+
+.rv-admin-login__story-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 17px;
+  border-top: 1px solid rgba(248, 245, 235, 0.17);
+  color: rgba(248, 245, 235, 0.54);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rv-admin-login__story-footer span:first-child {
+  color: rgba(248, 245, 235, 0.9);
+}
+
+.rv-admin-login__panel {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(30px, 5.3vw, 84px);
+  background:
+    radial-gradient(80% 45% at 100% 0%, rgba(216, 196, 155, 0.14), transparent 78%),
+    #faf8f2;
+}
+
+.rv-admin-login__form-wrap {
+  width: min(100%, 430px);
+  margin: auto;
+}
+
+.rv-admin-login__form-heading {
+  margin-bottom: 35px;
+}
+
+.rv-admin-login__form-heading .rv-admin-login__eyebrow {
+  color: var(--rv-jade);
+}
+
+.rv-admin-login__form-heading h1 {
+  margin: 15px 0 7px;
+  color: #1b3327;
+  font-family: var(--font-display, "Iowan Old Style", Baskerville, Georgia, serif);
+  font-size: clamp(2.8rem, 4.1vw, 4.15rem);
+  font-weight: 400;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.rv-admin-login__form-heading h1 span {
+  color: var(--rv-bronze);
+}
+
+.rv-admin-login__form-heading p {
+  color: var(--rv-muted);
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.rv-admin-login__form {
+  gap: 21px;
+}
+
+.rv-admin-login__form .rv-field {
+  gap: 8px;
+}
+
+.rv-admin-login__form .rv-label {
+  color: #34483b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rv-admin-login__form .rv-input {
+  min-height: 54px;
+  padding: 13px 15px;
+  border-color: #d9d9ca;
+  border-radius: 7px;
+  background: rgba(255, 254, 250, 0.88);
+  color: #26392e;
+  font-size: 0.92rem;
+}
+
+.rv-admin-login__form .rv-input::placeholder {
+  color: #98998e;
+}
+
+.rv-admin-login__form .rv-input:focus {
+  border-color: #55765f;
+  box-shadow: 0 0 0 3px rgba(69, 107, 80, 0.13);
+}
+
+.rv-admin-login__form .rv-password-toggle {
+  right: 11px;
+  color: var(--rv-jade);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.rv-admin-login__submit {
+  min-height: 56px;
+  justify-content: space-between;
+  margin-top: 3px;
+  padding: 14px 19px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+}
+
+.rv-admin-login__submit-arrow {
+  font-size: 1.2rem;
+  font-weight: 400;
+  transition: transform 0.2s ease;
+}
+
+.rv-admin-login__submit:hover .rv-admin-login__submit-arrow {
+  transform: translateX(4px);
+}
+
+.rv-admin-login__help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 23px;
+  font-size: 0.75rem;
+}
+
+.rv-admin-login__help-row a {
+  color: var(--rv-forest);
+  border-bottom: 1px solid var(--rv-bronze-light);
+  padding-bottom: 2px;
+}
+
+.rv-admin-login__help-row a:hover {
+  color: var(--rv-bronze);
+}
+
+.rv-admin-login__help-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #777b70;
+  font-size: 0.68rem;
+}
+
+.rv-admin-login__help-row i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #78906a;
+  box-shadow: 0 0 0 3px rgba(120, 144, 106, 0.13);
+}
+
+.rv-admin-login__session-note {
+  margin-top: 38px;
+  padding-top: 17px;
+  border-top: 1px solid #e4e0d5;
+  color: #818277;
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+
+.rv-admin-login__panel-footer {
+  width: min(100%, 430px);
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin: auto auto 0;
+  padding-top: 24px;
+  color: #96958a;
+  font-size: 0.58rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1000px) {
+  .rv-admin-login {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 0.86fr);
+  }
+
+  .rv-admin-login__story {
+    padding-right: 34px;
+    padding-left: 34px;
+  }
+
+  .rv-admin-login__intro h2 {
+    font-size: clamp(3rem, 6vw, 4.4rem);
+  }
+
+  .rv-admin-login__founders {
+    min-height: 320px;
+  }
+
+  .rv-admin-login__panel {
+    padding: 40px 36px;
+  }
+}
+
+@media (max-width: 760px) {
+  .rv-admin-login {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-admin-login__story {
+    min-height: 720px;
+    min-height: max(720px, 100svh);
+    padding: 26px clamp(22px, 7vw, 54px) 20px;
+  }
+
+  .rv-admin-login__intro {
+    margin-top: 56px;
+  }
+
+  .rv-admin-login__intro h2 {
+    font-size: clamp(3.25rem, 11vw, 5rem);
+  }
+
+  .rv-admin-login__founders {
+    min-height: 330px;
+  }
+
+  .rv-admin-login__founder-caption strong {
+    font-size: 1.12rem;
+  }
+
+  .rv-admin-login__panel {
+    min-height: 620px;
+    padding: 72px clamp(24px, 8vw, 76px) 28px;
+  }
+}
+
+@media (max-width: 460px) {
+  .rv-admin-login__story {
+    min-height: 680px;
+    min-height: max(680px, 92svh);
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .rv-admin-login__brand-mark {
+    width: min(170px, 43%);
+  }
+
+  .rv-admin-login__workspace-tag {
+    min-height: 30px;
+    gap: 7px;
+    padding: 0 9px;
+    font-size: 0.55rem;
+    letter-spacing: 0.07em;
+  }
+
+  .rv-admin-login__intro {
+    margin-top: 45px;
+  }
+
+  .rv-admin-login__intro h2 {
+    font-size: clamp(2.8rem, 12vw, 3.6rem);
+  }
+
+  .rv-admin-login__founders {
+    min-height: 280px;
+    gap: 5px;
+  }
+
+  .rv-admin-login__founder {
+    min-height: 235px;
+  }
+
+  .rv-admin-login__founder-caption {
+    padding-right: 5px;
+    padding-left: 5px;
+  }
+
+  .rv-admin-login__founder-caption span {
+    font-size: 0.5rem;
+    letter-spacing: 0.1em;
+  }
+
+  .rv-admin-login__founder-caption strong {
+    font-size: 0.98rem;
+  }
+
+  .rv-admin-login__story-footer {
+    font-size: 0.51rem;
+  }
+
+  .rv-admin-login__panel {
+    min-height: 590px;
+    padding: 62px 24px 22px;
+  }
+
+  .rv-admin-login__form-heading h1 {
+    font-size: 3rem;
+  }
+
+  .rv-admin-login__help-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .rv-admin-login__session-note {
+    margin-top: 28px;
   }
 }

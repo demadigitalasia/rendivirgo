@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
 import { ArrowIcon, ArrowUpRightIcon, RefreshIcon } from "@/components/icons";
+import { WholesaleApplication } from "@/components/wholesale-application";
 import { CountryDropdown } from "@/components/country-dropdown";
 import { formatUSD } from "@/lib/catalog";
 import { CheckoutOrderSummary } from "@/components/checkout/order-summary";
@@ -69,8 +70,6 @@ export function CheckoutView() {
     isWholesaleCheckout ? "checking" : "approved",
   );
   const [wholesaleRequestSent, setWholesaleRequestSent] = useState(false);
-  const [wholesaleRequestBusy, setWholesaleRequestBusy] = useState(false);
-  const [wholesaleRequestError, setWholesaleRequestError] = useState("");
   const [wholesaleAccessRetry, setWholesaleAccessRetry] = useState(0);
   const handledReturn = useRef(false);
   const countryCode = country === OTHER_COUNTRY_VALUE ? "" : country;
@@ -100,33 +99,6 @@ export function CheckoutView() {
     reloadPaymentAvailability: loadPaymentAvailability,
   } = usePaymentAvailability();
 
-  const requestWholesaleAccess = async () => {
-    if (wholesaleRequestBusy) return;
-    setWholesaleRequestBusy(true);
-    setWholesaleRequestError("");
-    try {
-      const response = await fetch("/api/customer-account/wholesale-request", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message || "We could not submit your request. Please try again.");
-      if (payload?.wholesaleAccess === true) {
-        setWholesaleAccessStatus("approved");
-        setWholesaleAccessRetry((key) => key + 1);
-      } else if (payload?.wholesaleRequestedAt) {
-        setWholesaleRequestSent(true);
-      } else {
-        throw new Error("We could not confirm your request. Please try again.");
-      }
-    } catch (caught) {
-      setWholesaleRequestError(caught instanceof Error ? caught.message : "We could not submit your request. Please try again.");
-    } finally {
-      setWholesaleRequestBusy(false);
-    }
-  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -140,7 +112,7 @@ export function CheckoutView() {
         }
         const customer = await response.json();
         if (isWholesaleCheckout && customer?.wholesaleAccess !== true) {
-          setWholesaleRequestSent(Boolean(customer?.wholesaleRequestedAt));
+          setWholesaleRequestSent(customer?.wholesaleStatus === "Pending");
           setWholesaleAccessStatus("pending");
           return;
         }
@@ -539,7 +511,7 @@ export function CheckoutView() {
         paymentMethods={paymentMethods}
         paymentError={paymentError}
         scope={checkoutScope}
-        continueHref={isWholesaleCheckout ? "/wholesale" : "/shop"}
+        continueHref={isWholesaleCheckout ? "/wholesale/finished" : "/shop"}
         onStartPayment={(orderId, orderNumber, total) => void startPayment(orderId, orderNumber, total)}
         onProofUploaded={(uploadedAt) => {
           setResult((current) => current ? { ...current, paymentProofUploadedAt: uploadedAt, notice: undefined } : current);
@@ -567,20 +539,17 @@ export function CheckoutView() {
             <div className="wholesale-access__actions">
               {unavailable ? (
                 <button className="button button--light" type="button" onClick={() => { setWholesaleAccessStatus("checking"); setWholesaleAccessRetry((key) => key + 1); }}>{accessCopy.retry}<RefreshIcon size={16} /></button>
-              ) : requestSubmitted ? (
-                <p className="wholesale-access__request-confirmation" role="status"><span aria-hidden="true">✓</span>{accessCopy.requestPendingStatus}</p>
               ) : pending ? (
-                <button className="button button--light" type="button" disabled={wholesaleRequestBusy} onClick={() => void requestWholesaleAccess()}>{wholesaleRequestBusy ? accessCopy.requesting : accessCopy.contact}<ArrowIcon size={16} /></button>
+                <WholesaleApplication onApproved={() => setWholesaleAccessRetry((key) => key + 1)} onStatusChange={(status) => setWholesaleRequestSent(status === "Pending")} />
               ) : (
                 <>
                   <Link className="button button--light" href="/account/login?next=%2Fwholesale%2Fcheckout">{accessCopy.signIn}<ArrowIcon size={16} /></Link>
                   <Link className="button button--outline" href="/account/register">{accessCopy.register}</Link>
                 </>
               )}
-              <Link className="wholesale-access__shop-link" href="/wholesale">{accessCopy.shopLink}<ArrowUpRightIcon size={15} /></Link>
+              <Link className="wholesale-access__shop-link" href="/wholesale/finished">{accessCopy.shopLink}<ArrowUpRightIcon size={15} /></Link>
             </div>
           )}
-          {wholesaleRequestError ? <p className="wholesale-access__request-error" role="alert">{wholesaleRequestError}</p> : null}
         </div>
       </section>
     );
@@ -598,7 +567,7 @@ export function CheckoutView() {
         {recoveryStatus === "error" ? (
           <button type="button" className="button" onClick={() => void recoverCheckout()}>{t.checkout.retryRecovery}</button>
         ) : null}
-        {!isRecovering && recoveryStatus !== "error" ? <Link href={isWholesaleCheckout ? "/wholesale" : "/shop"} className="button">{t.checkout.browse}</Link> : null}
+        {!isRecovering && recoveryStatus !== "error" ? <Link href={isWholesaleCheckout ? "/wholesale/finished" : "/shop"} className="button">{t.checkout.browse}</Link> : null}
       </div>
     );
   }
@@ -631,7 +600,7 @@ export function CheckoutView() {
               shippingCost={shippingCost}
               total={total}
               totalIsKnown={totalIsKnown}
-              editHref={isWholesaleCheckout ? "/wholesale" : "/cart"}
+              editHref={isWholesaleCheckout ? "/wholesale/finished" : "/cart"}
             />
           </details>
           <div className="field">
@@ -836,7 +805,7 @@ export function CheckoutView() {
           shippingCost={shippingCost}
           total={total}
           totalIsKnown={totalIsKnown}
-          editHref={isWholesaleCheckout ? "/wholesale" : "/cart"}
+          editHref={isWholesaleCheckout ? "/wholesale/finished" : "/cart"}
         />
       </div>
     </div>

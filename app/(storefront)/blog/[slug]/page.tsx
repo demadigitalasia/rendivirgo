@@ -93,7 +93,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
     publisher: {
       "@type": "Organization",
       name: "RENDI VIRGO",
-      logo: { "@type": "ImageObject", url: absoluteUrl("/brand/rendi-virgo-logo-white.webp") },
+      logo: { "@type": "ImageObject", url: absoluteUrl("/brand/rendi-virgo-primary.webp") },
     },
     inLanguage: post.contentLocale ?? language,
     mainEntityOfPage: absoluteUrl(localizedPath(`/blog/${post.slug}`, language)),

@@ -45,7 +45,7 @@ export default function AdminWholesalePage() {
     <>
       <PageHeader title="Wholesale" subtitle="Set minimum order requirements for approved customer accounts." />
       <div className="rv-content">
-        <Card title="Minimum order" description="Either threshold can qualify an order; subtotal is measured before shipping, tax, or discounts. Piece count uses the product or variant conversion configured in its editor.">
+        <Card title="Finished Products minimum order" description="Either threshold can qualify an order; subtotal is measured before shipping, tax, or discounts. Piece count uses the product or variant conversion configured in its editor.">
           {state.loading && !state.data ? <Loading label="Loading Wholesale settings…" /> : (
             <div className="rv-stack" style={{ maxWidth: 560 }}>
               {state.error ? <p className="rv-error-text">{state.error}</p> : null}
@@ -59,8 +59,12 @@ export default function AdminWholesalePage() {
             </div>
           )}
         </Card>
+        <Card title="Rough Materials" description="Separate public catalog. Minimum combined order is 2,000 kg, with a maximum of 2 material types. Inquiries go through WhatsApp or email.">
+          <Button href="/admin/rough-materials">Manage Rough Materials</Button>
+        </Card>
         <Card title="Wholesale catalog" description="Enable the Wholesale sales channel and set prices in the admin product editor. Access is granted from each customer profile after email verification.">
-          <p className="rv-hint">Manage wholesale product pricing and customer access from the product editor and customer profiles.</p>
+          <p className="rv-hint">Use the Finished Products wholesale channel for products purchased through checkout. Mark legacy bulk supply as “Bulk rough — manual inquiries only” in the product editor; publish its photos and USD/kg pricing separately in Rough Materials. Individual rough specimens may remain ordinary products. Existing records are not reclassified automatically.</p>
+          <Button href="/admin/products">Review product channels</Button>
         </Card>
       </div>
     </>

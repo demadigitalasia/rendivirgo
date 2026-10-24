@@ -7,6 +7,8 @@ import { AuthRateLimitService } from "../auth/auth-rate-limit.service";
 import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CustomerAuthService, CUSTOMER_SESSION_COOKIE_NAME } from "./customer-auth.service";
+import { WholesaleApplicationsService } from "./wholesale-applications.service";
+import { WholesaleRequestDto } from "./customer-auth.dto";
 import { CustomerGuard } from "./customer.guard";
 import { CustomerForgotPasswordDto, CustomerLoginDto, CustomerRegisterDto, CustomerResetPasswordDto, CustomerVerifyEmailDto, UpdateCustomerProfileDto } from "./customer-auth.dto";
 
@@ -54,10 +56,10 @@ export class CustomerAuthController {
 
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post("resend-verification")
-  async resendVerification(@Body() dto: CustomerForgotPasswordDto, @Req() request: Request) {
+  async resendVerification(@Body() dto: CustomerRegisterDto, @Req() request: Request) {
     await this.rateLimit.consume("customer-resend-verification", request.ip, 3, 60_000);
     await this.rateLimit.consume("customer-resend-verification-account", dto.email.trim().toLowerCase(), 1, 2 * 60_000);
-    const result = await this.auth.resendVerification(dto.email, this.emailLanguage(request));
+    const result = await this.auth.resendVerification(dto.email, this.emailLanguage(request), dto.next);
     await this.audit.log({
       action: "customer_auth.verification_requested",
       entityType: "Customer",
@@ -154,6 +156,7 @@ export class CustomerAuthController {
 export class CustomerAccountController {
   constructor(
     private readonly auth: CustomerAuthService,
+    private readonly wholesale: WholesaleApplicationsService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
   ) {}
@@ -189,9 +192,10 @@ export class CustomerAccountController {
     return this.auth.updateProfile(request.customer!.id, dto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("wholesale-request")
-  async requestWholesaleAccess(@Req() request: AuthenticatedRequest) {
-    const result = await this.auth.requestWholesaleAccess(request.customer!.id);
+  async requestWholesaleAccess(@Req() request: AuthenticatedRequest, @Body() dto: WholesaleRequestDto) {
+    const result = await this.wholesale.request(request.customer!.id, dto);
     if (result.requestCreated) {
       await this.audit.log({
         action: "customer.wholesale_access.requested",

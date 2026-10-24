@@ -1,11 +1,11 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "../../generated/prisma";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailService, type SendEmailInput } from "./email.service";
 
-export type AuthEmailOutboxKind = "CustomerVerification" | "CustomerPasswordReset" | "AdminPasswordReset";
+export type AuthEmailOutboxKind = "CustomerVerification" | "CustomerPasswordReset" | "AdminPasswordReset" | "WholesaleCustomerNotification" | "WholesaleAdminNotification";
 
 type EnqueueAuthEmailInput = {
   kind: AuthEmailOutboxKind;
@@ -58,7 +58,7 @@ export class AuthEmailOutboxService implements OnModuleInit, OnModuleDestroy {
   }
 
   async enqueue(tx: Prisma.TransactionClient, input: EnqueueAuthEmailInput): Promise<void> {
-    if (!this.email.isEnabled()) {
+    if (!this.email.isEnabled() && !input.kind.startsWith("Wholesale")) {
       throw new ServiceUnavailableException("Email delivery is currently unavailable");
     }
     await tx.authEmailOutbox.create({
@@ -201,6 +201,10 @@ export class AuthEmailOutboxService implements OnModuleInit, OnModuleDestroy {
   private async tokenIsCurrent(job: AuthEmailJob): Promise<boolean> {
     const now = new Date();
     if (job.expiresAt.getTime() <= now.getTime()) return false;
+    if (job.kind === "WholesaleCustomerNotification" || job.kind === "WholesaleAdminNotification") {
+      const customer = await this.prisma.customer.findUnique({ where: { id: job.targetId }, select: { wholesaleRevision: true } });
+      return Boolean(customer && createHash("sha256").update(`wholesale:${job.targetId}:${customer.wholesaleRevision}:${job.kind}`).digest("hex") === job.tokenHash);
+    }
     if (job.kind === "CustomerVerification") {
       return Boolean(await this.prisma.customer.findFirst({
         where: { id: job.targetId, verificationTokenHash: job.tokenHash, verificationTokenExpiresAt: { gt: now } },

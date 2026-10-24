@@ -905,3 +905,16 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
   .about-owner__portrait { height: min(78vw, 340px); min-height: 0; }
   .about-owner__copy { padding: 20px 22px 22px; }
 }
+
+.wholesale-application { flex: 1 1 100%; width: 100%; max-width: 820px; }
+.wholesale-application__form { display: grid; gap: 18px; padding-top: 10px; }
+.wholesale-application__form h2 { color: var(--ivory); font-size: 1.6rem; font-weight: 400; }
+.wholesale-application__fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.wholesale-application label { display: grid; gap: 7px; color: var(--ivory); font: .82rem/1.5 var(--font-body); }
+.wholesale-application input,.wholesale-application select,.wholesale-application textarea { width: 100%; min-width: 0; border: 1px solid #c7d4c7; border-radius: 7px; padding: 11px 13px; background: #fffdf8; color: #183e30; font: .95rem/1.5 var(--font-body); }
+.wholesale-application__form button { justify-self: start; }
+.wholesale-application__notice { border: 1px solid rgba(216,196,155,.5); border-radius: 10px; padding: 20px; background: rgba(255,255,255,.05); color: var(--ivory); }
+.wholesale-application__notice strong { display: block; font: 1.4rem var(--font-display); }
+.wholesale-application__notice p { margin-top: 8px; line-height: 1.7; white-space: pre-wrap; }
+.wholesale-application__notice + form { margin-top: 22px; }
+@media(max-width:600px) { .wholesale-application__fields { grid-template-columns: 1fr; } }

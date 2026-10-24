@@ -189,6 +189,10 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsBoolean()
+  isBulkMaterial?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   sellInEtsy?: boolean;
 
   @IsOptional()

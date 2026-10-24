@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import { ArrowIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpRightIcon, ChevronIcon, CloseIcon, PlusIcon, RefreshIcon, SearchIcon, SparkleIcon } from "@/components/icons";
+import { WholesaleApplication } from "@/components/wholesale-application";
 import { FilterDropdown } from "@/components/filter-dropdown";
 import { useCart, useCopy } from "@/components/providers";
 import { LocalizedLink as Link } from "@/components/localized-link";
@@ -35,6 +36,7 @@ type WholesaleProduct = {
   availableQuantity: number;
   imageUrl: string | null;
   wholesalePrice: number | null;
+  wholesaleFromPrice?: number | null;
   wholesalePiecesPerUnit: number | null;
   weightGram: number;
   shippingClass: string;
@@ -141,7 +143,7 @@ function toCartProduct(item: WholesaleProduct): Product {
 function WholesaleCard({ item }: { item: WholesaleProduct }) {
   const { addToCart, quantityInCart } = useCart();
   const variantDropdownId = `wholesale-variant-${useId().replace(/:/g, "")}`;
-  const [variantId, setVariantId] = useState(item.variants[0]?.id ?? "");
+  const [variantId, setVariantId] = useState(() => [...item.variants].sort((a, b) => (a.wholesalePrice ?? item.wholesalePrice ?? Infinity) - (b.wholesalePrice ?? item.wholesalePrice ?? Infinity))[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
   const product = useMemo(() => toCartProduct(item), [item]);
   const variant = item.variants.find((entry) => entry.id === variantId);
@@ -184,6 +186,7 @@ function WholesaleCard({ item }: { item: WholesaleProduct }) {
           {price === null ? "Price unavailable" : formatUSD(price)}
           {price !== null ? <span> / {item.unit}</span> : null}
         </p>
+        {item.variants.length && item.wholesaleFromPrice != null ? <small>From {formatUSD(item.wholesaleFromPrice)} / {item.unit} · final price depends on the selected option</small> : null}
         {item.variants.length ? (
           <div className="wholesale-product__field">
             <label htmlFor={variantDropdownId}>Option</label>
@@ -286,8 +289,6 @@ export function WholesaleStore() {
   const [error, setError] = useState("");
   const [accessState, setAccessState] = useState<"checking" | "guest" | "pending" | "approved" | "unavailable">("checking");
   const [accessRequestSent, setAccessRequestSent] = useState(false);
-  const [requestBusy, setRequestBusy] = useState(false);
-  const [requestError, setRequestError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const wholesaleLines = lines.filter((line) => line.wholesale);
   const wholesaleSubtotal = wholesaleLines.reduce((sum, line) => sum + line.price * line.quantity, 0);
@@ -356,7 +357,7 @@ export function WholesaleStore() {
             setAccessState("guest");
           } else if (profileResponse.ok) {
             const customer = await profileResponse.json();
-            setAccessRequestSent(Boolean(customer?.wholesaleRequestedAt));
+            setAccessRequestSent(customer?.wholesaleStatus === "Pending");
             setAccessState(customer?.wholesaleAccess === true ? "unavailable" : "pending");
           } else {
             setAccessState("unavailable");
@@ -390,7 +391,7 @@ export function WholesaleStore() {
           }
           const customer = await profileResponse.json();
           if (controller.signal.aborted) return;
-          setAccessRequestSent(Boolean(customer?.wholesaleRequestedAt));
+          setAccessRequestSent(customer?.wholesaleStatus === "Pending");
           setAccessState(customer?.wholesaleAccess === true ? "unavailable" : "pending");
         })
         .catch(() => {
@@ -432,33 +433,6 @@ export function WholesaleStore() {
     router.push(pathname, { scroll: false });
   };
 
-  const requestWholesaleAccess = async () => {
-    if (requestBusy) return;
-    setRequestBusy(true);
-    setRequestError("");
-    try {
-      const response = await fetch("/api/customer-account/wholesale-request", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message || "We could not submit your request. Please try again.");
-      if (payload?.wholesaleAccess === true) {
-        setAccessState("approved");
-        setReloadKey((key) => key + 1);
-      } else if (payload?.wholesaleRequestedAt) {
-        setAccessRequestSent(true);
-      } else {
-        throw new Error("We could not confirm your request. Please try again.");
-      }
-    } catch (caught) {
-      setRequestError(caught instanceof Error ? caught.message : "We could not submit your request. Please try again.");
-    } finally {
-      setRequestBusy(false);
-    }
-  };
 
   const pageCount = catalog?.pageCount ?? 1;
   const page = catalog?.page ?? currentPage;
@@ -527,20 +501,17 @@ export function WholesaleStore() {
             <div className="wholesale-access__actions">
               {isUnavailable ? (
                 <button className="button button--light" type="button" onClick={() => setReloadKey((key) => key + 1)}>{copy.retry}<RefreshIcon size={16} /></button>
-              ) : requestSubmitted ? (
-                <p className="wholesale-access__request-confirmation" role="status"><span aria-hidden="true">✓</span>{copy.requestPendingStatus}</p>
               ) : isPending ? (
-                <button className="button button--light" type="button" disabled={requestBusy} onClick={() => void requestWholesaleAccess()}>{requestBusy ? copy.requesting : copy.contact}<ArrowIcon size={16} /></button>
+                <WholesaleApplication onApproved={() => setReloadKey((key) => key + 1)} onStatusChange={(status) => setAccessRequestSent(status === "Pending")} />
               ) : (
                 <>
-                  <Link className="button button--light" href="/account/login?next=%2Fwholesale">{copy.signIn}<ArrowIcon size={16} /></Link>
-                  <Link className="button button--outline" href="/account/register">{copy.register}</Link>
+                  <Link className="button button--light" href="/account/login?next=%2Fwholesale%2Ffinished">{copy.signIn}<ArrowIcon size={16} /></Link>
+                  <Link className="button button--outline" href="/account/register?next=%2Fwholesale%2Ffinished">{copy.register}</Link>
                 </>
               )}
               <Link className="wholesale-access__shop-link" href="/shop">{copy.shopLink}<ArrowUpRightIcon size={15} /></Link>
             </div>
           )}
-          {requestError ? <p className="wholesale-access__request-error" role="alert">{requestError}</p> : null}
         </div>
       </section>
     );
@@ -551,7 +522,7 @@ export function WholesaleStore() {
       <header className="wholesale-store__hero">
         <div className="wholesale-store__hero-copy">
           <p className="customer-account__eyebrow"><span aria-hidden="true" /> APPROVED CUSTOMER COLLECTION</p>
-          <h1>Wholesale, considered.</h1>
+          <h1>Finished Products</h1>
           <p>A focused collection for your next order, with member pricing and live availability.</p>
         </div>
         <div className="wholesale-store__hero-glow" aria-hidden="true" />
@@ -637,7 +608,7 @@ export function WholesaleStore() {
               </div>
             </div>
             <form className="wholesale-filters__section wholesale-price-filter" onSubmit={applyPriceRange}>
-              <div className="wholesale-filters__section-head"><h3>Wholesale price</h3></div>
+              <div className="wholesale-filters__section-head"><h3>Wholesale from price</h3></div>
               <div className="wholesale-price-filter__fields">
                 <label><span>Min USD</span><input type="number" min="0" step="0.01" inputMode="decimal" placeholder="0" value={priceDraft.min} onChange={(event) => setPriceDraft((current) => ({ ...current, min: event.target.value }))} /></label>
                 <span aria-hidden="true">—</span>
@@ -682,8 +653,8 @@ export function WholesaleStore() {
                   { value: "newest", label: "Recently added" },
                   { value: "name-asc", label: "Name: A to Z" },
                   { value: "name-desc", label: "Name: Z to A" },
-                  { value: "price-asc", label: "Price: low to high" },
-                  { value: "price-desc", label: "Price: high to low" },
+                  { value: "price-asc", label: "From price: low to high" },
+                  { value: "price-desc", label: "From price: high to low" },
                 ]} />
               </div>
               <div className="wholesale-catalog__page-size">

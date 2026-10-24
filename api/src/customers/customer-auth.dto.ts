@@ -1,6 +1,10 @@
-import { IsBoolean, IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { IsBoolean, IsEmail, IsIn, IsUrl, Matches, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 export class CustomerRegisterDto {
+  @IsOptional()
+  @IsIn(["/wholesale/finished", "/wholesale/checkout", "/id/wholesale/finished", "/id/wholesale/checkout"])
+  next?: string;
+
   @IsEmail()
   @MaxLength(200)
   email: string;
@@ -99,4 +103,21 @@ export class UpdateCustomerProfileDto {
   @IsOptional()
   @IsBoolean()
   acceptsMarketing?: boolean;
+}
+
+export class WholesaleRequestDto {
+  @IsString() @MinLength(2) @MaxLength(200) @Matches(/\S/)
+  businessName: string;
+
+  @IsIn(["Retailer", "Jewelry maker", "Stone dealer", "Designer", "Other"])
+  buyerType: string;
+
+  @IsString() @MinLength(2) @MaxLength(120) @Matches(/\S/)
+  country: string;
+
+  @IsOptional() @IsUrl({ protocols: ["http", "https"], require_protocol: true }) @MaxLength(500)
+  website?: string;
+
+  @IsString() @MinLength(10) @MaxLength(2000) @Matches(/\S/)
+  needs: string;
 }
