@@ -12,6 +12,7 @@ import {
   faXTwitter,
   faYoutube,
   faPaypal,
+  faDhl,
   faCcMastercard,
   faCcVisa,
 } from "@fortawesome/free-brands-svg-icons";
@@ -127,28 +128,41 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
           ) : null}
         </div>
       </div>
-      <section className="page-container site-footer__payments" aria-labelledby="footer-payments-heading">
-        <h2 id="footer-payments-heading">{t.footer.paymentMethods}</h2>
-        <div className="site-footer__payment-options">
-          <ul className="site-footer__payment-list">
-            <li className="site-footer__payment-mark" aria-label="PayPal">
-              <FontAwesomeIcon icon={faPaypal} aria-hidden="true" />
-              <span>PayPal</span>
+      <section className="page-container site-footer__payments" aria-label={language === "id" ? "Pembayaran dan pengiriman" : "Payment and shipping"}>
+        <div className="site-footer__service-row" role="group" aria-labelledby="footer-payments-heading">
+          <h2 id="footer-payments-heading">{t.footer.paymentMethods}</h2>
+          <div className="site-footer__payment-options">
+            <ul className="site-footer__payment-list">
+              <li className="site-footer__payment-mark" aria-label="PayPal">
+                <FontAwesomeIcon icon={faPaypal} aria-hidden="true" />
+                <span>PayPal</span>
+              </li>
+              <li className="site-footer__payment-mark site-footer__payment-mark--visa" aria-label="Visa, via PayPal">
+                <FontAwesomeIcon icon={faCcVisa} aria-hidden="true" />
+                <span>Visa</span>
+              </li>
+              <li className="site-footer__payment-mark" aria-label="Mastercard, via PayPal">
+                <FontAwesomeIcon icon={faCcMastercard} aria-hidden="true" />
+                <span>Mastercard</span>
+              </li>
+              <li className="site-footer__payment-mark site-footer__payment-mark--bank" aria-label="Bank transfer">
+                <Icon name="bank" size={18} />
+                <span>{t.footer.bankTransfer}</span>
+              </li>
+            </ul>
+            <p className="site-footer__payment-note">{t.footer.cardsViaPaypal}</p>
+          </div>
+        </div>
+        <div className="site-footer__service-row" role="group" aria-labelledby="footer-shipping-heading">
+          <h2 id="footer-shipping-heading">{language === "id" ? "MITRA PENGIRIMAN" : "SHIPPING PARTNERS"}</h2>
+          <ul className="site-footer__shipping-list">
+            <li className="site-footer__shipping-mark site-footer__shipping-mark--fedex" aria-label="FedEx shipping partner">
+              <span><span>Fed</span><b>Ex</b></span>
             </li>
-            <li className="site-footer__payment-mark site-footer__payment-mark--visa" aria-label="Visa, via PayPal">
-              <FontAwesomeIcon icon={faCcVisa} aria-hidden="true" />
-              <span>Visa</span>
-            </li>
-            <li className="site-footer__payment-mark" aria-label="Mastercard, via PayPal">
-              <FontAwesomeIcon icon={faCcMastercard} aria-hidden="true" />
-              <span>Mastercard</span>
-            </li>
-            <li className="site-footer__payment-mark site-footer__payment-mark--bank" aria-label="Bank transfer">
-              <Icon name="bank" size={18} />
-              <span>{t.footer.bankTransfer}</span>
+            <li className="site-footer__shipping-mark site-footer__shipping-mark--dhl" aria-label="DHL shipping partner">
+              <FontAwesomeIcon icon={faDhl} aria-hidden="true" />
             </li>
           </ul>
-          <p className="site-footer__payment-note">{t.footer.cardsViaPaypal}</p>
         </div>
       </section>
       <div className="page-container site-footer__bottom">

@@ -8,7 +8,7 @@
 .wholesale-path-card__image { position: relative; height: 240px; overflow: hidden; background: #183e30; }
 .wholesale-path-card__image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, #0b261bc9); }
 .wholesale-path-card__image img { width: 100%; height: 100%; object-fit: cover; object-position: 70% 50%; transition: transform .4s; }
-.wholesale-path-card--rough .wholesale-path-card__image img { width: 175%; max-width: none; height: auto; position: absolute; right: 0; top: -6%; }
+.wholesale-path-card--rough .wholesale-path-card__image img { width: 100%; max-width: 100%; height: 100%; object-position: 56% 50%; }
 .wholesale-path-card__image > span { position: absolute; bottom: 20px; left: 28px; z-index: 1; color: #f4f0e3; font-size: .61rem; letter-spacing: .16em; }
 .wholesale-path-card__body { padding: 29px; }
 .wholesale-path-card__body h2 { margin: 9px 0 12px; font: 400 clamp(1.9rem,3vw,2.7rem)/1.1 var(--font-display); color: var(--forest); }

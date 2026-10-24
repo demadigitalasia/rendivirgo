@@ -554,8 +554,9 @@
 .storefront .footer-nav > a:hover, .storefront .footer-connect > a:hover, .storefront .footer-legal a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .storefront .site-footer__social-icons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .storefront .site-footer__grid a.site-footer__social-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border-color: #ffffff38; font-size: 16px; }
-.storefront .site-footer__payments { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-block: 14px 16px; border-top: 1px solid #ffffff24; }
-.storefront .site-footer__payments h2 { margin: 0; color: #e1e4d9; font: 400 .65rem/1.5 var(--font-ui); letter-spacing: .09em; text-transform: uppercase; }
+.storefront .site-footer__payments { display: flex; flex-direction: column; gap: 12px; padding-block: 14px 16px; border-top: 1px solid #ffffff24; }
+.storefront .site-footer__service-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.storefront .site-footer__service-row h2 { margin: 0; color: #e1e4d9; font: 400 .65rem/1.5 var(--font-ui); letter-spacing: .09em; text-transform: uppercase; }
 .storefront .site-footer__payment-options { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .storefront .site-footer__payment-list { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .storefront .site-footer__payment-mark { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 82px; min-height: 30px; padding: 5px 8px; border: 1px solid #ffffff38; border-radius: 5px; background: transparent; color: #f4f2e9; font: 500 .65rem/1 var(--font-ui); white-space: nowrap; }
@@ -563,6 +564,13 @@
 .storefront .site-footer__payment-mark--visa { color: #fff; }
 .storefront .site-footer__payment-mark--bank .rv-icon { color: currentColor; }
 .storefront .site-footer__payment-note { margin: 0; color: #d5d8ce; opacity: .82; font: .62rem/1.4 var(--font-ui); }
+.storefront .site-footer__shipping-list { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.storefront .site-footer__shipping-mark { display: inline-flex; align-items: center; justify-content: center; min-width: 82px; min-height: 30px; padding: 4px 9px; border-radius: 5px; background: #f7f5ec; white-space: nowrap; }
+.storefront .site-footer__shipping-mark--fedex { font: 800 .95rem/1 Arial, Helvetica, sans-serif; letter-spacing: -.07em; }
+.storefront .site-footer__shipping-mark--fedex span span { color: #4d148c; }
+.storefront .site-footer__shipping-mark--fedex b { color: #ff6600; }
+.storefront .site-footer__shipping-mark--dhl { background: #ffcc00; color: #d40511; }
+.storefront .site-footer__shipping-mark--dhl svg { width: 56px; height: 20px; font-size: 20px; }
 .storefront .site-footer__bottom { margin: 0 auto; padding-top: 14px; border-top: 1px solid #ffffff24; display: flex; justify-content: space-between; align-items: center; gap: 18px; color: #bcc8b4; font-size: .68rem; line-height: 1.6; }
 .storefront .site-footer__copyright { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; }
 .storefront .footer-legal { display: flex; flex-wrap: wrap; gap: 6px 18px; }
@@ -632,7 +640,8 @@
   .storefront .footer-nav > a, .storefront .footer-connect > a { min-height: 44px; }
   .storefront .site-footer__grid a.site-footer__social-icon { width: 44px; height: 44px; }
   .storefront .footer-legal a { min-height: 44px; }
-  .storefront .site-footer__payments { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .storefront .site-footer__payments { align-items: stretch; flex-direction: column; gap: 16px; }
+  .storefront .site-footer__service-row { align-items: flex-start; flex-direction: column; gap: 8px; }
   .storefront .site-footer__payment-options { align-items: flex-start; }
   .storefront .site-footer__payment-list { gap: 8px; }
   .storefront .site-footer__payment-mark { min-width: 0; }
