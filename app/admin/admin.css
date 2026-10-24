@@ -2407,6 +2407,66 @@ a.rv-list__row:hover {
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 
+/* Customer profile: use wide desktop space while keeping the form readable. */
+.rv-content.rv-customer-detail {
+  max-width: 1540px;
+  gap: 20px;
+}
+
+.rv-customer-detail__stats {
+  gap: 16px;
+}
+
+.rv-customer-detail__main {
+  grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.9fr);
+  gap: 24px;
+}
+
+/* A portal keeps dialogs centered in the viewport, outside sticky/blurred headers. */
+.rv-modal {
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.rv-modal__panel--confirm {
+  width: min(520px, 100%);
+}
+
+.rv-confirmation {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid rgba(159, 81, 72, 0.2);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fbf0ed, #fffaf6);
+}
+
+.rv-confirmation__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f4dfdc;
+  color: var(--rv-danger);
+}
+
+.rv-confirmation p {
+  margin: 0;
+  color: var(--rv-ink);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1080px) {
+  .rv-customer-detail__main {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1080px) {
   .rv-shipping-toolbar {
     grid-template-columns: repeat(3, minmax(150px, 1fr));

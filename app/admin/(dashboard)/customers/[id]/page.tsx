@@ -45,6 +45,7 @@ type CustomerDetail = {
   acceptsMarketing: boolean;
   emailVerifiedAt: string | null;
   wholesaleAccess: boolean;
+  wholesaleRequestedAt: string | null;
   wholesaleApprovedAt: string | null;
   address: {
     line1: string | null;
@@ -199,6 +200,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
                 title="Delete customer?"
                 description={`This permanently removes ${customer.name} (${customer.email}) and cannot be undone.`}
                 confirmLabel="Delete customer"
+                panelClassName="rv-modal__panel--confirm"
                 onConfirm={remove}
               >
                 Delete
@@ -208,7 +210,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
         }
       />
 
-      <div className="rv-content">
+      <div className="rv-content rv-customer-detail">
         {state.loading && !customer ? (
           <Card>
             <Loading label="Loading customer…" />
@@ -226,7 +228,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
 
         {customer ? (
           <>
-            <div className="rv-stat-grid">
+            <div className="rv-stat-grid rv-customer-detail__stats">
               <Stat label="Orders" value={formatNumber(customer.orderCount)} hint="Lifetime orders" />
               <Stat
                 label="Total spent"
@@ -245,7 +247,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
               />
             </div>
 
-            <div className="rv-split">
+            <div className="rv-split rv-customer-detail__main">
               <Card title="Customer details" description="Contact, marketing and address information">
                 {form ? (
                   <div className="rv-stack">
@@ -364,6 +366,7 @@ export default function AdminCustomerDetailPage({ params }: { params: Promise<{ 
                     <KeyValue entries={[
                       { label: "Account email", value: customer.emailVerifiedAt ? "Verified" : "Not verified" },
                       { label: "Access", value: customer.wholesaleAccess ? "Enabled" : "Not enabled" },
+                      { label: "Request received", value: customer.wholesaleRequestedAt ? formatDateTime(customer.wholesaleRequestedAt) : "—" },
                       { label: "Granted", value: customer.wholesaleApprovedAt ? formatDateTime(customer.wholesaleApprovedAt) : "—" },
                     ]} />
                     <Button

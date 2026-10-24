@@ -34,6 +34,7 @@ export class CustomersService {
       acceptsMarketing: customer.acceptsMarketing,
       emailVerifiedAt: customer.emailVerifiedAt,
       wholesaleAccess: customer.wholesaleAccess,
+      wholesaleRequestedAt: customer.wholesaleRequestedAt,
       wholesaleApprovedAt: customer.wholesaleApprovedAt,
       address: {
         line1: customer.addressLine1,
@@ -69,6 +70,11 @@ export class CustomersService {
 
     if (query.tag?.trim()) {
       where.tags = { has: query.tag.trim() };
+    }
+
+    if (query.wholesaleRequested === "true") {
+      where.wholesaleRequestedAt = { not: null };
+      where.wholesaleAccess = false;
     }
 
     return where;
@@ -178,6 +184,7 @@ export class CustomersService {
         ...(dto.wholesaleAccess !== undefined ? {
           wholesaleAccess: dto.wholesaleAccess,
           wholesaleApprovedAt: dto.wholesaleAccess ? existing.wholesaleApprovedAt ?? new Date() : null,
+          ...(dto.wholesaleAccess ? {} : { wholesaleRequestedAt: null }),
         } : {}),
         ...(dto.addressLine1 !== undefined ? { addressLine1: dto.addressLine1 } : {}),
         ...(dto.addressLine2 !== undefined ? { addressLine2: dto.addressLine2 } : {}),

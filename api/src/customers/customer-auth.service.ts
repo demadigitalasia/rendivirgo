@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash, randomBytes } from "node:crypto";
 import * as bcrypt from "bcryptjs";
@@ -277,6 +277,7 @@ export class CustomerAuthService {
       phone: customer.phone,
       acceptsMarketing: customer.acceptsMarketing,
       wholesaleAccess: customer.wholesaleAccess,
+      wholesaleRequestedAt: customer.wholesaleRequestedAt,
       address: {
         line1: customer.addressLine1,
         line2: customer.addressLine2,
@@ -287,6 +288,29 @@ export class CustomerAuthService {
         countryCode: customer.countryCode,
       },
     };
+  }
+
+  async requestWholesaleAccess(customerId: string) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true, emailVerifiedAt: true, wholesaleAccess: true, wholesaleRequestedAt: true },
+    });
+    if (!customer) throw new UnauthorizedException("Customer account is unavailable");
+    if (!customer.emailVerifiedAt) throw new ForbiddenException("Verify your email before requesting Wholesale access");
+    if (customer.wholesaleAccess || customer.wholesaleRequestedAt) {
+      return { wholesaleAccess: customer.wholesaleAccess, wholesaleRequestedAt: customer.wholesaleRequestedAt, requestCreated: false };
+    }
+
+    const created = await this.prisma.customer.updateMany({
+      where: { id: customer.id, wholesaleAccess: false, wholesaleRequestedAt: null, emailVerifiedAt: { not: null } },
+      data: { wholesaleRequestedAt: new Date() },
+    });
+    const updated = await this.prisma.customer.findUnique({
+      where: { id: customer.id },
+      select: { wholesaleAccess: true, wholesaleRequestedAt: true },
+    });
+    if (!updated) throw new UnauthorizedException("Customer account is unavailable");
+    return { ...updated, requestCreated: created.count === 1 };
   }
 
   async updateProfile(customerId: string, dto: UpdateCustomerProfileDto) {

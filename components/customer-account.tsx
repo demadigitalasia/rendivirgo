@@ -66,7 +66,6 @@ function customerErrorMessage(error: unknown, fallback: string): string {
 function formatCountdown(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
-
 async function sendJson(path: string, data: unknown) {
   const response = await fetch(path, {
     method: "POST",
@@ -89,6 +88,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -179,27 +179,34 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     }
   };
 
-  const title = mode === "register" ? "Create your account" : mode === "forgot" ? "Reset your password" : mode === "reset" ? "Choose a new password" : mode === "verify" ? "Finish setting up your account" : "Sign in";
+  const title = mode === "register" ? "Create your account" : mode === "forgot" ? "Reset your password" : mode === "reset" ? "Choose a new password" : mode === "verify" ? verified ? "Account ready" : "Finish setting up your account" : "Sign in";
   const description = mode === "login"
     ? "Welcome back. Your orders, tracking, and collection details are waiting for you."
     : mode === "register"
       ? "Enter your email and we’ll send a setup link so you can choose your name and password."
       : mode === "verify"
-        ? "Confirm you own this email, then choose your name and password to finish setting up your customer account."
+        ? verified
+          ? "Your email is confirmed and your customer account is ready. Sign in to continue."
+          : "Confirm you own this email, then choose your name and password to finish setting up your customer account."
         : mode === "reset"
           ? "Choose a new password for your customer account."
           : "Enter your email and we’ll attempt to send a secure reset link if an account is registered.";
   return (
     <section className="customer-account customer-access">
       <div className="customer-access__panel">
-        <div className="customer-access__content">
+        <div className={`customer-access__content${mode === "verify" ? " is-verify" : ""}`}>
           <p className="customer-account__eyebrow"><span className="customer-access__status-dot" /> CUSTOMER ACCOUNT</p>
           <h1>{title}</h1>
           <p className="customer-access__description">{description}</p>
           {mode === "verify" ? (
-            <>
+            verified ? (
+              <div className="customer-access__success">
+                <p className="customer-access__notice" role="status">{message}</p>
+                <Link className="button button--primary" href="/account/login">Sign in now<ArrowIcon size={17} /></Link>
+              </div>
+            ) : <>
               <p className="customer-access__notice" role={error ? "alert" : "status"}>{busy ? "Setting up your account…" : error || message || "Choose your account name and password to continue."}</p>
-              {token && !verified ? (
+              {token ? (
                 <form className="customer-account__form" onSubmit={(event) => void verifyEmail(event)}>
                   <label>Name<input autoComplete="name" maxLength={200} required value={name} onChange={(event) => setName(event.target.value)} /></label>
                   <div className="customer-access__password-control">
@@ -213,12 +220,26 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
                         aria-pressed={showPassword}
                         onClick={() => setShowPassword((visible) => !visible)}
                       >
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{showPassword ? <><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></> : <><path d="m3 3 18 18" /><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" /><path d="M9.9 5.1A10.9 10.9 0 0 1 12 4.9c5.4 0 9.3 4.7 10 7.1a11.8 11.8 0 0 1-3.1 4.3M6.2 6.2C3.8 7.8 2.4 10.2 2 12c.7 2.4 4.6 7.1 10 7.1 1.1 0 2.2-.2 3.2-.6" /></>}</svg>
+                        <Icon name={showPassword ? "eye" : "eyeOff"} size={18} />
                       </button>
                     </span>
                   </div>
-                  <label htmlFor="customer-password-confirm">Confirm password<input id="customer-password-confirm" type="password" autoComplete="new-password" minLength={12} maxLength={200} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></label>
-                  <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : "Verify email & create account"}<ArrowIcon /></button>
+                  <div className="customer-access__password-control">
+                    <label htmlFor="customer-password-confirm">Confirm password</label>
+                    <span className="customer-access__password-field">
+                      <input id="customer-password-confirm" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={200} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+                      <button
+                        className="customer-access__password-toggle"
+                        type="button"
+                        aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                        aria-pressed={showConfirmPassword}
+                        onClick={() => setShowConfirmPassword((visible) => !visible)}
+                      >
+                        <Icon name={showConfirmPassword ? "eye" : "eyeOff"} size={18} />
+                      </button>
+                    </span>
+                  </div>
+                  <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : "Verify email & create account"}<ArrowIcon size={17} /></button>
                 </form>
               ) : null}
               {verified ? <Link className="button button--primary customer-access__continue" href="/account/login">Sign in now<ArrowIcon size={17} /></Link> : null}
@@ -526,11 +547,40 @@ export function CustomerOrderPage({ orderNumber }: { orderNumber: string }) {
   if (error) return <section className="customer-account"><h1>Order</h1><p role="alert">{error}</p><Link href="/account/orders">Back to orders</Link></section>;
   if (!order) return <section className="customer-account"><p>Loading order…</p></section>;
   return (
-    <section className="customer-account">
-      <div className="customer-account__heading"><div><p className="customer-account__eyebrow">ORDER DETAILS</p><h1>{order.orderNumber}</h1></div><Link href="/account/orders">Back to orders</Link></div>
-      <div className="customer-account__order-summary"><p>Order status: <strong>{order.status}</strong></p><p>Payment: <strong>{order.paymentStatus} · {order.paymentMethod}</strong></p><p>Placed: {new Date(order.placedAt).toLocaleString()}</p>{order.trackingUrl ? <p><a href={order.trackingUrl} rel="noreferrer" target="_blank">Track shipment {order.trackingNumber ? `(${order.trackingNumber})` : ""}</a></p> : order.trackingNumber ? <p>Tracking number: {order.trackingNumber}</p> : null}</div>
-      <div className="customer-account__orders">{order.items.map((item, index) => <div className="customer-account__order" key={`${item.sku}:${index}`}><span><strong>{item.name}</strong><small>{item.sku} · Qty {item.quantity} · USD {Number(item.unitPrice).toFixed(2)} each</small></span><strong>{order.currency} {Number(item.lineTotal).toFixed(2)}</strong></div>)}</div>
-      <div className="customer-account__order-summary"><h2>Shipping</h2><p>{order.shippingAddress.name}<br />{order.shippingAddress.line1}{order.shippingAddress.line2 ? <><br />{order.shippingAddress.line2}</> : null}<br />{[order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.postalCode].filter(Boolean).join(", ")}<br />{order.shippingAddress.country}</p><p>Subtotal {order.currency} {Number(order.subtotal).toFixed(2)}<br />Shipping {order.currency} {Number(order.shippingCost).toFixed(2)}<br />Discount {order.currency} {Number(order.discountTotal).toFixed(2)}<br /><strong>Total {order.currency} {Number(order.total).toFixed(2)}</strong></p></div>
+    <section className="customer-account customer-order-page">
+      <header className="customer-order-page__header">
+        <div><p className="customer-account__eyebrow">ORDER DETAILS</p><h1>{order.orderNumber}</h1><p>Placed {new Date(order.placedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</p></div>
+        <Link href="/account/orders"><ArrowLeftIcon size={15} /> Back to orders</Link>
+      </header>
+
+      <section className="customer-order-page__status" aria-label="Order status">
+        <div><span>Order status</span><strong className="customer-order-page__status-badge">{order.status}</strong></div>
+        <div><span>Payment</span><strong>{order.paymentStatus} · {order.paymentMethod}</strong></div>
+        {order.trackingUrl ? <a href={order.trackingUrl} rel="noreferrer" target="_blank">Track shipment {order.trackingNumber ? `· ${order.trackingNumber}` : ""}<ArrowUpRightIcon size={15} /></a> : order.trackingNumber ? <div><span>Tracking number</span><strong>{order.trackingNumber}</strong></div> : null}
+      </section>
+
+      <div className="customer-order-page__layout">
+        <section className="customer-order-page__card customer-order-page__items">
+          <div className="customer-order-page__card-heading"><div><p className="customer-account__eyebrow">YOUR PURCHASE</p><h2>Items in this order</h2></div><span>{order.itemCount} {order.itemCount === 1 ? "item" : "items"}</span></div>
+          {order.items.map((item, index) => <article className="customer-order-page__item" key={`${item.sku}:${index}`}>
+            {item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" /> : <span className="customer-order-page__item-placeholder"><Icon name="package" size={20} /></span>}
+            <div className="customer-order-page__item-copy"><h3>{item.name}</h3><p>SKU {item.sku}</p><small>Qty {item.quantity} · {order.currency} {Number(item.unitPrice).toFixed(2)} each</small></div>
+            <strong>{order.currency} {Number(item.lineTotal).toFixed(2)}</strong>
+          </article>)}
+        </section>
+
+        <aside className="customer-order-page__side">
+          <section className="customer-order-page__card customer-order-page__shipping">
+            <div className="customer-order-page__card-heading"><div><p className="customer-account__eyebrow">DELIVERY</p><h2>Shipping address</h2></div><Icon name="package" size={18} /></div>
+            <address>{order.shippingAddress.name}<br />{order.shippingAddress.line1}{order.shippingAddress.line2 ? <><br />{order.shippingAddress.line2}</> : null}<br />{[order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.postalCode].filter(Boolean).join(", ")}<br />{order.shippingAddress.country}</address>
+            {order.carrier || order.trackingNumber ? <p className="customer-order-page__carrier">{order.carrier ? `Carrier · ${order.carrier}` : "Shipment tracking"}{order.trackingNumber ? ` · ${order.trackingNumber}` : ""}</p> : null}
+          </section>
+          <section className="customer-order-page__card customer-order-page__totals">
+            <div className="customer-order-page__card-heading"><div><p className="customer-account__eyebrow">PAYMENT SUMMARY</p><h2>Order total</h2></div></div>
+            <dl><div><dt>Subtotal</dt><dd>{order.currency} {Number(order.subtotal).toFixed(2)}</dd></div><div><dt>Shipping</dt><dd>{order.currency} {Number(order.shippingCost).toFixed(2)}</dd></div><div><dt>Discount</dt><dd>− {order.currency} {Number(order.discountTotal).toFixed(2)}</dd></div>{order.taxTotal > 0 ? <div><dt>Tax</dt><dd>{order.currency} {Number(order.taxTotal).toFixed(2)}</dd></div> : null}<div className="customer-order-page__grand-total"><dt>Total paid</dt><dd>{order.currency} {Number(order.total).toFixed(2)}</dd></div></dl>
+          </section>
+        </aside>
+      </div>
     </section>
   );
 }

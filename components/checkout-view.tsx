@@ -68,6 +68,9 @@ export function CheckoutView() {
   const [wholesaleAccessStatus, setWholesaleAccessStatus] = useState<"checking" | "approved" | "guest" | "pending" | "unavailable">(
     isWholesaleCheckout ? "checking" : "approved",
   );
+  const [wholesaleRequestSent, setWholesaleRequestSent] = useState(false);
+  const [wholesaleRequestBusy, setWholesaleRequestBusy] = useState(false);
+  const [wholesaleRequestError, setWholesaleRequestError] = useState("");
   const [wholesaleAccessRetry, setWholesaleAccessRetry] = useState(0);
   const handledReturn = useRef(false);
   const countryCode = country === OTHER_COUNTRY_VALUE ? "" : country;
@@ -97,6 +100,34 @@ export function CheckoutView() {
     reloadPaymentAvailability: loadPaymentAvailability,
   } = usePaymentAvailability();
 
+  const requestWholesaleAccess = async () => {
+    if (wholesaleRequestBusy) return;
+    setWholesaleRequestBusy(true);
+    setWholesaleRequestError("");
+    try {
+      const response = await fetch("/api/customer-account/wholesale-request", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message || "We could not submit your request. Please try again.");
+      if (payload?.wholesaleAccess === true) {
+        setWholesaleAccessStatus("approved");
+        setWholesaleAccessRetry((key) => key + 1);
+      } else if (payload?.wholesaleRequestedAt) {
+        setWholesaleRequestSent(true);
+      } else {
+        throw new Error("We could not confirm your request. Please try again.");
+      }
+    } catch (caught) {
+      setWholesaleRequestError(caught instanceof Error ? caught.message : "We could not submit your request. Please try again.");
+    } finally {
+      setWholesaleRequestBusy(false);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     void fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store", signal: controller.signal })
@@ -109,6 +140,7 @@ export function CheckoutView() {
         }
         const customer = await response.json();
         if (isWholesaleCheckout && customer?.wholesaleAccess !== true) {
+          setWholesaleRequestSent(Boolean(customer?.wholesaleRequestedAt));
           setWholesaleAccessStatus("pending");
           return;
         }
@@ -519,23 +551,26 @@ export function CheckoutView() {
   if (isWholesaleCheckout && wholesaleAccessStatus !== "approved") {
     const accessCopy = t.wholesaleAccess;
     const pending = wholesaleAccessStatus === "pending";
+    const requestSubmitted = pending && wholesaleRequestSent;
     const unavailable = wholesaleAccessStatus === "unavailable";
     return (
       <section className="wholesale-access page-container" aria-labelledby="wholesale-checkout-access-title">
         <div className="wholesale-access__panel">
           <p className="wholesale-access__eyebrow"><span aria-hidden="true" />{accessCopy.eyebrow}</p>
           <h1 id="wholesale-checkout-access-title">
-            {wholesaleAccessStatus === "checking" ? accessCopy.checking : unavailable ? accessCopy.unavailableTitle : pending ? accessCopy.pendingTitle : accessCopy.title}
+            {wholesaleAccessStatus === "checking" ? accessCopy.checking : unavailable ? accessCopy.unavailableTitle : requestSubmitted ? accessCopy.requestPendingTitle : pending ? accessCopy.pendingTitle : accessCopy.title}
           </h1>
-          {wholesaleAccessStatus !== "checking" ? <p className="wholesale-access__description">{unavailable ? accessCopy.unavailableBody : pending ? accessCopy.pendingBody : accessCopy.body}</p> : null}
+          {wholesaleAccessStatus !== "checking" ? <p className="wholesale-access__description">{unavailable ? accessCopy.unavailableBody : requestSubmitted ? accessCopy.requestPendingBody : pending ? accessCopy.pendingBody : accessCopy.body}</p> : null}
           {wholesaleAccessStatus === "checking" ? (
             <p className="wholesale-access__checking" role="status">{accessCopy.checking}</p>
           ) : (
             <div className="wholesale-access__actions">
               {unavailable ? (
                 <button className="button button--light" type="button" onClick={() => { setWholesaleAccessStatus("checking"); setWholesaleAccessRetry((key) => key + 1); }}>{accessCopy.retry}<RefreshIcon size={16} /></button>
+              ) : requestSubmitted ? (
+                <p className="wholesale-access__request-confirmation" role="status"><span aria-hidden="true">✓</span>{accessCopy.requestPendingStatus}</p>
               ) : pending ? (
-                <Link className="button button--light" href="/contact">{accessCopy.contact}<ArrowIcon size={16} /></Link>
+                <button className="button button--light" type="button" disabled={wholesaleRequestBusy} onClick={() => void requestWholesaleAccess()}>{wholesaleRequestBusy ? accessCopy.requesting : accessCopy.contact}<ArrowIcon size={16} /></button>
               ) : (
                 <>
                   <Link className="button button--light" href="/account/login?next=%2Fwholesale%2Fcheckout">{accessCopy.signIn}<ArrowIcon size={16} /></Link>
@@ -545,6 +580,7 @@ export function CheckoutView() {
               <Link className="wholesale-access__shop-link" href="/wholesale">{accessCopy.shopLink}<ArrowUpRightIcon size={15} /></Link>
             </div>
           )}
+          {wholesaleRequestError ? <p className="wholesale-access__request-error" role="alert">{wholesaleRequestError}</p> : null}
         </div>
       </section>
     );

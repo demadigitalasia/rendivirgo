@@ -561,6 +561,7 @@ model Customer {
   resetTokenHash String? @unique
   resetTokenExpiresAt DateTime?
   wholesaleAccess Boolean @default(false)
+  wholesaleRequestedAt DateTime?
   wholesaleApprovedAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -569,6 +570,7 @@ model Customer {
   sessions CustomerSession[]
 
   @@index([createdAt])
+  @@index([wholesaleRequestedAt])
 }
 
 model CustomerSession {

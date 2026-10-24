@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
@@ -12,6 +13,10 @@ export class CustomerQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   tag?: string;
+
+  @IsOptional()
+  @IsIn(["true"])
+  wholesaleRequested?: string;
 }
 
 export class UpdateCustomerDto {

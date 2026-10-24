@@ -189,6 +189,22 @@ export class CustomerAccountController {
     return this.auth.updateProfile(request.customer!.id, dto);
   }
 
+  @Post("wholesale-request")
+  async requestWholesaleAccess(@Req() request: AuthenticatedRequest) {
+    const result = await this.auth.requestWholesaleAccess(request.customer!.id);
+    if (result.requestCreated) {
+      await this.audit.log({
+        action: "customer.wholesale_access.requested",
+        entityType: "Customer",
+        entityId: request.customer!.id,
+        summary: "Customer requested Wholesale access",
+        ip: request.ip ?? null,
+        userAgent: request.headers["user-agent"] ?? null,
+      });
+    }
+    return result;
+  }
+
   @Get("orders")
   orders(@Req() request: AuthenticatedRequest, @Query("page") rawPage?: string) {
     const parsed = Number(rawPage ?? 1);

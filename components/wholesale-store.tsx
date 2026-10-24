@@ -285,6 +285,9 @@ export function WholesaleStore() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [accessState, setAccessState] = useState<"checking" | "guest" | "pending" | "approved" | "unavailable">("checking");
+  const [accessRequestSent, setAccessRequestSent] = useState(false);
+  const [requestBusy, setRequestBusy] = useState(false);
+  const [requestError, setRequestError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const wholesaleLines = lines.filter((line) => line.wholesale);
   const wholesaleSubtotal = wholesaleLines.reduce((sum, line) => sum + line.price * line.quantity, 0);
@@ -347,7 +350,20 @@ export function WholesaleStore() {
       if (response.status === 403) {
         clearCart("wholesale");
         setCatalog(null);
-        setAccessState("pending");
+        try {
+          const profileResponse = await fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store", signal: controller.signal });
+          if (profileResponse.status === 401) {
+            setAccessState("guest");
+          } else if (profileResponse.ok) {
+            const customer = await profileResponse.json();
+            setAccessRequestSent(Boolean(customer?.wholesaleRequestedAt));
+            setAccessState(customer?.wholesaleAccess === true ? "unavailable" : "pending");
+          } else {
+            setAccessState("unavailable");
+          }
+        } catch {
+          if (!controller.signal.aborted) setAccessState("unavailable");
+        }
         return null;
       }
       const data = await response.json().catch(() => ({}));
@@ -360,8 +376,26 @@ export function WholesaleStore() {
       }
     }).catch((caught) => {
       if (controller.signal.aborted) return;
-      setAccessState((current) => current === "checking" ? "unavailable" : current);
       setError(caught instanceof Error ? caught.message : "Wholesale catalog is unavailable");
+      void fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store", signal: controller.signal })
+        .then(async (profileResponse) => {
+          if (controller.signal.aborted) return;
+          if (profileResponse.status === 401) {
+            setAccessState("guest");
+            return;
+          }
+          if (!profileResponse.ok) {
+            setAccessState("unavailable");
+            return;
+          }
+          const customer = await profileResponse.json();
+          if (controller.signal.aborted) return;
+          setAccessRequestSent(Boolean(customer?.wholesaleRequestedAt));
+          setAccessState(customer?.wholesaleAccess === true ? "unavailable" : "pending");
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setAccessState("unavailable");
+        });
     }).finally(() => {
       if (!controller.signal.aborted) setBusy(false);
     });
@@ -396,6 +430,34 @@ export function WholesaleStore() {
     setSearchDraft("");
     setPriceDraft({ min: "", max: "" });
     router.push(pathname, { scroll: false });
+  };
+
+  const requestWholesaleAccess = async () => {
+    if (requestBusy) return;
+    setRequestBusy(true);
+    setRequestError("");
+    try {
+      const response = await fetch("/api/customer-account/wholesale-request", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message || "We could not submit your request. Please try again.");
+      if (payload?.wholesaleAccess === true) {
+        setAccessState("approved");
+        setReloadKey((key) => key + 1);
+      } else if (payload?.wholesaleRequestedAt) {
+        setAccessRequestSent(true);
+      } else {
+        throw new Error("We could not confirm your request. Please try again.");
+      }
+    } catch (caught) {
+      setRequestError(caught instanceof Error ? caught.message : "We could not submit your request. Please try again.");
+    } finally {
+      setRequestBusy(false);
+    }
   };
 
   const pageCount = catalog?.pageCount ?? 1;
@@ -449,14 +511,15 @@ export function WholesaleStore() {
     const copy = t.wholesaleAccess;
     const isPending = accessState === "pending";
     const isUnavailable = accessState === "unavailable";
+    const requestSubmitted = isPending && accessRequestSent;
     return (
       <section className="wholesale-access page-container" aria-labelledby="wholesale-access-title">
         <div className="wholesale-access__panel">
           <p className="wholesale-access__eyebrow"><span aria-hidden="true" />{copy.eyebrow}</p>
-          <h1 id="wholesale-access-title">{isUnavailable ? copy.unavailableTitle : isPending ? copy.pendingTitle : copy.title}</h1>
-          <p className="wholesale-access__description">{isUnavailable ? copy.unavailableBody : isPending ? copy.pendingBody : copy.body}</p>
+          <h1 id="wholesale-access-title">{isUnavailable ? copy.unavailableTitle : requestSubmitted ? copy.requestPendingTitle : isPending ? copy.pendingTitle : copy.title}</h1>
+          <p className="wholesale-access__description">{isUnavailable ? copy.unavailableBody : requestSubmitted ? copy.requestPendingBody : isPending ? copy.pendingBody : copy.body}</p>
           {!isUnavailable ? <ol className="wholesale-access__steps">
-            {(isPending ? copy.pendingSteps : copy.steps).map((step, index) => <li key={step}><span aria-hidden="true">0{index + 1}</span><p>{step}</p></li>)}
+            {(requestSubmitted ? copy.requestPendingSteps : isPending ? copy.pendingSteps : copy.steps).map((step, index) => <li key={step}><span aria-hidden="true">0{index + 1}</span><p>{step}</p></li>)}
           </ol> : null}
           {accessState === "checking" ? (
             <p className="wholesale-access__checking" role="status">{copy.checking}</p>
@@ -464,8 +527,10 @@ export function WholesaleStore() {
             <div className="wholesale-access__actions">
               {isUnavailable ? (
                 <button className="button button--light" type="button" onClick={() => setReloadKey((key) => key + 1)}>{copy.retry}<RefreshIcon size={16} /></button>
+              ) : requestSubmitted ? (
+                <p className="wholesale-access__request-confirmation" role="status"><span aria-hidden="true">✓</span>{copy.requestPendingStatus}</p>
               ) : isPending ? (
-                <Link className="button button--light" href="/contact">{copy.contact}<ArrowIcon size={16} /></Link>
+                <button className="button button--light" type="button" disabled={requestBusy} onClick={() => void requestWholesaleAccess()}>{requestBusy ? copy.requesting : copy.contact}<ArrowIcon size={16} /></button>
               ) : (
                 <>
                   <Link className="button button--light" href="/account/login?next=%2Fwholesale">{copy.signIn}<ArrowIcon size={16} /></Link>
@@ -475,6 +540,7 @@ export function WholesaleStore() {
               <Link className="wholesale-access__shop-link" href="/shop">{copy.shopLink}<ArrowUpRightIcon size={15} /></Link>
             </div>
           )}
+          {requestError ? <p className="wholesale-access__request-error" role="alert">{requestError}</p> : null}
         </div>
       </section>
     );

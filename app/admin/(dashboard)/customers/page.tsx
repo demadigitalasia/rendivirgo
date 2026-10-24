@@ -13,6 +13,8 @@ type CustomerRow = {
   name: string;
   phone: string | null;
   tags: string[];
+  wholesaleAccess: boolean;
+  wholesaleRequestedAt: string | null;
   acceptsMarketing: boolean;
   address: {
     line1: string | null;
@@ -44,11 +46,14 @@ export default function AdminCustomersPage() {
   }, [tag, update]);
 
   const hasFilters = Boolean(state.params.search || state.params.tag);
+  const wholesaleRequestedOnly = state.params.wholesaleRequested === "true";
+  const hasActiveFilters = hasFilters || wholesaleRequestedOnly;
   const customerCount = state.data?.total ?? 0;
 
   const exportUrl = apiUrl("/api/admin/customers/export.csv", {
     search: state.params.search,
     tag: state.params.tag,
+    wholesaleRequested: state.params.wholesaleRequested,
   });
 
   const columns: Array<Column<CustomerRow>> = [
@@ -66,6 +71,15 @@ export default function AdminCustomersPage() {
       key: "phone",
       header: "Phone",
       render: (customer) => customer.phone ?? "—",
+    },
+    {
+      key: "wholesale",
+      header: "Wholesale",
+      render: (customer) => customer.wholesaleAccess
+        ? <Badge tone="green">Enabled</Badge>
+        : customer.wholesaleRequestedAt
+          ? <Badge tone="amber">Under review</Badge>
+          : <span className="rv-hint">—</span>,
     },
     {
       key: "country",
@@ -162,7 +176,15 @@ export default function AdminCustomersPage() {
             <Field label="Filter by tag">
               <TextInput value={tag} onChange={setTag} placeholder="For example: wholesale" />
             </Field>
-            {hasFilters ? (
+            <Button
+              size="sm"
+              variant={wholesaleRequestedOnly ? "primary" : "default"}
+              ariaPressed={wholesaleRequestedOnly}
+              onClick={() => state.update({ wholesaleRequested: wholesaleRequestedOnly ? undefined : "true", page: 1 })}
+            >
+              {wholesaleRequestedOnly ? "Wholesale requests only" : "Wholesale requests"}
+            </Button>
+            {hasActiveFilters ? (
               <Button
                 size="sm"
                 onClick={() => {
@@ -184,7 +206,7 @@ export default function AdminCustomersPage() {
             loading={state.loading && !state.data}
             rowKey={(customer) => customer.id}
             emptyTitle="No customers found"
-            emptyDescription={hasFilters ? "Try adjusting the filters." : "Customers will appear here after their first order."}
+            emptyDescription={hasActiveFilters ? "Try adjusting the filters." : "Customers will appear here after their first order."}
           />
 
           {state.data ? (
