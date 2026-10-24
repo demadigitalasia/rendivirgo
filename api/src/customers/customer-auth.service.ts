@@ -17,6 +17,7 @@ type SessionContext = { ip?: string | null; userAgent?: string | null };
 @Injectable()
 export class CustomerAuthService {
   private readonly ttlHours: number;
+  private readonly dummyPasswordHash = bcrypt.hash(randomBytes(32).toString("base64url"), 12);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -29,6 +30,10 @@ export class CustomerAuthService {
 
   private hashToken(token: string): string {
     return createHash("sha256").update(token).digest("hex");
+  }
+
+  private async equalizePasswordWork(candidate = "rendi-virgo-auth-check"): Promise<void> {
+    await bcrypt.compare(candidate, await this.dummyPasswordHash);
   }
 
   private appOrigin(): string {
@@ -59,9 +64,8 @@ export class CustomerAuthService {
       expiresAt,
       email: {
         to: customer.email,
-        subject: "Verify your RENDI VIRGO customer account",
+        subject: "Finish setting up your RENDI VIRGO customer account",
         html: renderCustomerVerificationEmail({
-          name: customer.name,
           link: `${this.appOrigin()}/account/verify-email?token=${encodeURIComponent(token)}`,
           expiresMinutes: VERIFY_TTL_MINUTES,
         }),
@@ -73,29 +77,20 @@ export class CustomerAuthService {
     await this.prisma.$transaction((tx) => this.enqueueVerificationLink(tx, customer));
   }
 
-  async register(input: { name: string; email: string; password: string }): Promise<{ ok: true }> {
+  async register(input: { email: string }): Promise<{ ok: true }> {
     const email = input.email.trim().toLowerCase();
-    const name = input.name.trim();
-    if (!name) throw new BadRequestException("Enter your name to create a customer account");
+    await this.equalizePasswordWork();
     const existing = await this.prisma.customer.findUnique({ where: { email } });
     if (existing?.emailVerifiedAt) return { ok: true };
     if (existing && this.verificationSentRecently(existing.verificationTokenExpiresAt)) return { ok: true };
 
-    const passwordHash = await bcrypt.hash(input.password, 12);
-
     await this.prisma.$transaction(async (tx) => {
       const customer = existing
-        ? await tx.customer.update({
-          where: { id: existing.id },
-          data: {
-            ...(existing.passwordHash ? {} : { passwordHash, name }),
-          },
-        })
+        ? existing
         : await tx.customer.create({
           data: {
             email,
-            name,
-            passwordHash,
+            name: "Customer",
           },
         });
       await this.enqueueVerificationLink(tx, customer);
@@ -105,37 +100,40 @@ export class CustomerAuthService {
 
   async resendVerification(emailInput: string): Promise<{ ok: true }> {
     const email = emailInput.trim().toLowerCase();
+    await this.equalizePasswordWork();
     const customer = await this.prisma.customer.findUnique({
       where: { email },
       select: {
         id: true,
         email: true,
         name: true,
-        passwordHash: true,
         emailVerifiedAt: true,
         verificationTokenExpiresAt: true,
       },
     });
-    if (!customer?.passwordHash || customer.emailVerifiedAt) return { ok: true };
+    if (!customer || customer.emailVerifiedAt) return { ok: true };
     if (this.verificationSentRecently(customer.verificationTokenExpiresAt)) return { ok: true };
 
     await this.issueVerificationLink(customer);
     return { ok: true };
   }
 
-  async verifyEmail(token: string): Promise<{ ok: true }> {
+  async verifyEmail(token: string, nameInput: string, password: string): Promise<{ ok: true }> {
     const now = new Date();
     const tokenHash = this.hashToken(token.trim());
+    const name = nameInput.trim();
+    if (!name) throw new BadRequestException("Enter your name to finish setting up your customer account");
     const customer = await this.prisma.customer.findFirst({
       where: { verificationTokenHash: tokenHash, verificationTokenExpiresAt: { gt: now } },
       select: { id: true, email: true },
     });
     if (!customer) throw new BadRequestException("This verification link is invalid or has expired");
 
+    const passwordHash = await bcrypt.hash(password, 12);
     await this.prisma.$transaction(async (tx) => {
       const activated = await tx.customer.updateMany({
         where: { id: customer.id, verificationTokenHash: tokenHash, verificationTokenExpiresAt: { gt: now } },
-        data: { emailVerifiedAt: now, verificationTokenHash: null, verificationTokenExpiresAt: null },
+        data: { name, passwordHash, emailVerifiedAt: now, verificationTokenHash: null, verificationTokenExpiresAt: null },
       });
       if (activated.count !== 1) throw new BadRequestException("This verification link is invalid or has expired");
       await tx.order.updateMany({ where: { email: customer.email, customerId: null }, data: { customerId: customer.id } });
@@ -145,7 +143,10 @@ export class CustomerAuthService {
 
   async validateCredentials(emailInput: string, password: string) {
     const customer = await this.prisma.customer.findUnique({ where: { email: emailInput.trim().toLowerCase() } });
-    if (!customer?.passwordHash || !customer.emailVerifiedAt) return null;
+    if (!customer?.passwordHash || !customer.emailVerifiedAt) {
+      await this.equalizePasswordWork(password);
+      return null;
+    }
     if (!(await bcrypt.compare(password, customer.passwordHash))) return null;
     return { id: customer.id, email: customer.email, name: customer.name, wholesaleAccess: customer.wholesaleAccess, emailVerifiedAt: customer.emailVerifiedAt };
   }
@@ -198,16 +199,28 @@ export class CustomerAuthService {
   async requestPasswordReset(emailInput: string): Promise<void> {
     const email = emailInput.trim().toLowerCase();
     const customer = await this.prisma.customer.findUnique({ where: { email } });
+    await this.equalizePasswordWork();
     if (!customer?.passwordHash || !customer.emailVerifiedAt) return;
+
+    const now = new Date();
+    if (customer.resetTokenHash && customer.resetTokenExpiresAt && customer.resetTokenExpiresAt > now) return;
 
     const token = randomBytes(32).toString("base64url");
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + RESET_TTL_MINUTES * 60_000);
     await this.prisma.$transaction(async (tx) => {
-      await tx.customer.update({
-        where: { id: customer.id },
+      const claimed = await tx.customer.updateMany({
+        where: {
+          id: customer.id,
+          OR: [
+            { resetTokenHash: null },
+            { resetTokenExpiresAt: null },
+            { resetTokenExpiresAt: { lte: now } },
+          ],
+        },
         data: { resetTokenHash: tokenHash, resetTokenExpiresAt: expiresAt },
       });
+      if (claimed.count !== 1) return;
       await this.emailOutbox.enqueue(tx, {
         kind: "CustomerPasswordReset",
         targetId: customer.id,

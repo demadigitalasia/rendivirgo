@@ -52,6 +52,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -69,19 +70,27 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     return () => window.clearInterval(interval);
   }, [verificationRequested, resendAfter]);
 
-  const verifyEmail = async () => {
+  const verifyEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!token) return;
+    if (password !== confirmPassword) {
+      setError("The passwords do not match.");
+      return;
+    }
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      await sendJson("/api/customer-auth/verify-email", { token });
+      await sendJson("/api/customer-auth/verify-email", { token, name, password });
       setVerified(true);
-      setMessage("Email verified. You can now sign in.");
+      setMessage("Email verified and account set up. You can now sign in.");
+      setName("");
+      setPassword("");
+      setConfirmPassword("");
+      window.history.replaceState(window.history.state, "", window.location.pathname);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Verification failed");
     } finally {
-      window.history.replaceState(window.history.state, "", window.location.pathname);
       setBusy(false);
     }
   };
@@ -108,10 +117,10 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     setMessage("");
     try {
       if (mode === "register") {
-        await sendJson("/api/customer-auth/register", { name, email, password });
+        await sendJson("/api/customer-auth/register", { email });
         setVerificationRequested(true);
         setResendAfter(Date.now() + 2 * 60_000);
-        setMessage("If this email can be registered, we’ll attempt to send a verification link. Check your inbox and spam folder; use Resend if it doesn’t arrive.");
+        setMessage("If this email can be registered, we’ll attempt to send a setup link. Open it to choose your name and password. Check your inbox and spam folder; use Resend if it doesn’t arrive.");
       } else if (mode === "login") {
         await sendJson("/api/customer-auth/login", { email, password });
         const requestedPath = new URLSearchParams(window.location.search).get("next");
@@ -120,7 +129,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
         router.refresh();
       } else if (mode === "forgot") {
         await sendJson("/api/customer-auth/forgot-password", { email });
-        setMessage("If a verified account uses this email, we’ll attempt to send a password reset link. Check your inbox and spam folder.");
+        setMessage("If a verified account uses this email, we’ll attempt to send a password reset link. If you recently requested one, use that link; it remains valid for 30 minutes.");
       } else if (mode === "reset") {
         await sendJson("/api/customer-auth/reset-password", { token, newPassword: password });
         setMessage("Password updated. Sign in with your new password.");
@@ -135,13 +144,13 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     }
   };
 
-  const title = mode === "register" ? "Create your account" : mode === "forgot" ? "Reset your password" : mode === "reset" ? "Choose a new password" : mode === "verify" ? "Verify your email" : "Sign in";
+  const title = mode === "register" ? "Create your account" : mode === "forgot" ? "Reset your password" : mode === "reset" ? "Choose a new password" : mode === "verify" ? "Finish setting up your account" : "Sign in";
   const description = mode === "login"
     ? "Welcome back. Your orders, tracking, and collection details are waiting for you."
     : mode === "register"
       ? "Create an account to keep your orders and delivery updates together."
       : mode === "verify"
-        ? "Confirm your email to open your customer account."
+        ? "Confirm you own this email, then choose your name and password to finish setting up your customer account."
         : mode === "reset"
           ? "Choose a new password for your customer account."
           : "Enter your email and we’ll attempt to send a secure reset link if an account is registered.";
@@ -154,22 +163,39 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
           <p className="customer-access__description">{description}</p>
           {mode === "verify" ? (
             <>
-              <p className="customer-access__notice" role={error ? "alert" : "status"}>{busy ? "Verifying your email…" : error || message || "Confirm below to verify your email address."}</p>
+              <p className="customer-access__notice" role={error ? "alert" : "status"}>{busy ? "Setting up your account…" : error || message || "Choose your account name and password to continue."}</p>
               {token && !verified ? (
-                <button className="customer-access__resend" type="button" disabled={busy} onClick={() => void verifyEmail()}>
-                  {busy ? "Verifying…" : "Verify email"}
-                </button>
+                <form className="customer-account__form" onSubmit={(event) => void verifyEmail(event)}>
+                  <label>Name<input autoComplete="name" maxLength={200} required value={name} onChange={(event) => setName(event.target.value)} /></label>
+                  <div className="customer-access__password-control">
+                    <label htmlFor="customer-password">Password</label>
+                    <span className="customer-access__password-field">
+                      <input id="customer-password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={200} required value={password} onChange={(event) => setPassword(event.target.value)} />
+                      <button
+                        className="customer-access__password-toggle"
+                        type="button"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                        onClick={() => setShowPassword((visible) => !visible)}
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{showPassword ? <><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></> : <><path d="m3 3 18 18" /><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" /><path d="M9.9 5.1A10.9 10.9 0 0 1 12 4.9c5.4 0 9.3 4.7 10 7.1a11.8 11.8 0 0 1-3.1 4.3M6.2 6.2C3.8 7.8 2.4 10.2 2 12c.7 2.4 4.6 7.1 10 7.1 1.1 0 2.2-.2 3.2-.6" /></>}</svg>
+                      </button>
+                    </span>
+                  </div>
+                  <label htmlFor="customer-password-confirm">Confirm password<input id="customer-password-confirm" type="password" autoComplete="new-password" minLength={12} maxLength={200} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></label>
+                  <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : "Verify email & create account"}<ArrowIcon /></button>
+                </form>
               ) : null}
+              {!token && !verified ? <p className="customer-account__error" role="alert">The verification link is missing. Register again to request a new setup link.</p> : null}
             </>
           ) : (
             <form className="customer-account__form" onSubmit={(event) => void submit(event)}>
-              {mode === "register" ? <label>Name<input autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} /></label> : null}
               {mode !== "reset" ? <label>Email<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label> : null}
-              {mode === "login" || mode === "register" || mode === "reset" ? (
+              {mode === "login" || mode === "reset" ? (
                 <div className="customer-access__password-control">
                   <label htmlFor="customer-password">Password</label>
                   <span className="customer-access__password-field">
-                    <input id="customer-password" type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" || mode === "reset" ? 12 : 1} required value={password} onChange={(event) => setPassword(event.target.value)} />
+                    <input id="customer-password" type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "reset" ? 12 : 1} maxLength={200} required value={password} onChange={(event) => setPassword(event.target.value)} />
                     <button
                       className="customer-access__password-toggle"
                       type="button"

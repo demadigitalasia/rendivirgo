@@ -228,11 +228,11 @@ export const renderPasswordResetEmail = (data: { name: string; link: string; exp
     footer: "If you did not request this, you can ignore this email — your password stays unchanged.",
   });
 
-export const renderCustomerVerificationEmail = (data: { name: string; link: string; expiresMinutes: number }): string =>
+export const renderCustomerVerificationEmail = (data: { link: string; expiresMinutes: number }): string =>
   layout({
-    heading: "Verify your email",
-    intro: `Hi ${escapeHtml(data.name.split(" ")[0] || data.name)}, confirm your email address to activate your RENDI VIRGO customer account.`,
-    body: `<p style="margin:0 0 8px;"><a href="${escapeHtml(data.link)}" style="display:inline-block;background:#22201c;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-size:14px;">Verify email</a></p>
+    heading: "Finish setting up your account",
+    intro: "Confirm your email address, then choose your name and password to finish setting up your RENDI VIRGO customer account.",
+    body: `<p style="margin:0 0 8px;"><a href="${escapeHtml(data.link)}" style="display:inline-block;background:#22201c;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-size:14px;">Continue account setup</a></p>
       <p style="font-size:12px;color:#8a8477;">This link expires in ${data.expiresMinutes} minutes.</p>
       <p style="font-size:12px;color:#8a8477;word-break:break-all;">${escapeHtml(data.link)}</p>`,
     footer: "If you did not create this account, you can safely ignore this email.",

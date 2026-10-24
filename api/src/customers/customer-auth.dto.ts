@@ -1,19 +1,9 @@
 import { IsBoolean, IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 export class CustomerRegisterDto {
-  @IsString()
-  @MinLength(1)
-  @MaxLength(200)
-  name: string;
-
   @IsEmail()
   @MaxLength(200)
   email: string;
-
-  @IsString()
-  @MinLength(12)
-  @MaxLength(200)
-  password: string;
 }
 
 export class CustomerLoginDto {
@@ -32,6 +22,18 @@ export class CustomerEmailTokenDto {
   @MinLength(20)
   @MaxLength(300)
   token: string;
+}
+
+export class CustomerVerifyEmailDto extends CustomerEmailTokenDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(200)
+  password: string;
 }
 
 export class CustomerForgotPasswordDto {

@@ -58,6 +58,9 @@ export class AuthEmailOutboxService implements OnModuleInit, OnModuleDestroy {
   }
 
   async enqueue(tx: Prisma.TransactionClient, input: EnqueueAuthEmailInput): Promise<void> {
+    if (!this.email.isEnabled()) {
+      throw new ServiceUnavailableException("Email delivery is currently unavailable");
+    }
     await tx.authEmailOutbox.create({
       data: {
         kind: input.kind,

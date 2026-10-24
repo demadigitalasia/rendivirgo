@@ -8,7 +8,7 @@ import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CustomerAuthService, CUSTOMER_SESSION_COOKIE_NAME } from "./customer-auth.service";
 import { CustomerGuard } from "./customer.guard";
-import { CustomerEmailTokenDto, CustomerForgotPasswordDto, CustomerLoginDto, CustomerRegisterDto, CustomerResetPasswordDto, UpdateCustomerProfileDto } from "./customer-auth.dto";
+import { CustomerForgotPasswordDto, CustomerLoginDto, CustomerRegisterDto, CustomerResetPasswordDto, CustomerVerifyEmailDto, UpdateCustomerProfileDto } from "./customer-auth.dto";
 
 @Public()
 @Controller("customer-auth")
@@ -64,9 +64,9 @@ export class CustomerAuthController {
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("verify-email")
-  async verifyEmail(@Body() dto: CustomerEmailTokenDto, @Req() request: Request) {
+  async verifyEmail(@Body() dto: CustomerVerifyEmailDto, @Req() request: Request) {
     await this.rateLimit.consume("customer-verify-email", request.ip, 10, 60_000);
-    const result = await this.auth.verifyEmail(dto.token);
+    const result = await this.auth.verifyEmail(dto.token, dto.name, dto.password);
     await this.audit.log({
       action: "customer_auth.email_verified",
       entityType: "Customer",
