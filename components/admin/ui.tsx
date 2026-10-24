@@ -572,6 +572,7 @@ export function ConfirmButton({
   description = "This action cannot be undone.",
   variant = "danger",
   size,
+  panelClassName,
 }: {
   onConfirm: () => void | Promise<void>;
   children: ReactNode;
@@ -580,6 +581,7 @@ export function ConfirmButton({
   description?: string;
   variant?: "default" | "primary" | "danger" | "ghost";
   size?: "sm";
+  panelClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -593,6 +595,7 @@ export function ConfirmButton({
         open={open}
         title={title}
         onClose={() => setOpen(false)}
+        panelClassName={panelClassName}
         footer={
           <>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
