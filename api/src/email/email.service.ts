@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 export type SendEmailInput = {
+  /** Private outbox metadata; never forwarded to the provider. */
+  claimTokenHash?: string;
   to: string | string[];
   subject: string;
   html: string;
@@ -25,6 +27,10 @@ export class EmailService {
 
   isEnabled(): boolean {
     return Boolean(this.apiKey);
+  }
+
+  readiness() {
+    return { enabled: this.isEnabled(), senderConfigured: Boolean(this.config.get<string>("EMAIL_FROM")?.trim()), acceptedDoesNotMeanDelivered: true };
   }
 
   async send(input: SendEmailInput): Promise<boolean> {

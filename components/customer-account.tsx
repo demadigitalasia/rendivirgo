@@ -9,7 +9,7 @@ import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
 import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
 import { ArrowIcon, ArrowLeftIcon, ArrowUpRightIcon, ChevronRightIcon, ClockIcon, Icon, SparkleIcon } from "@/components/icons";
 
-import { safeCustomerReturnPath, wholesaleRegistrationIntent } from "@/lib/customer-return-path";
+import { lapidaryRegistrationIntent, safeCustomerReturnPath, wholesaleRegistrationIntent } from "@/lib/customer-return-path";
 
 type AccessMode = "login" | "register" | "verify" | "forgot" | "reset";
 type CustomerProfile = {
@@ -144,7 +144,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     setError("");
     setMessage("");
     try {
-      await sendJson("/api/customer-auth/resend-verification", { email, next: wholesaleRegistrationIntent(returnPath) });
+      await sendJson("/api/customer-auth/resend-verification", { email, next: wholesaleRegistrationIntent(returnPath) ?? lapidaryRegistrationIntent(returnPath) });
       setResendAfter(Date.now() + 2 * 60_000);
       setMessage("If this email has a pending registration, we'll send another setup link shortly.");
     } catch (caught) {
@@ -161,7 +161,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
     setMessage("");
     try {
       if (mode === "register") {
-        await sendJson("/api/customer-auth/register", { email, next: wholesaleRegistrationIntent(returnPath) });
+        await sendJson("/api/customer-auth/register", { email, next: wholesaleRegistrationIntent(returnPath) ?? lapidaryRegistrationIntent(returnPath) });
         setVerificationRequested(true);
         setResendAfter(Date.now() + 2 * 60_000);
         setMessage("If this email can be registered, we'll send a setup link shortly. Check your inbox and spam folder. You can request another email after two minutes.");
@@ -423,6 +423,9 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
           </Link>
           <Link href={storefrontRoutes.accountOrders} className={`customer-dashboard__nav-link${ordersOnly ? " is-active" : ""}`} aria-current={ordersOnly ? "page" : undefined}>
             <Icon name="fileText" size={19} /><span>{customerNavigation.orders}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
+          </Link>
+          <Link href="/account/lapidary" className="customer-dashboard__nav-link">
+            <Icon name="gem" size={19} /><span>Lapidary projects</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
           </Link>
           <Link href={storefrontRoutes.wholesaleCatalog} className="customer-dashboard__nav-link">
             <Icon name="gem" size={19} /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>

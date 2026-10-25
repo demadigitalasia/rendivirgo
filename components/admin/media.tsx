@@ -23,12 +23,18 @@ export function MediaPicker({
   folder = "products",
   multiple = true,
   label = "Images",
+  minImages,
+  maxImages,
+  onBusyChange,
 }: {
   value: string[];
   onChange: (urls: string[]) => void;
   folder?: string;
   multiple?: boolean;
   label?: string;
+  minImages?: number;
+  maxImages?: number;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -47,7 +53,13 @@ export function MediaPicker({
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
+    if (multiple && maxImages !== undefined && value.length + files.length > maxImages) {
+      toast.error(`Choose up to ${maxImages} images. ${value.length} are already selected.`);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setUploading(true);
+    onBusyChange?.(true);
     const uploaded: string[] = [];
     try {
       for (const file of Array.from(files)) {
@@ -62,18 +74,27 @@ export function MediaPicker({
       toast.error(errorMessage(error));
     } finally {
       setUploading(false);
+      onBusyChange?.(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
 
   const addFromLibrary = (asset: MediaAsset) => {
     if (multiple) {
-      if (!value.includes(asset.url)) onChange([...value, asset.url]);
+      if (!value.includes(asset.url)) {
+        if (maxImages !== undefined && value.length >= maxImages) {
+          toast.error(`Choose no more than ${maxImages} images.`);
+          return;
+        }
+        onChange([...value, asset.url]);
+      }
     } else {
       onChange([asset.url]);
       setLibraryOpen(false);
     }
   };
+
+  const atMaximum = multiple && maxImages !== undefined && value.length >= maxImages;
 
   const move = (index: number, direction: -1 | 1) => {
     const next = [...value];
@@ -88,10 +109,10 @@ export function MediaPicker({
       <div className="rv-inline" style={{ justifyContent: "space-between" }}>
         <span className="rv-label">{label}</span>
         <div className="rv-inline">
-          <Button size="sm" onClick={() => setLibraryOpen(true)}>
+          <Button size="sm" disabled={atMaximum} onClick={() => setLibraryOpen(true)}>
             Library
           </Button>
-          <Button size="sm" variant="primary" loading={uploading} onClick={() => inputRef.current?.click()}>
+          <Button size="sm" variant="primary" disabled={atMaximum} loading={uploading} onClick={() => inputRef.current?.click()}>
             Upload
           </Button>
         </div>
@@ -112,7 +133,7 @@ export function MediaPicker({
             <div className="rv-media-item" key={`${url}-${index}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" />
-              <button className="rv-media-item__remove" type="button" aria-label="Remove image" onClick={() => onChange(value.filter((_, position) => position !== index))}>
+              <button className="rv-media-item__remove" type="button" aria-label="Remove image" disabled={minImages !== undefined && value.length <= minImages} onClick={() => onChange(value.filter((_, position) => position !== index))}>
                 <CloseIcon size={15} />
               </button>
               {multiple && value.length > 1 ? (
@@ -152,7 +173,7 @@ export function MediaPicker({
         ) : library.length ? (
           <div className="rv-media-grid">
             {library.map((asset) => (
-              <button key={asset.id} type="button" className="rv-media-item" onClick={() => addFromLibrary(asset)}>
+              <button key={asset.id} type="button" className="rv-media-item" disabled={multiple && value.includes(asset.url) || atMaximum} onClick={() => addFromLibrary(asset)}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={asset.url} alt={asset.originalName} />
                 <span className="rv-media-item__tag">{asset.folder}</span>

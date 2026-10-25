@@ -14,7 +14,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test:lapidary": "node --import tsx --test src/lapidary/lapidary-workflow.spec.ts",
+    "test:lapidary:integration": "node scripts/run-lapidary-integration.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.0",

@@ -120,6 +120,7 @@ export function AdminShell({
         { href: "/admin/customers", label: "Customers", icon: "users" },
         { href: "/admin/wholesale", label: "Wholesale", icon: "gem" },
         { href: "/admin/rough-materials", label: "Rough Materials", icon: "gem" },
+        { href: "/admin/lapidary/requests", label: "Lapidary requests", icon: "gem" },
         { href: "/admin/discounts", label: "Discounts", icon: "tag" },
       ],
     },
@@ -132,6 +133,7 @@ export function AdminShell({
         { href: "/admin/content/pages", label: "Pages", icon: "fileText" },
         { href: "/admin/content/testimonials", label: "Testimonials", icon: "message" },
         { href: "/admin/content/banners", label: "Banners", icon: "image" },
+        { href: "/admin/lapidary/content", label: "Lapidary content", icon: "image" },
       ],
     },
     {

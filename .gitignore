@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 
 output/
 tmp/
+private-uploads/

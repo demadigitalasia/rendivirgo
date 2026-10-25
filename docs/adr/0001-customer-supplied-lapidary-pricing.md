@@ -1,0 +1,3 @@
+# Customer supplied lapidary pricing and fulfillment
+
+For `I HAVE MY ONE STONE` requests, the customer pays inbound shipping and accepts a service estimate range and maximum before studio work begins; any estimate increase needs renewed approval. After work is marked complete, the studio invoices the final service fee and separately priced return shipping, snapshots the confirmed delivery address, and ships the stone back only after payment is confirmed. This separates the pre-work commitment from the final return cost, which cannot be known until the finished work and destination are confirmed.

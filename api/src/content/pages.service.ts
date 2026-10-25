@@ -19,7 +19,7 @@ export const pageFooterSelect = {
   updatedAt: true,
 } satisfies Prisma.PageSelect;
 
-const reservedPageSlugs = new Set(["admin", "api", "id", "en", "shop", "blog", "account", "cart", "checkout", "contact", "search", "orders", "returns", "track", "wishlist", "wholesale"]);
+const reservedPageSlugs = new Set(["admin", "api", "id", "en", "shop", "blog", "account", "cart", "checkout", "contact", "search", "orders", "returns", "track", "wishlist", "wholesale", "lapidary"]);
 
 @Injectable()
 export class PagesService {

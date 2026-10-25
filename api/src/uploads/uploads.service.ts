@@ -8,7 +8,7 @@ import { AuditService } from "../audit/audit.service";
 import type { AuditContext } from "../common/types/audit-context";
 import { ALLOWED_IMAGE_MIME, detectImageType, type DetectedImage } from "./image-validation";
 
-const ALLOWED_FOLDERS = new Set(["products", "rough-materials", "blog", "banners", "pages", "brand", "misc"]);
+const ALLOWED_FOLDERS = new Set(["products", "rough-materials", "lapidary", "blog", "banners", "pages", "brand", "misc"]);
 
 export type UploadedFileInfo = {
   originalname: string;
@@ -134,7 +134,7 @@ export class UploadsService {
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException("Media not found");
 
-    const [productImages, productVideos, categories, blogPosts, banners, orderItems, admins, siteSettings] = await Promise.all([
+    const [productImages, productVideos, categories, blogPosts, banners, orderItems, admins, artists, siteSettings] = await Promise.all([
       this.prisma.productImage.count({ where: { url: asset.url } }),
       this.prisma.product.count({ where: { videoUrl: asset.url } }),
       this.prisma.category.count({ where: { imageUrl: asset.url } }),
@@ -142,13 +142,19 @@ export class UploadsService {
       this.prisma.banner.count({ where: { imageUrl: asset.url } }),
       this.prisma.orderItem.count({ where: { imageUrl: asset.url } }),
       this.prisma.admin.count({ where: { avatarUrl: asset.url } }),
+      this.prisma.lapidaryArtist.count({ where: { imageUrl: asset.url } }),
       this.prisma.siteSetting.findMany({
-        where: { key: { in: ["home.heroImage", "home.ownerImage", "about.rendiImage", "about.pajarImage", "store.productWatermarkLogo"] } },
+        where: { key: { in: ["home.heroImage", "home.ownerImage", "about.rendiImage", "about.pajarImage", "store.productWatermarkLogo", "lapidary.studioImages", "lapidary.studioHeroImage"] } },
         select: { key: true, value: true },
       }),
     ]);
 
-    const siteContent = siteSettings.filter((setting) => setting.value === asset.url).map((setting) => setting.key);
+    const siteContent = siteSettings
+      .filter((setting) => setting.value === asset.url || (Array.isArray(setting.value) && setting.value.some((value) => {
+        if (value === asset.url) return true;
+        return Boolean(value && typeof value === "object" && !Array.isArray(value) && "url" in value && value.url === asset.url);
+      })))
+      .map((setting) => setting.key);
     const references = [
       productImages ? `${productImages} product image(s)` : null,
       productVideos ? `${productVideos} product video(s)` : null,
@@ -157,6 +163,7 @@ export class UploadsService {
       banners ? `${banners} banner image(s)` : null,
       orderItems ? `${orderItems} order image snapshot(s)` : null,
       admins ? `${admins} admin avatar(s)` : null,
+      artists ? `${artists} Lapidary artist profile(s)` : null,
       ...siteContent,
     ].filter((reference): reference is string => reference !== null);
 

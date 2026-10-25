@@ -222,6 +222,8 @@ export function TextInput({
   ariaInvalid,
   ariaDescribedBy,
   autoComplete,
+  minLength,
+  maxLength,
 }: {
   value: string | number;
   onChange?: (value: string) => void;
@@ -238,6 +240,8 @@ export function TextInput({
   ariaInvalid?: boolean;
   ariaDescribedBy?: string;
   autoComplete?: string;
+  minLength?: number;
+  maxLength?: number;
 }) {
   return (
     <input
@@ -256,6 +260,8 @@ export function TextInput({
       aria-invalid={ariaInvalid || undefined}
       aria-describedby={ariaDescribedBy}
       autoComplete={autoComplete}
+      minLength={minLength}
+      maxLength={maxLength}
       onChange={onChange ? (event) => onChange(event.target.value) : undefined}
     />
   );

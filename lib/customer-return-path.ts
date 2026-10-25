@@ -11,3 +11,9 @@ export function safeCustomerReturnPath(value: string | null | undefined): string
 export function wholesaleRegistrationIntent(value: string): string | undefined {
   return ["/wholesale/finished", "/wholesale/checkout", "/id/wholesale/finished", "/id/wholesale/checkout"].includes(value) ? value : undefined;
 }
+
+/** Preserve only the lapidary claim destination when an invited customer registers. */
+export function lapidaryRegistrationIntent(value: string): string | undefined {
+  if (value === "/account/lapidary") return value;
+  return /^\/account\/lapidary\?claim=[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined;
+}

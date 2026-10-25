@@ -19,6 +19,24 @@ A customer's verified login identity for private self-service features. It is as
 **Wholesale access**:
 An admin-granted permission associated with a verified customer account and customer profile. It enables access to the private Wholesale catalog and Wholesale checkout without creating a separate login.
 
+**Lapidary Request**:
+A customer's inquiry for stone cutting or shaping services. It records the material source, requested work, dimensions, and references; customer supplied material moves into studio work only after the customer accepts the service estimate and the studio receives the stone.
+
+**Lapidary Request Item**:
+A distinct piece of work within a Lapidary Request. Each item has its own service type, shape, dimensions, quantity, and, when selected, RENDI VIRGO stock material.
+
+**Lapidary Reference Media**:
+Photos or videos a customer provides to help the studio assess material or understand a requested result. Reference media is only accessible to the studio team.
+
+**Service estimate**:
+The pre-work range for the lapidary service fee. For a customer supplied stone, the customer must accept the maximum before the studio begins work; any higher amount needs a revised estimate and renewed approval.
+
+**Lapidary progress update**:
+A dated note and optional photos describing a stage of a lapidary project. Customer-visible updates appear in the customer's project dashboard.
+
+**Lapidary final invoice**:
+The post-work payment request for the final lapidary service fee and return shipping fee. The studio sets return shipping after completing the work, and ships the stone back after payment is confirmed.
+
 **Sales channel**:
 A place where a product may be offered for sale: the public Retail website, the private Wholesale dashboard, POS Workshop, or the connected Etsy shop. Channel availability controls where a product can be sold; all channels use shared inventory, and Etsy listing/stock updates are asynchronous.
 

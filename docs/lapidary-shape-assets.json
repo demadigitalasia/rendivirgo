@@ -1,0 +1,57 @@
+{
+  "generator": "Built-in image_gen",
+  "transparentBackground": true,
+  "format": "PNG RGBA",
+  "size": "512x512",
+  "preparation": "Preserved generated alpha; trimmed transparent margins and proportionally centered within a 512x512 transparent canvas. Original generated files retained.",
+  "assets": [
+    {
+      "shape": "oval",
+      "file": "public/images/lapidary/shapes/3d/oval.png",
+      "sourceFile": "exec-c5f306bf-5eb6-4eff-b767-876635a76b1a.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: OVAL, vertically oriented, smooth elliptical outline, width to height ratio 0.68. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; silhouette must remain clearly oval. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    },
+    {
+      "shape": "round",
+      "file": "public/images/lapidary/shapes/3d/round.png",
+      "sourceFile": "exec-28ea5b63-c4e7-4e0f-a454-f47ccb3e233a.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: ROUND, perfectly circular outline. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; preserve exact recognizable shape silhouette. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    },
+    {
+      "shape": "teardrop",
+      "file": "public/images/lapidary/shapes/3d/teardrop.png",
+      "sourceFile": "exec-29b2e109-4f2e-455e-9b12-e360db5593e4.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: TEARDROP, vertically oriented slender drop, sharply pointed top and rounded bottom, width to height ratio 0.62. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; preserve exact recognizable shape silhouette. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    },
+    {
+      "shape": "long-oval",
+      "file": "public/images/lapidary/shapes/3d/long-oval.png",
+      "sourceFile": "exec-b5aa6d56-ca7b-4df8-895e-b4a783d226ee.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: LONG OVAL, vertically oriented elongated narrow ellipse with smoothly rounded ends, width to height ratio 0.43. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; preserve exact recognizable shape silhouette. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    },
+    {
+      "shape": "cushion",
+      "file": "public/images/lapidary/shapes/3d/cushion.png",
+      "sourceFile": "exec-61d959d9-8000-4869-965f-601b6bc3052c.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: CUSHION, approximately square outline with four gently rounded corners and slightly bowed sides, width to height ratio 0.94. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; preserve exact recognizable shape silhouette. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    },
+    {
+      "shape": "freeform",
+      "file": "public/images/lapidary/shapes/3d/freeform.png",
+      "sourceFile": "exec-6ee9cbcc-e367-433f-b154-87acaa9d13b5.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: FREEFORM, asymmetrical organic rounded triangular pebble outline with one broad curved shoulder and an irregular softly curved lower edge; a clean solid stone, not a star or jagged crystal. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; preserve exact recognizable shape silhouette. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    },
+    {
+      "shape": "pear",
+      "file": "public/images/lapidary/shapes/3d/pear.png",
+      "sourceFile": "exec-db309b91-79ec-44c0-99ff-93b43739fdd3.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: PEAR, vertically oriented classic broad pear with a pointed top and wide rounded lower belly, width to height ratio 0.76; visibly fuller and wider than a slender teardrop. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; preserve exact recognizable shape silhouette. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    },
+    {
+      "shape": "marquise",
+      "file": "public/images/lapidary/shapes/3d/marquise.png",
+      "sourceFile": "exec-a6e8aa53-3a21-4d12-acf8-43d36850b74c.png",
+      "prompt": "Use case: product-mockup. Create ONE isolated three-dimensional polished cabochon gemstone icon for a lapidary shape selector. Shape: MARQUISE, vertically oriented slender lens outline, symmetrical curved sides with sharply pointed top AND bottom ends, width to height ratio 0.5. Material: deep forest-green translucent jade/agate, restrained natural mineral depth, polished domed top, smooth cabochon with NO faceting lines. Near top-down orthographic view with just enough bevel and thickness visible on lower right to communicate 3D; preserve exact recognizable shape silhouette. Consistent premium studio render, broad soft upper-left white highlight, subtle darker lower-right edge, no cast shadow outside the object. Centered on square canvas, object occupies 78% of height. Genuinely transparent alpha background. No floor, background, checkerboard, text, labels, borders, decorations, other objects, metal, setting, or watermark. Output PNG."
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import { DiscountsModule } from "./discounts/discounts.module";
 import { EmailModule } from "./email/email.module";
 import { HealthModule } from "./health/health.module";
 import { InboxModule } from "./inbox/inbox.module";
+import { LapidaryModule } from "./lapidary/lapidary.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { NewsletterModule } from "./newsletter/newsletter.module";
 import { OrdersModule } from "./orders/orders.module";
@@ -41,6 +42,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     DiscountsModule,
     HealthModule,
     InboxModule,
+    LapidaryModule,
     MaintenanceModule,
     NewsletterModule,
     OrdersModule,

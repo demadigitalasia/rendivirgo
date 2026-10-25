@@ -59,6 +59,15 @@ export async function proxyRequest(request: NextRequest, targetPath: string): Pr
     revalidatePath("/sitemap.xml");
   }
 
+  const isLapidaryContentMutation = upstream.ok && ["POST", "PATCH", "DELETE"].includes(request.method) &&
+    /^\/api\/admin\/lapidary\/content(?:\/(?:studio|process)|\/artists(?:\/[^/]+)?)?$/.test(targetPath);
+  if (isLapidaryContentMutation) {
+    revalidateTag("lapidary-content", { expire: 0 });
+    revalidatePath("/lapidary/studio");
+    revalidatePath("/lapidary/artists");
+    revalidatePath("/lapidary/process");
+  }
+
   for (const cookie of upstream.headers.getSetCookie?.() ?? []) {
     response.headers.append("set-cookie", cookie);
   }

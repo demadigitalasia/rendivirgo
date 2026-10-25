@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit",
+    "lint": "next typegen && tsc --noEmit --incremental false",
     "dev:api": "npm --prefix api run dev",
     "dev:all": "npm run dev:api & npm run dev",
     "test": "npm --prefix api test",
@@ -20,6 +20,7 @@
     "@fortawesome/fontawesome-svg-core": "^7.3.1",
     "@fortawesome/free-brands-svg-icons": "^7.3.1",
     "@fortawesome/react-fontawesome": "^3.5.0",
+    "@google/model-viewer": "^4.4.0",
     "next": "16.3.3",
     "react": "19.2.0",
     "react-dom": "19.2.0"

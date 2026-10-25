@@ -172,6 +172,9 @@ export function SiteHeader({ languages, categories }: { languages: Language[]; c
           <Link href={storefrontRoutes.wholesaleHome} className={`nav-link ${isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleHome) ? "is-active" : ""}`}
             aria-current={isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleHome) ? "page" : undefined}
             onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.wholesale}</Link>
+          <Link href={storefrontRoutes.lapidary} className={`nav-link ${isStorefrontRouteActive(routePath, storefrontRoutes.lapidary) ? "is-active" : ""}`}
+            aria-current={isStorefrontRouteActive(routePath, storefrontRoutes.lapidary) ? "page" : undefined}
+            onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.lapidary}</Link>
           {navItems.slice(1).map(({ href, label }) => {
             const active = isStorefrontRouteActive(routePath, href);
             return <Link key={href} href={href} className={`nav-link ${active ? "is-active" : ""}`}

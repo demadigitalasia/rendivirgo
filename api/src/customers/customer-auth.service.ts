@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { publicAppOrigin } from "../common/utils/public-app-origin";
 import { createHash, randomBytes } from "node:crypto";
 import * as bcrypt from "bcryptjs";
 import type { Prisma } from "../../generated/prisma";
@@ -37,7 +38,7 @@ export class CustomerAuthService {
   }
 
   private appOrigin(): string {
-    return (this.config.get<string>("APP_ORIGIN") ?? "http://localhost:3000").split(",")[0].trim().replace(/\/+$/, "");
+    return publicAppOrigin({ PUBLIC_SITE_URL: this.config.get<string>("PUBLIC_SITE_URL"), APP_ORIGIN: this.config.get<string>("APP_ORIGIN"), NODE_ENV: this.config.get<string>("NODE_ENV") });
   }
 
   private verificationSentRecently(expiresAt: Date | null, now = new Date()): boolean {
@@ -59,7 +60,11 @@ export class CustomerAuthService {
       where: { id: customer.id },
       data: { verificationTokenHash: tokenHash, verificationTokenExpiresAt: expiresAt },
     });
-    const allowedNext = ["/wholesale/finished", "/wholesale/checkout", "/id/wholesale/finished", "/id/wholesale/checkout"].includes(next ?? "") ? next : undefined;
+    const allowedNext = ["/wholesale/finished", "/wholesale/checkout", "/id/wholesale/finished", "/id/wholesale/checkout"].includes(next ?? "")
+      ? next
+      : next === "/account/lapidary" || /^\/account\/lapidary\?claim=[A-Za-z0-9_-]{43}$/.test(next ?? "")
+        ? next
+        : undefined;
     const link = `${this.appOrigin()}/account/verify-email?token=${encodeURIComponent(token)}${allowedNext ? `&next=${encodeURIComponent(allowedNext)}` : ""}`;
     await this.emailOutbox.enqueue(tx, {
       kind: "CustomerVerification",

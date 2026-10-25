@@ -1,6 +1,7 @@
 import type { Product, ProductStatus, ProductTone, ShippingClass, StockModel, Unit } from "@/lib/catalog";
 import type { Language } from "@/lib/i18n";
 import { defaultProductWatermark, type ProductWatermarkSettings } from "@/lib/product-watermark";
+import { DEFAULT_LAPIDARY_PROCESS_PRESENTATION, type LapidaryProcessPresentation } from "@/lib/lapidary-process";
 
 const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:4000";
 
@@ -134,6 +135,149 @@ export type ApiBanner = {
   ctaHref: string | null;
   placement: "HomeHero" | "HomeOwner" | "Promo";
   sortOrder: number;
+};
+
+export type LapidaryArtistProfile = {
+  id: string;
+  slug: string;
+  name: string;
+  signatureStyle: string;
+  location: string | null;
+  bio: string;
+  experience: string;
+  stoneExperience: string[];
+  imageUrl: string | null;
+  imageAlt: string;
+  imagePosition: "left" | "center" | "right";
+  portfolioImages: Array<{ url: string; altText: string; caption: string }>;
+};
+
+export type LapidaryArtistsPresentation = {
+  eyebrowEn: string; eyebrowId: string; titleEn: string; titleId: string; introEn: string; introId: string;
+  capabilityTitleEn: string; capabilityTitleId: string; capabilityBodyEn: string; capabilityBodyId: string;
+  emptyTitleEn: string; emptyTitleId: string; emptyBodyEn: string; emptyBodyId: string;
+  ctaLabelEn: string; ctaLabelId: string; heroImage: string; heroAltEn: string; heroAltId: string;
+  ctaTarget: "customOrder" | "contact"; detailCtaTarget: "customOrder" | "contact";
+  heroImagePosition: "left" | "center" | "right"; metaTitleEn: string; metaTitleId: string;
+  metaDescriptionEn: string; metaDescriptionId: string; visualStyle: "mineral" | "forest" | "quartz"; motionEnabled: boolean;
+};
+
+export const DEFAULT_LAPIDARY_ARTISTS_PRESENTATION: LapidaryArtistsPresentation = {
+  eyebrowEn: "THE PEOPLE BEHIND THE CRAFT", eyebrowId: "PARA PENGRAJIN DI BALIK KARYA",
+  titleEn: "One craft. Distinct ways of seeing stone.", titleId: "Satu keahlian. Cara berbeda memahami batu.",
+  introEn: "Meet the lapidary artists who bring their own point of view to natural material, from first assessment through the final finish.",
+  introId: "Kenali para pengrajin lapidary yang membawa sudut pandang masing-masing pada material alami, dari penilaian awal hingga sentuhan akhir.",
+  capabilityTitleEn: "Every artist, through every stage.", capabilityTitleId: "Setiap pengrajin menangani seluruh tahap.",
+  capabilityBodyEn: "Our artists can guide a commission through material assessment, planning, shaping, cutting, polishing, and final review. Their individual character comes from the styles they favor and the stones they know well.",
+  capabilityBodyId: "Setiap pengrajin dapat menangani pesanan dari penilaian material, perencanaan, pembentukan, pemotongan, pemolesan, hingga pemeriksaan akhir. Karakter masing-masing terlihat dari gaya yang disukai dan jenis batu yang mereka kenal.",
+  emptyTitleEn: "Artist profiles are being prepared.", emptyTitleId: "Profil pengrajin sedang disiapkan.",
+  emptyBodyEn: "Contact our studio with your project brief. We will help you find the right approach for your stone.",
+  emptyBodyId: "Hubungi studio kami dengan brief proyek Anda. Kami akan membantu menentukan pendekatan yang sesuai untuk batu Anda.",
+  ctaLabelEn: "Talk to the studio", ctaLabelId: "Hubungi studio", ctaTarget: "contact", detailCtaTarget: "customOrder",
+  heroImage: "/images/lapidary/studio/studio-hero.jpg", heroAltEn: "Lapidary workbench in the RENDI VIRGO studio", heroAltId: "Meja kerja lapidary di studio RENDI VIRGO",
+  heroImagePosition: "center", metaTitleEn: "Lapidary Artists — RENDI VIRGO", metaTitleId: "Pengrajin Lapidary — RENDI VIRGO",
+  metaDescriptionEn: "Meet the RENDI VIRGO lapidary artists, their individual styles, and the natural stones they know well.",
+  metaDescriptionId: "Kenali pengrajin lapidary RENDI VIRGO, gaya masing-masing, dan jenis batu alam yang mereka kenal.",
+  visualStyle: "mineral", motionEnabled: true,
+};
+
+export type LapidaryPublicContent = {
+  studioHeroImage: string;
+  studioImages: LapidaryStudioImage[];
+  studioPresentation: LapidaryStudioPresentation;
+  processPresentation: LapidaryProcessPresentation;
+  artistsPresentation: LapidaryArtistsPresentation;
+  artists: LapidaryArtistProfile[];
+};
+
+export type LapidaryStudioImage = {
+  url: string;
+  altEn: string;
+  altId: string;
+  captionEn: string;
+  captionId: string;
+};
+
+export type LapidaryStudioPresentation = {
+  titleEn: string;
+  titleId: string;
+  introEn: string;
+  introId: string;
+  galleryTitleEn: string;
+  galleryTitleId: string;
+  eyebrowEn: string;
+  eyebrowId: string;
+  galleryEyebrowEn: string;
+  galleryEyebrowId: string;
+  ctaLabelEn: string;
+  ctaLabelId: string;
+  approachTitleEn: string;
+  approachTitleId: string;
+  approachEyebrowEn: string;
+  approachEyebrowId: string;
+  approachPointsEn: string[];
+  approachPointsId: string[];
+  photoCountLabelEn: string;
+  photoCountLabelId: string;
+  backLabelEn: string;
+  backLabelId: string;
+  ctaTarget: "customOrder" | "contact";
+  heroImagePosition: "left" | "center" | "right";
+  metaTitleEn: string;
+  metaTitleId: string;
+  metaDescriptionEn: string;
+  metaDescriptionId: string;
+  visualStyle: "mineral" | "forest" | "quartz";
+  motionEnabled: boolean;
+};
+
+export const LAPIDARY_STUDIO_SAMPLE_IMAGES: LapidaryStudioImage[] = [
+  { url: "/images/lapidary/studio/studio-overview.jpg", altEn: "Lapidary workshop with stone cutting and polishing equipment", altId: "Studio lapidary dengan alat pemotong dan pemoles batu", captionEn: "The lapidary workroom", captionId: "Ruang kerja lapidary" },
+  { url: "/images/lapidary/studio/studio-cutting.jpg", altEn: "Lapidary cutter shaping a natural stone at a saw", altId: "Pengrajin lapidary membentuk batu alam dengan mesin potong", captionEn: "Careful shaping", captionId: "Pembentukan yang cermat" },
+  { url: "/images/lapidary/studio/rough-selection.jpg", altEn: "Rough stones examined before a cut is planned", altId: "Batu rough diperiksa sebelum rencana pemotongan", captionEn: "Material selection", captionId: "Pemilihan material" },
+  { url: "/images/lapidary/studio/faceting-machine.jpg", altEn: "Faceting machine prepared for precision gemstone cutting", altId: "Mesin faceting yang disiapkan untuk memotong batu permata dengan presisi", captionEn: "Precision cutting", captionId: "Pemotongan presisi" },
+  { url: "/images/lapidary/studio/cabochon-polishing.jpg", altEn: "Natural stone cabochon being polished in the studio", altId: "Cabochon batu alam sedang dipoles di studio", captionEn: "Polishing the surface", captionId: "Memoles permukaan" },
+  { url: "/images/lapidary/studio/tool-wall.jpg", altEn: "Lapidary hand tools arranged at the studio workbench", altId: "Peralatan lapidary tersusun di meja kerja studio", captionEn: "Tools of the craft", captionId: "Peralatan pengerjaan" },
+  { url: "/images/lapidary/studio/studio-shaping-detail.jpg", altEn: "Close view of a stone being shaped by hand", altId: "Tampilan dekat batu yang sedang dibentuk dengan tangan", captionEn: "Shaping by hand", captionId: "Membentuk dengan tangan" },
+  { url: "/images/lapidary/studio/stone-assessment.jpg", altEn: "Lapidary artist assessing a stone's natural structure", altId: "Pengrajin lapidary menilai struktur alami batu", captionEn: "Reading the stone", captionId: "Membaca karakter batu" },
+  { url: "/images/lapidary/studio/dimension-review.jpg", altEn: "Stone dimensions checked before custom lapidary work", altId: "Dimensi batu diperiksa sebelum pengerjaan lapidary custom", captionEn: "Reviewing dimensions", captionId: "Memeriksa dimensi" },
+  { url: "/images/lapidary/studio/studio-stone-review.jpg", altEn: "Finished and rough stones reviewed together at the studio", altId: "Batu hasil pengerjaan dan rough ditinjau bersama di studio", captionEn: "A final material review", captionId: "Peninjauan material akhir" },
+  { url: "/images/lapidary/studio/finished-collection.jpg", altEn: "Polished natural stone pieces arranged after studio work", altId: "Batu alam yang telah dipoles dan ditata setelah pengerjaan studio", captionEn: "Finished pieces", captionId: "Batu hasil akhir" },
+];
+
+export const DEFAULT_LAPIDARY_STUDIO_HERO_IMAGE = "/images/lapidary/studio/studio-hero.jpg";
+
+export const DEFAULT_LAPIDARY_STUDIO_PRESENTATION: LapidaryStudioPresentation = {
+  titleEn: "The work, up close.",
+  titleId: "Melihat proses dari dekat.",
+  introEn: "A considered look at the tools, hands, and decisions that shape natural stone in the RENDI VIRGO lapidary studio.",
+  introId: "Melihat lebih dekat alat, tangan, dan keputusan yang membentuk batu alam di studio lapidary RENDI VIRGO.",
+  galleryTitleEn: "Inside the studio",
+  galleryTitleId: "Suasana studio",
+  eyebrowEn: "THE WORKROOM · RENDI VIRGO",
+  eyebrowId: "RUANG KERJA · RENDI VIRGO",
+  galleryEyebrowEn: "A LOOK INSIDE",
+  galleryEyebrowId: "DARI RUANG KERJA",
+  ctaLabelEn: "Start a custom request",
+  ctaLabelId: "Mulai permintaan custom",
+  approachTitleEn: "A material-first practice",
+  approachTitleId: "Bekerja dengan memahami material",
+  approachEyebrowEn: "OUR APPROACH",
+  approachEyebrowId: "PENDEKATAN KAMI",
+  approachPointsEn: ["Read the material before choosing a cut", "Discuss risks and natural inclusions openly", "Agree on scope and finish before work begins"],
+  approachPointsId: ["Memahami material sebelum menentukan bentuk", "Membahas risiko dan inklusi alami secara terbuka", "Menyepakati lingkup dan hasil akhir sebelum pengerjaan"],
+  photoCountLabelEn: "STUDIO VIEWS",
+  photoCountLabelId: "SUASANA STUDIO",
+  backLabelEn: "Lapidary",
+  backLabelId: "Lapidary",
+  ctaTarget: "customOrder",
+  heroImagePosition: "center",
+  metaTitleEn: "Lapidary Studio — RENDI VIRGO",
+  metaTitleId: "Studio Lapidary — RENDI VIRGO",
+  metaDescriptionEn: "Learn how the RENDI VIRGO studio assesses, shapes, and finishes natural stones.",
+  metaDescriptionId: "Kenali pendekatan studio RENDI VIRGO dalam menilai, membentuk, dan memoles batu alam.",
+  visualStyle: "mineral",
+  motionEnabled: true,
 };
 
 export type SiteContent = {
@@ -435,6 +579,40 @@ export async function getTestimonials(language: Language = "en") {
 export async function getBanners(placement?: ApiBanner["placement"]) {
   const path = placement ? `/api/banners?placement=${placement}` : "/api/banners";
   return (await apiGet<ApiBanner[]>(path)) ?? [];
+}
+
+export async function getLapidaryContent(language: Language = "en"): Promise<LapidaryPublicContent> {
+  const content = await apiGet<Partial<LapidaryPublicContent>>("/api/lapidary/content", { language, tags: ["lapidary-content"] });
+  const rawImages = Array.isArray(content?.studioImages) ? content.studioImages as unknown[] : [];
+  const normalizedImages = rawImages.flatMap((entry, index) => {
+    if (typeof entry === "string") {
+      const fallback = LAPIDARY_STUDIO_SAMPLE_IMAGES.find((image) => image.url === entry) ?? LAPIDARY_STUDIO_SAMPLE_IMAGES[index % LAPIDARY_STUDIO_SAMPLE_IMAGES.length];
+      return [{ ...fallback, url: entry }];
+    }
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) || !("url" in entry) || typeof entry.url !== "string") return [];
+    const url = entry.url;
+    const fallback = LAPIDARY_STUDIO_SAMPLE_IMAGES.find((image) => image.url === url) ?? LAPIDARY_STUDIO_SAMPLE_IMAGES[index % LAPIDARY_STUDIO_SAMPLE_IMAGES.length];
+    const saved = entry as Partial<LapidaryStudioImage>;
+    return [{
+      url,
+      altEn: saved.altEn || fallback.altEn,
+      altId: saved.altId || fallback.altId,
+      captionEn: saved.captionEn ?? fallback.captionEn,
+      captionId: saved.captionId ?? fallback.captionId,
+    }];
+  }).filter((image, index, all) => all.findIndex((candidate) => candidate.url === image.url) === index).slice(0, 24);
+  for (const fallback of LAPIDARY_STUDIO_SAMPLE_IMAGES) {
+    if (normalizedImages.length >= 11) break;
+    if (!normalizedImages.some((image) => image.url === fallback.url)) normalizedImages.push(fallback);
+  }
+  return {
+    studioHeroImage: content?.studioHeroImage || DEFAULT_LAPIDARY_STUDIO_HERO_IMAGE,
+    studioImages: normalizedImages.length ? normalizedImages : LAPIDARY_STUDIO_SAMPLE_IMAGES,
+    studioPresentation: { ...DEFAULT_LAPIDARY_STUDIO_PRESENTATION, ...content?.studioPresentation },
+    processPresentation: content?.processPresentation ?? DEFAULT_LAPIDARY_PROCESS_PRESENTATION,
+    artistsPresentation: { ...DEFAULT_LAPIDARY_ARTISTS_PRESENTATION, ...content?.artistsPresentation },
+    artists: content?.artists ?? [],
+  };
 }
 
 const defaultSiteContent: SiteContent = {

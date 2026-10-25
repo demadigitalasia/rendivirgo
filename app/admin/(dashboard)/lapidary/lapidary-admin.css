@@ -1,0 +1,153 @@
+.rv-lapidary-admin { display: grid; gap: 22px; }
+.rv-lapidary-admin__summary { display: flex; align-items: center; gap: 20px; padding: 18px 22px; border: 1px solid var(--rv-line); border-radius: 10px; background: var(--rv-panel); }
+.rv-lapidary-admin__summary > div { display: grid; min-width: 88px; }
+.rv-lapidary-admin__summary > div span { color: var(--rv-muted); font-size: .7rem; }
+.rv-lapidary-admin__summary > div strong { color: var(--rv-forest); font: 400 1.9rem var(--font-display); }
+.rv-lapidary-admin__summary > p { max-width: 620px; color: var(--rv-muted); font-size: .78rem; }
+.rv-lapidary-admin__filters { display: grid; grid-template-columns: 1fr minmax(220px,.45fr); gap: 15px; }
+.rv-lapidary-request-list { display: grid; gap: 10px; }
+.rv-lapidary-request-card { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 17px 18px; border: 1px solid var(--rv-line); border-radius: 9px; background: var(--rv-bg); }
+.rv-lapidary-request-card__main { display: grid; gap: 4px; min-width: 0; }
+.rv-lapidary-request-card__main h2 { margin: 5px 0 0; color: var(--rv-forest); font: 400 1.2rem var(--font-display); }
+.rv-lapidary-request-card__main > p { overflow-wrap: anywhere; color: var(--rv-muted); font-size: .74rem; }
+.rv-lapidary-request-card__main > p strong { color: var(--rv-ink); }
+.rv-lapidary-detail { display: grid; gap: 22px; }
+.rv-lapidary-detail__facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.rv-lapidary-detail__facts section { padding: 15px; border: 1px solid var(--rv-line); border-radius: 8px; background: var(--rv-panel); }
+.rv-lapidary-detail__facts section:last-child { grid-column: 1/-1; }
+.rv-lapidary-detail__facts h3 { margin-bottom: 8px; color: var(--rv-forest); font: 600 .77rem var(--font-ui); }
+.rv-lapidary-detail__facts p { margin: 4px 0; color: var(--rv-muted); font-size: .74rem; overflow-wrap: anywhere; }
+.rv-lapidary-detail__facts a { color: var(--rv-forest); text-decoration: underline; text-underline-offset: 2px; }
+.rv-lapidary-detail__pre { white-space: pre-wrap; }
+.rv-lapidary-admin__work-item { margin: 10px 0; padding: 12px; border: 1px solid var(--rv-line); border-radius: 7px; background: var(--rv-bg); }
+.rv-lapidary-admin__work-item h4 { margin-bottom: 7px; color: var(--rv-forest); font-size: .75rem; }
+.rv-lapidary-admin__media { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 10px 0 14px; }
+.rv-lapidary-admin__media article { min-width: 0; padding: 7px; border: 1px solid var(--rv-line); border-radius: 7px; background: var(--rv-bg); }
+.rv-lapidary-admin__media img, .rv-lapidary-admin__media video { display: block; width: 100%; height: 118px; object-fit: cover; border-radius: 4px; background: #111; }
+.rv-lapidary-admin__media p { margin: 7px 0 2px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-lapidary-admin__media small { color: var(--rv-muted); font-size: .65rem; }
+.rv-lapidary-admin__edit-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.rv-lapidary-admin__studio-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.rv-lapidary-admin__studio-fields:disabled { opacity: .72; }
+.rv-lapidary-admin__section-heading { display: grid; gap: 4px; margin-top: 12px; }
+.rv-lapidary-admin__section-heading h3 { color: var(--rv-forest); font: 400 1.25rem var(--font-display); }
+.rv-lapidary-admin__photo-details { display: grid; gap: 8px; }
+.rv-lapidary-admin__photo-details details { padding: 12px 14px; border: 1px solid var(--rv-line); border-radius: 8px; background: var(--rv-bg); }
+.rv-lapidary-admin__photo-details summary { color: var(--rv-forest); font-size: .76rem; font-weight: 600; cursor: pointer; }
+.rv-lapidary-admin__photo-details .rv-lapidary-admin__edit-grid { margin-top: 14px; }
+.rv-lapidary-admin__photo-details input:invalid { border-color: #b66755; }
+.rv-lapidary-admin__process-phases { display: grid; gap: 10px; }
+.rv-lapidary-admin__process-phase { padding: 15px; border: 1px solid var(--rv-line); border-radius: 9px; background: var(--rv-panel); }
+.rv-lapidary-admin__process-phase > summary { display: flex; align-items: center; gap: 12px; color: var(--rv-forest); font-size: .82rem; font-weight: 600; cursor: pointer; }
+.rv-lapidary-admin__process-phase > summary > span { color: #907848; font-size: .61rem; letter-spacing: .12em; }
+.rv-lapidary-admin__process-phase > .rv-stack { margin-top: 17px; }
+.rv-lapidary-admin__process-steps { display: grid; gap: 7px; }
+.rv-lapidary-admin__process-steps details { padding: 11px 13px; border: 1px solid var(--rv-line); border-radius: 7px; background: var(--rv-bg); }
+.rv-lapidary-admin__process-steps summary { color: var(--rv-forest); font-size: .75rem; font-weight: 600; cursor: pointer; }
+.rv-lapidary-admin__process-steps .rv-lapidary-admin__edit-grid { margin-top: 13px; }
+.rv-lapidary-admin__actions { justify-content: flex-end; padding-top: 8px; }
+.rv-lapidary-admin__artists { display: grid; gap: 12px; }
+.rv-lapidary-admin__artist { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 15px; padding: 13px; border: 1px solid var(--rv-line); border-radius: 9px; }
+.rv-lapidary-admin__artist-photo { width: 84px; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 6px; background: var(--rv-panel); color: var(--rv-forest); font: 400 2rem var(--font-display); }
+.rv-lapidary-admin__artist-photo img { width: 100%; height: 100%; object-fit: cover; }
+.rv-lapidary-admin__artist-info h3 { margin: 8px 0 3px; color: var(--rv-forest); font: 400 1.2rem var(--font-display); }
+.rv-lapidary-admin__artist-info > p { margin-top: 3px; color: var(--rv-muted); font-size: .73rem; }
+.rv-lapidary-admin__artist-actions { display: flex; gap: 7px; }
+
+/* Keep the long request review form comfortable to read while scrolling. */
+.rv-lapidary-review-modal.rv-modal__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(1080px, calc(100vw - 40px));
+  max-height: min(920px, calc(100dvh - 40px));
+  overflow: hidden;
+}
+.rv-lapidary-review-modal .rv-modal__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #fffdf8 0%, #faf7ef 100%);
+}
+.rv-lapidary-review-modal .rv-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(16px, 2vw, 26px);
+}
+.rv-lapidary-detail { gap: 18px; }
+.rv-lapidary-detail__facts { align-items: stretch; gap: 14px; }
+.rv-lapidary-detail__facts section { min-width: 0; align-content: start; }
+.rv-lapidary-detail__facts section:nth-child(3) { grid-column: 1 / -1; }
+.rv-lapidary-detail__facts h3 { margin: 0 0 8px; line-height: 1.3; }
+.rv-lapidary-detail__facts p { line-height: 1.55; }
+.rv-lapidary-detail .rv-card {
+  min-width: 0;
+  padding: 18px;
+}
+.rv-lapidary-detail .rv-card h3 { margin: 0; color: var(--rv-forest); line-height: 1.3; }
+.rv-lapidary-detail .rv-card .rv-hint { line-height: 1.55; }
+.rv-lapidary-detail__edit-grid { align-items: start; gap: 14px 16px; }
+.rv-lapidary-admin__work-item { min-width: 0; margin: 8px 0; overflow-wrap: anywhere; }
+.rv-lapidary-detail__facts section:nth-child(3) .rv-lapidary-admin__work-item { margin: 0 0 10px; }
+.rv-lapidary-detail__facts section:nth-child(3) .rv-lapidary-admin__work-item:last-of-type { margin-bottom: 0; }
+.rv-lapidary-detail__facts section:last-child .rv-lapidary-admin__media { grid-template-columns: repeat(auto-fill, minmax(150px, 190px)); }
+.rv-lapidary-detail__facts section:last-child .rv-lapidary-admin__media img { height: 150px; object-fit: contain; background: #f7f4ec; }
+.rv-lapidary-detail textarea,
+.rv-lapidary-detail input[type="file"] { max-width: 100%; }
+.rv-lapidary-detail__pre { overflow-wrap: anywhere; line-height: 1.6; }
+
+@media(max-width:760px) {
+  .rv-lapidary-request-card { align-items: flex-start; flex-direction: column; }
+  .rv-lapidary-admin__artist { grid-template-columns: 64px 1fr; }
+  .rv-lapidary-admin__artist-photo { width: 64px; }
+  .rv-lapidary-admin__artist-actions { grid-column: 1/-1; justify-content: flex-end; }
+}
+@media(max-width:560px) {
+  .rv-lapidary-review-modal.rv-modal__panel { width: 100%; max-height: calc(100dvh - 40px); }
+  .rv-lapidary-review-modal .rv-modal__header { padding: 14px 16px; }
+  .rv-lapidary-review-modal .rv-modal__body { padding: 12px; }
+  .rv-lapidary-detail { gap: 14px; }
+  .rv-lapidary-detail .rv-card { padding: 14px; }
+  .rv-lapidary-admin__summary { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .rv-lapidary-detail__facts, .rv-lapidary-admin__edit-grid { grid-template-columns: 1fr; }
+  .rv-lapidary-detail__facts section:nth-child(3), .rv-lapidary-detail__facts section:last-child { grid-column: auto; }
+  .rv-lapidary-detail__facts section:last-child .rv-lapidary-admin__media { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+}
+
+/* Lapidary editorial workspace */
+.rv-lapidary-content { gap: 24px; }
+.rv-lapidary-content__intro { display:flex; align-items:center; justify-content:space-between; gap:32px; padding:32px; border:1px solid #244e40; border-radius:14px; background:radial-gradient(ellipse at 85% 0%,#315d4b 0%,transparent 65%),#123b2e; color:#faf8f2; }
+.rv-lapidary-content__eyebrow { display:block; font-size:.65rem; font-weight:600; letter-spacing:.16em; color:var(--rv-bronze); }
+.rv-lapidary-content__intro .rv-lapidary-content__eyebrow { color:#d9c49b; }
+.rv-lapidary-content__intro h2 { margin:12px 0; font-family:var(--font-display, Georgia, serif); font-size:clamp(1.7rem,3vw,2.5rem); font-weight:400; line-height:1.15; }
+.rv-lapidary-content__intro p { margin:0; max-width:590px; font-size:.82rem; line-height:1.7; opacity:.8; }
+.rv-lapidary-content__note { flex-shrink:0; padding-left:28px; border-left:1px solid #ffffff30; }
+.rv-lapidary-content__note>span { display:block; margin-bottom:9px; color:#d9c49b; font-size:.75rem; letter-spacing:.14em; }
+.rv-lapidary-content__note p { font-size:.73rem; }
+.rv-lapidary-content__nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; padding:6px; background:var(--rv-panel); border:1px solid var(--rv-line); border-radius:12px; }
+.rv-lapidary-content__nav button { text-align:left; border:1px solid transparent; border-radius:8px; padding:16px; background:transparent; color:var(--rv-forest); cursor:pointer; font:inherit; }
+.rv-lapidary-content__nav button[aria-pressed="true"] { background:#fffdf8; border-color:var(--rv-line); box-shadow:0 2px 5px #173e3010; }
+.rv-lapidary-content__nav button:hover { background:#ffffff80; }
+.rv-lapidary-content__nav button:focus-visible { outline:2px solid var(--rv-bronze); outline-offset:2px; }
+.rv-lapidary-content__nav span { display:block; font-size:.84rem; font-weight:600; }
+.rv-lapidary-content__nav small { display:block; font-size:.69rem; color:var(--rv-muted); margin-top:6px; line-height:1.5; }
+.rv-lapidary-content__panel { display:grid; gap:24px; min-width:0; }
+.rv-lapidary-content__panel[hidden] { display:none; }
+.rv-lapidary-content__panel>.rv-card { overflow:hidden; }
+.rv-lapidary-content .rv-card__header { border-top:2px solid var(--rv-bronze); }
+.rv-lapidary-content .rv-lapidary-admin__section-heading { padding-top:20px; border-top:1px solid var(--rv-line); margin-top:12px; }
+.rv-lapidary-content .rv-lapidary-admin__actions { border-top:1px solid var(--rv-line); padding-top:20px; margin-top:10px; }
+.rv-lapidary-content__section-intro { display:flex; gap:30px; align-items:center; justify-content:space-between; padding:6px 0; }
+.rv-lapidary-content__section-intro h2 { font-family:var(--font-display, Georgia, serif); font-size:1.8rem; font-weight:400; margin:8px 0 0; }
+.rv-lapidary-content__section-intro p { max-width:480px; font-size:.78rem; line-height:1.7; color:var(--rv-muted); }
+.rv-lapidary-content__dome { display:grid; grid-template-columns:240px 1fr; gap:28px; align-items:center; padding:20px; border-radius:10px; background:var(--rv-panel); color:var(--rv-forest); }
+.rv-lapidary-content__dome svg { width:100%; height:auto; }
+.rv-lapidary-content__dome p { margin-top:12px; }
+.rv-lapidary-content__callout { padding:14px 18px; border-left:2px solid var(--rv-bronze); background:var(--rv-panel); color:var(--rv-muted); font-size:.78rem; line-height:1.7; margin:0 0 24px; }
+.rv-lapidary-content__price { padding:22px; border:1px solid var(--rv-line); border-radius:10px; background:var(--rv-panel); }
+.rv-lapidary-content__price>span { color:var(--rv-bronze); letter-spacing:.14em; font-size:.63rem; font-weight:600; }
+.rv-lapidary-content__price h3 { margin:10px 0 22px; font-family:var(--font-display, Georgia, serif); font-weight:400; font-size:1.4rem; color:var(--rv-forest); }
+@media(max-width:1000px) { .rv-lapidary-content__note { display:none; } .rv-lapidary-content__nav { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .rv-lapidary-content__intro { padding:24px; } .rv-lapidary-content__nav button { padding:12px; } .rv-lapidary-content__nav small { font-size:.63rem; } .rv-lapidary-content__section-intro { display:block; } .rv-lapidary-content__dome { grid-template-columns:1fr; gap:12px; } .rv-lapidary-content__dome svg { max-width:240px; margin:auto; } }

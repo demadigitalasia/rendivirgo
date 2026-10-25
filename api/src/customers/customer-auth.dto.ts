@@ -2,7 +2,8 @@ import { IsBoolean, IsEmail, IsIn, IsUrl, Matches, IsOptional, IsString, MaxLeng
 
 export class CustomerRegisterDto {
   @IsOptional()
-  @IsIn(["/wholesale/finished", "/wholesale/checkout", "/id/wholesale/finished", "/id/wholesale/checkout"])
+  @IsString()
+  @Matches(/^\/(?:wholesale\/(?:finished|checkout)|id\/wholesale\/(?:finished|checkout)|account\/lapidary(?:\?claim=[A-Za-z0-9_-]{43})?)$/)
   next?: string;
 
   @IsEmail()

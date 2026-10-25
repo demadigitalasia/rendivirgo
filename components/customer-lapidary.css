@@ -1,0 +1,64 @@
+.customer-lapidary { max-width: 1120px; margin: 42px auto 80px; padding: 0 24px; }
+.customer-lapidary__header { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:28px; }
+.customer-lapidary__header h1 { margin:8px 0; color:#183e30; font-family:var(--font-display,Georgia,serif); font-size:clamp(2rem,4vw,3.3rem); font-weight:400; }
+.customer-lapidary__header p { color:#687167; }
+.customer-lapidary__header > a { color:#183e30; font-size:.9rem; text-underline-offset:4px; }
+.customer-lapidary__eyebrow { color:#896d41; font-size:.68rem; font-weight:700; letter-spacing:.15em; text-transform:uppercase; }
+.customer-lapidary__projects { display:grid; gap:22px; }
+.customer-lapidary__project,.customer-lapidary__empty { padding:clamp(20px,3vw,34px); border:1px solid #dedfd2; border-top:2px solid #896d41; border-radius:16px; background:#fffdf8; box-shadow:0 12px 34px #26392e0a; }
+.customer-lapidary__project-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; padding-bottom:18px; border-bottom:1px solid #e7e5dc; }
+.customer-lapidary__project-heading h2 { margin:5px 0 0; color:#183e30; font-family:var(--font-display,Georgia,serif); font-size:1.6rem; font-weight:400; }
+.customer-lapidary__status { padding:8px 12px; border-radius:999px; background:#eaf0e9; color:#183e30; font-size:.78rem; }
+.customer-lapidary__summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:20px 0; }
+.customer-lapidary__summary > div { display:grid; gap:5px; }
+.customer-lapidary__summary span { color:#896d41; font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.customer-lapidary__summary strong { color:#26392e; font-size:.96rem; font-weight:600; }
+.customer-lapidary__summary small,.customer-lapidary__shipment { color:#697167; font-size:.85rem; }
+.customer-lapidary__action-card,.customer-lapidary__invoice { margin-top:22px; padding:22px; border:1px solid #dddccf; border-radius:12px; background:#f4f3ea; }
+.customer-lapidary__action-card h3,.customer-lapidary__invoice h3,.customer-lapidary__timeline h3 { margin:0 0 12px; color:#183e30; font-family:var(--font-display,Georgia,serif); font-size:1.35rem; font-weight:400; }
+.customer-lapidary__action-card > p { color:#5f695f; line-height:1.7; }
+.customer-lapidary__shipping-instructions { padding:16px; border-left:2px solid #896d41; background:#fffdf8; color:#26392e !important; white-space:pre-wrap; }
+.customer-lapidary__estimate { display:flex; align-items:flex-start; gap:10px; margin:18px 0; color:#26392e; font-size:.9rem; line-height:1.5; }
+.customer-lapidary__estimate input { margin-top:3px; accent-color:#183e30; }
+.customer-lapidary__tracking h4,.customer-lapidary__payment h4 { margin:18px 0 10px; color:#183e30; }
+.customer-lapidary__tracking-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+.customer-lapidary__tracking-fields label,.customer-lapidary__payment label { display:grid; gap:6px; color:#576258; font-size:.78rem; }
+.customer-lapidary__tracking-fields input,.customer-lapidary__payment input { min-width:0; padding:11px 12px; border:1px solid #d8d9cd; border-radius:8px; background:#fffdf8; color:#26392e; font:inherit; }
+.customer-lapidary__shipment { margin:18px 0 0; padding:13px 15px; border-radius:8px; background:#f3f2e9; line-height:1.6; }
+.customer-lapidary__shipment a { color:#183e30; text-underline-offset:3px; }
+.customer-lapidary__invoice { display:grid; grid-template-columns:1fr 1.2fr; gap:16px 30px; }
+.customer-lapidary__invoice h3 { margin:6px 0 0; font-size:1.9rem; }
+.customer-lapidary__invoice dl { display:grid; gap:8px; margin:0; }
+.customer-lapidary__invoice dl > div { display:flex; justify-content:space-between; gap:16px; color:#606b60; font-size:.9rem; }
+.customer-lapidary__invoice dd { margin:0; color:#26392e; }
+.customer-lapidary__invoice .customer-lapidary__invoice-total { padding-top:10px; border-top:1px solid #d8d9cd; color:#183e30; font-weight:700; }
+.customer-lapidary__return-address,.customer-lapidary__address-reminder { grid-column:1/-1; padding:14px 16px; border-radius:8px; background:#fffdf8; color:#536053; font-size:.86rem; line-height:1.6; }
+.customer-lapidary__return-address strong { color:#26392e; }
+.customer-lapidary__return-address address { margin:7px 0; color:#26392e; font-style:normal; white-space:pre-line; }
+.customer-lapidary__return-address small { color:#697167; }
+.customer-lapidary__address-reminder a { color:#183e30; text-underline-offset:3px; }
+.customer-lapidary__payment { grid-column:1/-1; padding-top:18px; border-top:1px solid #d8d9cd; }
+.customer-lapidary__payment address { margin:10px 0 16px; color:#58645a; font-size:.86rem; font-style:normal; line-height:1.8; }
+.customer-lapidary__payment label { max-width:480px; margin:14px 0; }
+.customer-lapidary__payment small { display:block; margin:10px 0; color:#697167; }
+.customer-lapidary__timeline { margin-top:28px; }
+.customer-lapidary__timeline ol { display:grid; gap:0; margin:18px 0 0; padding:0 0 0 16px; list-style:none; border-left:1px solid #d6d8cc; }
+.customer-lapidary__timeline li { position:relative; padding:0 0 24px 20px; }
+.customer-lapidary__timeline li::before { position:absolute; top:4px; left:-21px; width:9px; height:9px; border:3px solid #fffdf8; border-radius:50%; background:#456b50; content:""; box-shadow:0 0 0 1px #789078; }
+.customer-lapidary__timeline time { color:#896d41; font-size:.75rem; }
+.customer-lapidary__timeline h4 { margin:5px 0; color:#183e30; font-family:var(--font-display,Georgia,serif); font-size:1.12rem; font-weight:400; }
+.customer-lapidary__timeline p { color:#667064; line-height:1.65; white-space:pre-wrap; }
+.customer-lapidary__photos { display:flex; flex-wrap:wrap; gap:10px; }
+.customer-lapidary__photos a { display:block; width:min(180px,40vw); aspect-ratio:4/3; overflow:hidden; border:1px solid #dedfd2; border-radius:8px; background:#eeefe4; }
+.customer-lapidary__photos img { width:100%; height:100%; object-fit:cover; }
+.customer-lapidary__empty { padding:36px; text-align:center; }
+.customer-lapidary__empty h2 { color:#183e30; font-family:var(--font-display,Georgia,serif); font-weight:400; }
+.customer-lapidary__empty p { max-width:620px; margin:0 auto 18px; color:#687167; line-height:1.7; }
+.customer-lapidary__empty a { color:#183e30; text-underline-offset:4px; }
+@media (max-width:700px) {
+  .customer-lapidary { margin-top:24px; padding:0 15px; }
+  .customer-lapidary__header { align-items:flex-start; flex-direction:column; }
+  .customer-lapidary__summary,.customer-lapidary__tracking-fields,.customer-lapidary__invoice { grid-template-columns:1fr; }
+  .customer-lapidary__payment { grid-column:auto; }
+  .customer-lapidary__project-heading { align-items:flex-start; flex-direction:column; }
+}

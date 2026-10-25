@@ -27,6 +27,7 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=4000 \
     UPLOAD_DIR=uploads \
+    LAPIDARY_PRIVATE_UPLOAD_DIR=/data/private/lapidary \
     PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
 RUN apt-get update \
@@ -41,7 +42,9 @@ COPY --from=builder /app/dist ./dist
 COPY prisma ./prisma
 COPY prisma7.config.ts ./
 COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh && mkdir -p uploads && chown -R node:node /app
+RUN chmod +x docker-entrypoint.sh && mkdir -p uploads /data/private/lapidary && chown -R node:node /app /data/private
+
+VOLUME ["/data/private"]
 
 ENV HOME=/tmp
 
