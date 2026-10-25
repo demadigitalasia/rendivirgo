@@ -1,3 +1,5 @@
+import { HeroSlidesService } from "./hero-slides.service";
+import { HeroSlidesController, AdminHeroSlidesController } from "./hero-slides.controller";
 import { ContentCopyService } from "./content-copy.service";
 import { ContentCopyController } from "./content-copy.controller";
 import { Module } from "@nestjs/common";
@@ -19,6 +21,8 @@ import { SettingsModule } from "../settings/settings.module";
 @Module({
   imports: [SettingsModule],
   controllers: [
+    HeroSlidesController,
+    AdminHeroSlidesController,
     ContentCopyController,
     BlogController,
     AdminBlogController,
@@ -33,7 +37,7 @@ import { SettingsModule } from "../settings/settings.module";
     SiteContentController,
     AdminSiteContentController,
   ],
-  providers: [ContentCopyService, BlogService, BlogCopyService, NavigationService, PagesService, TestimonialsService, BannersService, SiteContentService],
+  providers: [HeroSlidesService, ContentCopyService, BlogService, BlogCopyService, NavigationService, PagesService, TestimonialsService, BannersService, SiteContentService],
   exports: [BlogService, PagesService, TestimonialsService, BannersService, SiteContentService],
 })
 export class ContentModule {}

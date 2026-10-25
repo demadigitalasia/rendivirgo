@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake } from "../common/dto/pagination.dto";
@@ -22,6 +22,7 @@ export class BannersService {
         ...(query.placement ? { placement: query.placement } : {}),
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      select: { id: true, title: true, subtitle: true, imageUrl: true, ctaLabel: true, ctaHref: true, placement: true, focalX: true, focalY: true, sortOrder: true },
     });
   }
 
@@ -60,6 +61,7 @@ export class BannersService {
   // ------------------------------------------------------------ mutations
 
   async create(dto: CreateBannerDto, context: AuditContext) {
+    if (!dto.placement || dto.placement === "HomeHero") throw new BadRequestException("Manage home hero banners in Home → Hero Slides");
     const banner = await this.prisma.banner.create({
       data: {
         title: dto.title,
@@ -92,6 +94,7 @@ export class BannersService {
   async update(id: string, dto: UpdateBannerDto, context: AuditContext) {
     const existing = await this.prisma.banner.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("Banner not found");
+    if (existing.placement === "HomeHero" || ("placement" in dto && dto.placement === "HomeHero")) throw new BadRequestException("Manage home hero banners in Home → Hero Slides");
 
     const banner = await this.prisma.banner.update({
       where: { id },
@@ -126,6 +129,7 @@ export class BannersService {
   async remove(id: string, context: AuditContext) {
     const banner = await this.prisma.banner.findUnique({ where: { id } });
     if (!banner) throw new NotFoundException("Banner not found");
+    if (banner.placement === "HomeHero") throw new BadRequestException("Manage home hero banners in Home → Hero Slides");
 
     await this.prisma.banner.delete({ where: { id } });
 

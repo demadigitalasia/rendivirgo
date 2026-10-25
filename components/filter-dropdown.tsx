@@ -7,6 +7,7 @@ import { CheckIcon, ChevronIcon } from "@/components/icons";
 
 export type FilterDropdownOption = {
   label: string;
+  triggerLabel?: string;
   value: string;
 };
 
@@ -66,7 +67,7 @@ export function FilterDropdown({
     : options;
   const selectedIndex = Math.max(0, visibleOptions.findIndex((option) => option.value === value));
   const selectedOption = options.find((option) => option.value === value);
-  const selectedLabel = selectedOption?.label ?? placeholder ?? "";
+  const selectedLabel = selectedOption?.triggerLabel ?? selectedOption?.label ?? placeholder ?? "";
   const menuReady = variant !== "admin" || Boolean(menuPosition);
   const labelId = label ? `${id}-label` : undefined;
   const valueId = `${id}-value`;
@@ -100,7 +101,7 @@ export function FilterDropdown({
       const top = openAbove
         ? Math.max(8, rect.top - panelHeight - 7)
         : Math.min(window.innerHeight - panelHeight - 8, rect.bottom + 7);
-      setMenuPosition({ position: "fixed", zIndex: 90, top, left, width: Math.min(rect.width, window.innerWidth - 16), maxHeight, visibility: "visible" });
+      setMenuPosition({ position: "fixed", zIndex: 110, top, left, width: Math.min(rect.width, window.innerWidth - 16), maxHeight, visibility: "visible" });
     };
     updateMenuPosition();
     window.addEventListener("resize", updateMenuPosition);

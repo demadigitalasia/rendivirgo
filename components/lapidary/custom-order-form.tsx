@@ -4,13 +4,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { Language } from "@/lib/i18n";
 import { FilterDropdown } from "@/components/filter-dropdown";
+import { CountryDropdown } from "@/components/country-dropdown";
+import { CountryCallingCodeDropdown } from "@/components/country-calling-code-dropdown";
+import { LapidaryDatePicker } from "@/components/lapidary/date-picker";
+import { COUNTRY_CALLING_CODES, countryFlagEmoji, internationalPhoneNumber } from "@/lib/country-calling-codes";
+import { countryNameForCode } from "@/lib/countries";
 import { Cabochon3DPreview, type CabochonShape } from "./oval-cabochon-preview";
 import { cabochonShapes, standardCabochonKeys, cabochonAssetVersion } from "@/lib/lapidary-shapes";
 
 import { defaultDomeSettings, type DomeSettings } from "@/lib/lapidary-dome-settings";
 import { defaultLapidaryServicePricing, type LapidaryServicePricing } from "@/lib/lapidary-service-pricing";
 
-type Submission = { ok: true; requestNumber: string };
+type Submission = { ok: true; requestNumber: string; accountLinked?: boolean };
+type LapidaryCustomerProfile = {
+  name: string;
+  email: string;
+  emailVerifiedAt: string | null;
+  phone: string | null;
+  address?: { countryCode: string | null };
+};
 type MaterialSource = "CustomerSupplied" | "RendiVirgoStock" | "Undecided";
 type ServiceType = "CabochonPendant" | "CabochonPair" | "CabochonSuite" | "CabochonFreeform" | "SlabPolishing" | "DecorationSphere" | "DecorationTower" | "DecorationTumbled" | "DecorationSpear" | "DecorationOther" | "Faceting" | "Reshaping" | "Other";
 type ShapeKey = CabochonShape | "custom";
@@ -22,6 +34,8 @@ type CustomOrderDraft = {
 };
 const DRAFT_KEY = "rendi-lapidary-custom-order:v1";
 const phonePattern = /^\+[1-9]\d{7,14}$/;
+const phoneRegionsByCallingCode = Object.entries(COUNTRY_CALLING_CODES).sort((left, right) => right[1].length - left[1].length);
+const primaryRegionsByCallingCode: Readonly<Record<string, string>> = { "1": "US", "7": "RU", "44": "GB", "61": "AU", "262": "RE", "358": "FI", "590": "GP", "599": "CW" };
 const shapeKeys: ShapeKey[] = [...standardCabochonKeys, "custom"];
 
 const steps = [
@@ -124,8 +138,10 @@ export function CustomOrderForm({ language }: { language: Language }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [country, setCountry] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("US");
+  const [country, setCountry] = useState("US");
   const [company, setCompany] = useState("");
+  const [accountProfile, setAccountProfile] = useState<LapidaryCustomerProfile | null>(null);
   const [targetDate, setTargetDate] = useState("");
   const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState("");
@@ -136,6 +152,41 @@ export function CustomOrderForm({ language }: { language: Language }) {
   const [shapeSearches, setShapeSearches] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
   const previousStep = useRef(step);
+  const contactEdited = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store" })
+      .then(async (response) => response.ok ? await response.json() as LapidaryCustomerProfile : null)
+      .then((profile) => {
+        if (!active || !profile?.emailVerifiedAt) return;
+        setAccountProfile(profile);
+        if (contactEdited.current) return;
+        setName((current) => current.trim() ? current : profile.name);
+        setEmail((current) => current.trim() ? current : profile.email);
+        if (profile.phone) {
+          const value = profile.phone.trim();
+          const digits = value.replace(/\D/g, "");
+          const internationalDigits = value.startsWith("00") ? digits.slice(2) : digits;
+          const match = value.startsWith("+") || value.startsWith("00")
+            ? phoneRegionsByCallingCode.find(([, callingCode]) => internationalDigits.startsWith(callingCode))
+            : undefined;
+          if (!match) setPhone(value);
+          else {
+            const region = primaryRegionsByCallingCode[match[1]] ?? match[0];
+            setPhoneCountry(region);
+            setPhone(internationalDigits.slice(match[1].length));
+          }
+        }
+        const profileCountry = profile.address?.countryCode?.toUpperCase();
+        if (profileCountry && /^[A-Z]{2}$/.test(profileCountry)) {
+          setCountry(profileCountry);
+          if (COUNTRY_CALLING_CODES[profileCountry]) setPhoneCountry(profileCountry);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     setItems((current) => current.some((item) => !serviceChoices.some((choice) => choice.value === item.serviceType)) ? normalizeDraftItems(current) ?? [makeItem("work-1")] : current);
@@ -300,7 +351,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
     setDraftExists(false);
     setStep(0); setSource("Undecided"); setMaterialDescription(""); setMaterialOrigin(""); setMaterialCondition(""); setMaterialWeight(""); setWeightUnit("g");
     setItems([makeItem("work-1")]); setSelectedCatalogIds([]); setFinish("NotSure"); setCustomFinish(""); setAdditionalDetails(""); setReferenceLinks(""); setTargetDate("");
-    setMediaFiles([]); setName(""); setEmail(""); setPhone(""); setCountry(""); setCompany(""); setConsent(false); setError("");
+    setMediaFiles([]); setName(""); setEmail(""); setPhone(""); setPhoneCountry("US"); setCountry("US"); setCompany(""); setConsent(false); setError("");
   }
 
   function toggleProduct(productId: string) {
@@ -358,9 +409,9 @@ export function CustomOrderForm({ language }: { language: Language }) {
     if (currentStep === 4) {
       if (name.trim().length < 2) return t("Add your full name.", "Masukkan nama lengkap Anda.");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return t("Add a valid email address.", "Masukkan alamat email yang valid.");
-      const normalizedPhone = phone.trim().startsWith("+") ? `+${phone.replace(/\D/g, "")}` : "";
-      if (!phonePattern.test(normalizedPhone)) return t("Enter a valid international phone number with its country code, for example +62 812 3456 7890.", "Masukkan nomor telepon internasional yang valid dengan kode negara, misalnya +62 812 3456 7890.");
-      if (country.trim().length < 2) return t("Choose or enter your country.", "Pilih atau masukkan negara.");
+      const normalizedPhone = internationalPhoneNumber(phoneCountry, phone);
+      if (!phonePattern.test(normalizedPhone)) return t("Enter a valid phone number for the selected country code.", "Masukkan nomor telepon yang valid untuk kode negara yang dipilih.");
+      if (!country) return t("Choose your country.", "Pilih negara Anda.");
       if (!consent) return t("Accept the quote request terms before sending.", "Setujui ketentuan permintaan penawaran sebelum mengirim.");
     }
     return "";
@@ -385,7 +436,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
     if (issue) { setError(issue); return; }
     const links = referenceLinks.split(/\n+/).map((url) => url.trim()).filter(Boolean);
     const payload = {
-      name: name.trim(), email: email.trim(), phone: `+${phone.replace(/\D/g, "")}`, country: country.trim(), company: company.trim() || undefined,
+      name: name.trim(), email: email.trim(), phone: internationalPhoneNumber(phoneCountry, phone), country: countryNameForCode(country, "en") ?? country, company: company.trim() || undefined,
       materialSource: source,
       materialDescription: materialDescription.trim() || undefined,
       materialOrigin: materialOrigin.trim() || undefined,
@@ -440,6 +491,26 @@ export function CustomOrderForm({ language }: { language: Language }) {
     setError(""); setMediaFiles(total);
   }
 
+  function updatePhone(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("+") && !trimmed.startsWith("00")) {
+      setPhone(value);
+      return;
+    }
+    const digits = value.replace(/\D/g, "");
+    const internationalDigits = trimmed.startsWith("00") ? digits.slice(2) : digits;
+    const match = phoneRegionsByCallingCode.find(([, callingCode]) => internationalDigits.startsWith(callingCode));
+    if (!match) {
+      setPhone(value);
+      return;
+    }
+    const currentCallingCode = COUNTRY_CALLING_CODES[phoneCountry];
+    const primaryRegion = primaryRegionsByCallingCode[match[1]];
+    const matchedRegion = currentCallingCode === match[1] ? phoneCountry : primaryRegion && COUNTRY_CALLING_CODES[primaryRegion] === match[1] ? primaryRegion : match[0];
+    setPhoneCountry(matchedRegion);
+    setPhone(internationalDigits.slice(match[1].length));
+  }
+
   function selectedProduct(id: string) { return products.find((product) => product.id === id); }
   async function loadMoreCatalog() {
     const page = catalogPages[catalogCategory];
@@ -484,7 +555,20 @@ export function CustomOrderForm({ language }: { language: Language }) {
     </div>;
   }
 
-  if (result) return <section className="lapidary-form-success" role="status"><span className="lapidary-form-success__mark" aria-hidden="true">✓</span><p className="lapidary-eyebrow">{t("REQUEST REFERENCE", "REFERENSI PERMINTAAN")}</p><h2>{result.requestNumber}</h2><p>{t("Your request and reference files are with our studio. We will review availability, scope, and the material arrangements, then contact you with next steps.", "Permintaan dan berkas referensi Anda sudah diterima studio. Kami akan meninjau ketersediaan, ruang lingkup, dan pengaturan material, lalu menghubungi Anda mengenai langkah berikutnya.")}</p><button className="lapidary-button" type="button" onClick={() => setResult(null)}>{t("Send another request", "Kirim permintaan lain")}<span aria-hidden="true">↗</span></button></section>;
+  if (result) return (
+    <section className="lapidary-form-success" role="status">
+      <span className="lapidary-form-success__mark" aria-hidden="true">✓</span>
+      <p className="lapidary-eyebrow">{t("REQUEST REFERENCE", "REFERENSI PERMINTAAN")}</p>
+      <h2>{result.requestNumber}</h2>
+      <p>{t("Your request and reference files are with our studio. We will review availability, scope, and the material arrangements, then contact you with next steps.", "Permintaan dan berkas referensi Anda sudah diterima studio. Kami akan meninjau ketersediaan, ruang lingkup, dan pengaturan material, lalu menghubungi Anda mengenai langkah berikutnya.")}</p>
+      {result.accountLinked ? (
+        <p>{t("This project is linked to your account. Email notifications will continue as well.", "Proyek ini sudah terhubung ke akun Anda. Notifikasi email tetap akan dikirimkan.")} <a href="/account/lapidary">{t("View your projects", "Lihat proyek Anda")}</a></p>
+      ) : result.accountLinked === false ? (
+        <p>{t("We’ll email a secure account link to the address you provided. Use that same email to sign in or create an account and follow this project. Email notifications will continue.", "Kami akan mengirim tautan akun yang aman ke alamat yang Anda berikan. Gunakan email yang sama untuk masuk atau membuat akun dan memantau proyek ini. Notifikasi email tetap dikirimkan.")}</p>
+      ) : null}
+      <button className="lapidary-button" type="button" onClick={() => setResult(null)}>{t("Send another request", "Kirim permintaan lain")}<span aria-hidden="true">↗</span></button>
+    </section>
+  );
 
   return <div className="lapidary-form">
     <div className="lapidary-wizard__top">
@@ -614,26 +698,37 @@ export function CustomOrderForm({ language }: { language: Language }) {
           </fieldset> : null}
           <p className="lapidary-wizard__hint">{t("The new row follows the last selected stone. Enter the material amount separately for each specification.", "Baris baru mengikuti material terakhir yang dipilih. Masukkan jumlah material secara terpisah untuk setiap spesifikasi.")}</p>
         </> : <p className="lapidary-wizard__hint">{t("You can add up to 8 shape specifications to this request.", "Anda dapat menambahkan maksimal 8 spesifikasi bentuk dalam satu permintaan.")}</p>}
-        <label className="lapidary-field lapidary-date-field">{t("Preferred completion date (optional)", "Tanggal selesai yang diharapkan (opsional)")}<input type="date" min={today} value={targetDate} onChange={(event) => setTargetDate(event.target.value)} /><small>{t("This is a preference, not a confirmed delivery date. We will confirm timing with your quote.", "Ini adalah preferensi, bukan tanggal penyelesaian yang dikonfirmasi. Jadwal akan disepakati bersama penawaran.")}</small></label>
+        <div className="lapidary-field lapidary-date-field">
+          <label htmlFor="lapidary-target-date">{t("Preferred completion date (optional)", "Tanggal selesai yang diharapkan (opsional)")}</label>
+          <LapidaryDatePicker id="lapidary-target-date" value={targetDate} minDate={today} language={language} onChange={setTargetDate} />
+          <small id="lapidary-target-date-hint">{t("This is a preference, not a confirmed delivery date. We will confirm timing with your quote.", "Ini adalah preferensi, bukan tanggal penyelesaian yang dikonfirmasi. Jadwal akan disepakati bersama penawaran.")}</small>
+        </div>
       </section> : null}
 
       {step === 3 ? <section className="lapidary-wizard__panel" aria-labelledby="lapidary-step-title">
         <p className="lapidary-eyebrow">{t("STEP 04 · FINISH & REFERENCES", "LANGKAH 04 · FINISHING & REFERENSI")}</p><h3 id="lapidary-step-title" tabIndex={-1}>{t("Share the finish you prefer", "Sampaikan hasil akhir yang Anda inginkan")}</h3><p className="lapidary-wizard__intro">{t("You can choose a finish now or ask the studio to recommend one for the material.", "Anda bisa memilih finishing atau meminta studio merekomendasikan hasil yang sesuai dengan material.")}</p>
-        <fieldset className="lapidary-finish-picker"><legend>{t("Finish preference", "Preferensi finishing")}</legend><div>{([["HighGloss", t("High gloss", "Kilap tinggi"), "✦"], ["SatinMatte", t("Satin or matte", "Satin atau matte"), "◌"], ["Natural", t("Keep natural", "Pertahankan alami"), "◇"], ["NotSure", t("Recommend for me", "Rekomendasikan"), "↗"], ["Other", t("Other", "Lainnya"), "＋"]] as const).map(([value, label, mark]) => <button type="button" aria-pressed={finish === value} className={finish === value ? "is-selected" : ""} key={value} onClick={() => setFinish(value)}><span aria-hidden="true">{mark}</span>{label}</button>)}</div></fieldset>
+        <fieldset className="lapidary-finish-picker"><legend>{t("Finish preference", "Preferensi finishing")}</legend><div>{([
+          { value: "HighGloss", label: t("High gloss", "Kilap tinggi") },
+          { value: "SatinMatte", label: t("Satin or matte", "Satin atau matte") },
+          { value: "Natural", label: t("Keep natural", "Pertahankan alami") },
+          { value: "NotSure", label: t("Recommend for me", "Rekomendasikan") },
+          { value: "Other", label: t("Other", "Lainnya") },
+        ] as const).map(({ value, label }) => <button type="button" aria-pressed={finish === value} className={finish === value ? "is-selected" : ""} key={value} onClick={() => setFinish(value)}>{label}</button>)}</div></fieldset>
         {finish === "Other" ? <label className="lapidary-field lapidary-finish-custom">{t("Describe your preferred finish", "Jelaskan finishing yang Anda inginkan")}<input value={customFinish} onChange={(event) => setCustomFinish(event.target.value)} required maxLength={500} placeholder={t("Describe the surface or treatment…", "Jelaskan permukaan atau perlakuan yang diinginkan…")} /></label> : null}
         <label className="lapidary-field">{t("Additional requirements or questions (optional)", "Kebutuhan atau pertanyaan tambahan (opsional)")}<textarea value={additionalDetails} onChange={(event) => setAdditionalDetails(event.target.value)} maxLength={8000} rows={4} placeholder={t("Intended use, constraints, setting notes, or anything else the studio should know…", "Tujuan penggunaan, batasan, catatan setting, atau informasi lain untuk studio…")} /></label>
         <label className="lapidary-field lapidary-reference-links">{t("Reference links (optional)", "Tautan referensi (opsional)")}<textarea value={referenceLinks} onChange={(event) => setReferenceLinks(event.target.value)} maxLength={5000} rows={3} placeholder="https://…" /><small>{t("Add up to 5 http or https links, one link per line.", "Tambahkan maksimal 5 tautan http atau https, satu tautan per baris.")}</small></label>
-        {source !== "CustomerSupplied" ? <MediaPicker isId={isId} files={mediaFiles} previews={mediaPreviews} onChange={addMedia} onRemove={(index) => setMediaFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} /> : <p className="lapidary-wizard__hint">{t("Your stone photos are attached to the material details from step 1. You can add more references there.", "Foto batu Anda sudah terlampir pada detail material di langkah 1. Anda dapat menambahkan referensi lain di sana.")}</p>}
+        <MediaPicker isId={isId} files={mediaFiles} previews={mediaPreviews} onChange={addMedia} onRemove={(index) => setMediaFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} />
       </section> : null}
 
       {step === 4 ? <section className="lapidary-wizard__panel" aria-labelledby="lapidary-step-title">
-        <p className="lapidary-eyebrow">{t("STEP 05 · CONTACT & REVIEW", "LANGKAH 05 · KONTAK & RINGKASAN")}</p><h3 id="lapidary-step-title" tabIndex={-1}>{t("Where should we send your assessment?", "Ke mana kami mengirim hasil peninjauan?")}</h3><p className="lapidary-wizard__intro">{t("No account is needed. We will use these details only to review and follow up on your request.", "Anda tidak memerlukan akun. Informasi ini hanya digunakan untuk meninjau dan menindaklanjuti permintaan.")}</p>
+        <p className="lapidary-eyebrow">{t("STEP 05 · CONTACT & REVIEW", "LANGKAH 05 · KONTAK & RINGKASAN")}</p><h3 id="lapidary-step-title" tabIndex={-1}>{t("Where should we send your assessment?", "Ke mana kami mengirim hasil peninjauan?")}</h3><p className="lapidary-wizard__intro">{t("An account is optional. We’ll use these details to review your request and send updates by email.", "Akun bersifat opsional. Informasi ini digunakan untuk meninjau permintaan dan mengirim pembaruan melalui email.")}</p>
+        {accountProfile ? <p className="lapidary-wizard__hint" role="status">{email.trim().toLowerCase() === accountProfile.email.trim().toLowerCase() ? t(`Signed in as ${accountProfile.email}. This request will appear in your account.`, `Anda masuk sebagai ${accountProfile.email}. Permintaan ini akan muncul di akun Anda.`) : t("Use your account email to link this request automatically. If you enter another email, the secure project link will be sent there instead.", "Gunakan email akun agar permintaan ini otomatis terhubung. Jika memakai email lain, tautan proyek yang aman akan dikirim ke email tersebut.")}</p> : <p className="lapidary-wizard__hint">{t("After sending, you’ll receive a secure account link by email. You can use it to create an account or sign in and follow this project; email updates will continue.", "Setelah mengirim, Anda akan menerima tautan akun yang aman melalui email. Gunakan untuk membuat akun atau masuk dan memantau proyek ini; pembaruan email tetap dikirimkan.")}</p>}
         <div className="lapidary-form__grid lapidary-contact-grid">
-          <label>{t("Full name", "Nama lengkap")}<input autoComplete="name" required minLength={2} maxLength={120} value={name} onChange={(event) => setName(event.target.value)} /></label>
-          <label>{t("Email address", "Alamat email")}<input type="email" autoComplete="email" required maxLength={200} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-          <label>{t("WhatsApp / phone", "WhatsApp / telepon")}<input type="tel" autoComplete="tel" required maxLength={40} inputMode="tel" placeholder={t("+62 812 3456 7890", "+62 812 3456 7890")} value={phone} onChange={(event) => setPhone(event.target.value)} /><small>{t("Include + and your country calling code.", "Sertakan tanda + dan kode telepon negara.")}</small></label>
-          <label>{t("Country", "Negara")}<input autoComplete="country-name" required minLength={2} maxLength={100} value={country} onChange={(event) => setCountry(event.target.value)} /></label>
-          <label className="lapidary-form__full">{t("Business or studio (optional)", "Usaha atau studio (opsional)")}<input autoComplete="organization" maxLength={160} value={company} onChange={(event) => setCompany(event.target.value)} /></label>
+          <label>{t("Full name", "Nama lengkap")}<input autoComplete="name" required minLength={2} maxLength={120} value={name} onChange={(event) => { contactEdited.current = true; setName(event.target.value); }} /></label>
+          <label>{t("Email address", "Alamat email")}<input type="email" autoComplete="email" required maxLength={200} value={email} onChange={(event) => { contactEdited.current = true; setEmail(event.target.value); }} /></label>
+          <div className="lapidary-contact-phone"><label htmlFor="lapidary-contact-phone-input">{t("WhatsApp / phone", "WhatsApp / telepon")}</label><div className="lapidary-phone-control"><CountryCallingCodeDropdown id="lapidary-phone-country" value={phoneCountry} onChange={(value) => { contactEdited.current = true; setPhoneCountry(value); }} locale={isId ? "id-ID" : "en"} ariaLabel={t("Phone country calling code", "Kode telepon negara")} /><input id="lapidary-contact-phone-input" type="tel" autoComplete="tel-national" required maxLength={40} inputMode="tel" placeholder="201 555 0123" value={phone} onChange={(event) => { contactEdited.current = true; updatePhone(event.target.value); }} /></div><small>{t("Choose a calling code, then enter the number without it. You can also paste a full international number.", "Pilih kode telepon, lalu masukkan nomor tanpa kode tersebut. Anda juga bisa menempelkan nomor internasional lengkap.")}</small></div>
+          <div className="lapidary-contact-country"><span className="lapidary-form__field-label">{t("Country", "Negara")}</span><CountryDropdown id="lapidary-contact-country" value={country} onChange={(value) => { contactEdited.current = true; setCountry(value); }} locale={isId ? "id-ID" : "en"} ariaLabel={t("Country", "Negara")} searchPlaceholder={t("Search countries…", "Cari negara…")} emptyMessage={t("No country found.", "Negara tidak ditemukan.")} name="country" required /></div>
+          <label className="lapidary-form__full">{t("Company (optional)", "Perusahaan (opsional)")}<input autoComplete="organization" maxLength={160} value={company} onChange={(event) => { contactEdited.current = true; setCompany(event.target.value); }} /></label>
         </div>
         <div className="lapidary-review"><div className="lapidary-review__heading"><div><p className="lapidary-eyebrow">{t("PROJECT SUMMARY", "RINGKASAN PROYEK")}</p><h4>{t("Review before sending", "Periksa sebelum mengirim")}</h4></div><span>{items.length} {t(items.length === 1 ? "shape specification" : "shape specifications", "spesifikasi bentuk")}</span></div>
           <dl><div className="lapidary-review__material"><dt>{t("Material", "Material")}</dt><dd>{source === "CustomerSupplied" ? t("Customer supplied", "Dari pelanggan") : source === "RendiVirgoStock" ? selectedProductIds.map((id) => selectedProduct(id)?.name).filter(Boolean).join(", ") : t("Studio guidance requested", "Meminta panduan studio")}</dd></div>
@@ -656,8 +751,9 @@ export function CustomOrderForm({ language }: { language: Language }) {
             <div><dt>{t("Finish", "Finishing")}</dt><dd>{finish === "HighGloss" ? t("High gloss", "Kilap tinggi") : finish === "SatinMatte" ? t("Satin or matte", "Satin atau matte") : finish === "Natural" ? t("Keep natural", "Pertahankan alami") : finish === "Other" ? `${t("Other", "Lainnya")} · ${customFinish}` : t("Studio recommendation", "Rekomendasi studio")}</dd></div>
             {additionalDetails.trim() ? <div><dt>{t("Additional notes", "Catatan tambahan")}</dt><dd>{additionalDetails}</dd></div> : null}
             {referenceLinks.trim() ? <div><dt>{t("Reference links", "Tautan referensi")}</dt><dd>{referenceLinks.split(/\n+/).map((link) => link.trim()).filter(Boolean).join(" · ")}</dd></div> : null}
+            {source !== "CustomerSupplied" && mediaFiles.length ? <div><dt>{t("Reference files", "Berkas referensi")}</dt><dd>{mediaFiles.length} {t("photo or video files", "berkas foto atau video")}<small>{mediaFiles.map((file) => file.name).join(", ")}</small></dd></div> : null}
             {targetDate ? <div><dt>{t("Preferred date", "Tanggal pilihan")}</dt><dd>{targetDate}</dd></div> : null}
-            <div className="lapidary-review__contact"><dt>{t("Contact", "Kontak")}</dt><dd><strong>{name}</strong><span>{email}</span><span>{phone} · {country}</span>{company ? <span>{company}</span> : null}</dd></div>
+            <div className="lapidary-review__contact"><dt>{t("Contact", "Kontak")}</dt><dd><strong>{name}</strong><span>{email}</span>{internationalPhoneNumber(phoneCountry, phone) ? <span>{countryFlagEmoji(phoneCountry)} {internationalPhoneNumber(phoneCountry, phone)} · {countryNameForCode(country, isId ? "id-ID" : "en") ?? country}</span> : null}{company ? <span>{company}</span> : null}</dd></div>
           </dl>
           <button type="button" className="lapidary-review__edit" onClick={() => { setStep(0); setError(""); }}>{t("Edit project details", "Ubah detail proyek")} ↗</button>
         </div>
@@ -680,6 +776,6 @@ function MediaPicker({ isId, files, previews, onChange, onRemove }: { isId: bool
   const t = (en: string, id: string) => isId ? id : en;
   return <div className="lapidary-media-picker lapidary-form__full">
     <div className="lapidary-media-picker__heading"><div><h4>{t("Photos or video", "Foto atau video")}</h4><p>{t("Up to 5 private reference files · JPEG, PNG, WebP, AVIF, or MP4 · 6 MB each, up to 30 MB total", "Maksimal 5 berkas referensi privat · JPEG, PNG, WebP, AVIF, atau MP4 · 6 MB per berkas, total maksimal 30 MB")}</p></div><label className="lapidary-media-picker__button">{t("Add files", "Tambah berkas")}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4" multiple onChange={onChange} /></label></div>
-    {files.length ? <div className="lapidary-media-previews">{files.map((file, index) => <article key={`${file.name}-${file.lastModified}-${index}`}><div>{file.type.startsWith("video/") ? <video src={previews[index]} muted /> : <img src={previews[index]} alt={file.name} />}</div><p title={file.name}>{file.name}</p><small>{(file.size / (1024 * 1024)).toFixed(1)} MB</small><button type="button" onClick={() => onRemove(index)} aria-label={t(`Remove ${file.name}`, `Hapus ${file.name}`)}>×</button></article>)}</div> : <p className="lapidary-media-picker__empty">{t("Clear photos help the studio assess the stone, scale, and visible inclusions.", "Foto yang jelas membantu studio menilai batu, skala, dan inklusi yang terlihat.")}</p>}
+    {files.length ? <div className="lapidary-media-previews">{files.map((file, index) => <article key={`${file.name}-${file.lastModified}-${index}`}><div>{file.type.startsWith("video/") ? <video src={previews[index]} muted /> : <img src={previews[index]} alt={file.name} />}</div><p title={file.name}>{file.name}</p><small>{(file.size / (1024 * 1024)).toFixed(1)} MB</small><button type="button" onClick={() => onRemove(index)} aria-label={t(`Remove ${file.name}`, `Hapus ${file.name}`)}>×</button></article>)}</div> : <p className="lapidary-media-picker__empty">{t("Add clear photos or a short video to show the material, shape, or finish you have in mind.", "Tambahkan foto yang jelas atau video singkat untuk menunjukkan material, bentuk, atau finishing yang Anda inginkan.")}</p>}
   </div>;
 }

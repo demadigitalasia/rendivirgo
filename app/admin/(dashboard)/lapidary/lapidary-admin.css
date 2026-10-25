@@ -97,6 +97,21 @@
 .rv-lapidary-detail textarea,
 .rv-lapidary-detail input[type="file"] { max-width: 100%; }
 .rv-lapidary-detail__pre { overflow-wrap: anywhere; line-height: 1.6; }
+.rv-lapidary-admin__progress-upload { min-width: 0; }
+.rv-lapidary-progress-upload { position: relative; min-width: 0; }
+.rv-lapidary-progress-upload__input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.rv-lapidary-progress-upload__dropzone { display: flex; align-items: center; gap: 13px; min-height: 78px; padding: 13px 15px; border: 1px dashed #c8d2c7; border-radius: 9px; background: linear-gradient(135deg, #f5f7f1, #fffefa 72%); color: var(--rv-forest); cursor: pointer; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+.rv-lapidary-progress-upload__dropzone:hover { border-color: #829b86; background: #f0f4ed; }
+.rv-lapidary-progress-upload__input:focus-visible + .rv-lapidary-progress-upload__dropzone { outline: 2px solid var(--rv-bronze); outline-offset: 2px; border-color: #829b86; }
+.rv-lapidary-progress-upload__icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border: 1px solid #dce5d8; border-radius: 8px; background: #edf2e9; color: #44694f; }
+.rv-lapidary-progress-upload__copy { display: grid; flex: 1 1 auto; gap: 3px; min-width: 0; }
+.rv-lapidary-progress-upload__copy strong { color: var(--rv-forest); font-size: .75rem; font-weight: 600; }
+.rv-lapidary-progress-upload__copy small { overflow: hidden; color: var(--rv-muted); font-size: .67rem; line-height: 1.45; text-overflow: ellipsis; }
+.rv-lapidary-progress-upload__browse { flex: 0 0 auto; padding: 8px 11px; border: 1px solid #d1dbcf; border-radius: 999px; background: #fffefa; color: var(--rv-forest); font-size: .67rem; font-weight: 600; }
+.rv-lapidary-progress-upload__files { display: grid; gap: 6px; margin: 9px 0 0; padding: 0; list-style: none; }
+.rv-lapidary-progress-upload__files li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 8px 10px; border: 1px solid var(--rv-line); border-radius: 6px; background: #fffefa; }
+.rv-lapidary-progress-upload__files li > span { overflow: hidden; color: var(--rv-ink); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.rv-lapidary-progress-upload__files li > small { flex: 0 0 auto; color: var(--rv-muted); font-size: .64rem; }
 
 @media(max-width:760px) {
   .rv-lapidary-request-card { align-items: flex-start; flex-direction: column; }
@@ -114,6 +129,8 @@
   .rv-lapidary-detail__facts, .rv-lapidary-admin__edit-grid { grid-template-columns: 1fr; }
   .rv-lapidary-detail__facts section:nth-child(3), .rv-lapidary-detail__facts section:last-child { grid-column: auto; }
   .rv-lapidary-detail__facts section:last-child .rv-lapidary-admin__media { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+  .rv-lapidary-progress-upload__dropzone { gap: 10px; padding: 12px; }
+  .rv-lapidary-progress-upload__browse { padding: 7px 9px; }
 }
 
 /* Lapidary editorial workspace */

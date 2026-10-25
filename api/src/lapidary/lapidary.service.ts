@@ -448,7 +448,7 @@ export class LapidaryService {
     };
   }
 
-  async createRequest(input: CreateLapidaryRequestDto, files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }> = []) {
+  async createRequest(input: CreateLapidaryRequestDto, files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }> = [], customerId: string | null = null) {
     // A filled honeypot is reported as received, but never stored or emailed.
     if (input.website?.trim()) return { ok: true, requestNumber: "LR-RECEIVED" };
     if (input.country.trim().length < 2) throw new BadRequestException("Add your country");
@@ -569,6 +569,8 @@ export class LapidaryService {
 
     const now = new Date();
     const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(now).replaceAll("-", "");
+    const claimToken = customerId ? null : randomBytes(32).toString("base64url");
+    const claimTokenHash = claimToken ? createHash("sha256").update(claimToken).digest("hex") : null;
     const request = await this.prisma.$transaction(async (tx) => {
         const sequence = await tx.sequence.upsert({
           where: { key: `lapidary-request:${dateKey}` },
@@ -579,6 +581,9 @@ export class LapidaryService {
         const created = await tx.lapidaryRequest.create({
           data: {
             requestNumber,
+            customerId,
+            claimTokenHash,
+            claimTokenExpiresAt: claimTokenHash ? new Date(Date.now() + 30 * 24 * 60 * 60_000) : null,
             name: input.name.trim(),
             email: input.email.trim().toLowerCase(),
             phone: input.phone.trim(),
@@ -648,16 +653,22 @@ export class LapidaryService {
             entityId: created.id,
           },
         });
-        await this.enqueueIntakeEmails(tx, created, input);
+        await this.enqueueIntakeEmails(tx, created, input, claimToken, claimTokenHash);
         return created;
       }).catch(async (error) => {
         await Promise.all(stagedMedia.map((media) => unlink(media.absolutePath).catch(() => undefined)));
         throw error;
       });
-    return { ok: true, requestNumber: request.requestNumber };
+    return { ok: true, requestNumber: request.requestNumber, accountLinked: Boolean(customerId) };
   }
 
-  private async enqueueIntakeEmails(tx: Prisma.TransactionClient, request: { id: string; name: string; requestNumber: string; email: string; phone: string }, input: CreateLapidaryRequestDto) {
+  private async enqueueIntakeEmails(
+    tx: Prisma.TransactionClient,
+    request: { id: string; name: string; requestNumber: string; email: string; phone: string },
+    input: CreateLapidaryRequestDto,
+    claimToken: string | null,
+    claimTokenHash: string | null,
+  ) {
     const safeName = escapeHtml(request.name);
     const safeNumber = escapeHtml(request.requestNumber);
     const adminUrl = `${publicAppOrigin()}/admin/lapidary/requests?open=${encodeURIComponent(request.id)}`;
@@ -668,11 +679,25 @@ export class LapidaryService {
       return `<li>${service} · ${shape} — ${item.quantity} ${unit}</li>`;
     }).join("");
     const adminHtml = renderLapidaryEmail("A new service request is ready for review.", `<p><strong>${safeNumber}</strong></p><p>${safeName} submitted these shape specifications:</p><ul>${workSummary}</ul><p>Email: ${escapeHtml(request.email)}<br>Phone: ${escapeHtml(request.phone)}</p><p><a href="${escapeHtml(adminUrl)}" style="display:inline-block;margin-top:8px;padding:12px 18px;background:#183e30;color:#fffdf8;text-decoration:none">Review request</a></p>`);
-    const customerHtml = renderLapidaryEmail("We received your project brief.", `<p>Hello ${safeName},</p><p>Your reference number is <strong>${safeNumber}</strong>. Our studio team will review the material and service details, then contact you about availability and a quote.</p><p>This is a service inquiry. Work and payment are only confirmed after you approve the written quote and we confirm the material arrangements.</p>`);
+    const accountUrl = claimToken
+      ? `${publicAppOrigin()}/account/login?next=${encodeURIComponent(`/account/lapidary?claim=${claimToken}`)}`
+      : `${publicAppOrigin()}/account/lapidary`;
+    const accountInstructions = claimToken
+      ? `<p>To follow this project in your account, create an account or sign in using the same email address as this request. Your secure project link expires in 30 days.</p>`
+      : `<p>This project is linked to your customer account. Sign in to follow its progress; we will continue to send email notifications.</p>`;
+    const customerAccountHtml = renderLapidaryEmail(
+      "We received your project brief.",
+      `<p>Hello ${safeName},</p><p>Your reference number is <strong>${safeNumber}</strong>. Our studio team will review the material and service details, then contact you about availability and a quote.</p>${accountInstructions}<p><a href="${escapeHtml(accountUrl)}">${claimToken ? "Create an account or sign in to follow this project" : "Open your project account"}</a></p><p>This is a service inquiry. Work and payment are only confirmed after you approve the written quote and we confirm the material arrangements.</p>`,
+    );
     const store = await this.settings.getPublicSettings();
     const storeEmail = store["store.email"] as string;
     await this.emailOutbox.enqueue(tx, request.id, `lapidary:${request.id}:intake-admin`, { to: storeEmail, replyTo: request.email, subject: `Lapidary request ${request.requestNumber} — ${request.name}`, html: adminHtml });
-    await this.emailOutbox.enqueue(tx, request.id, `lapidary:${request.id}:intake-customer`, { to: request.email, subject: `Lapidary request received — ${request.requestNumber}`, html: customerHtml });
+    await this.emailOutbox.enqueue(tx, request.id, `lapidary:${request.id}:intake-customer`, {
+      to: request.email,
+      ...(claimTokenHash ? { claimTokenHash } : {}),
+      subject: `Lapidary request received — ${request.requestNumber}`,
+      html: customerAccountHtml,
+    });
   }
 
   private validateRequestMedia(files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>) {
@@ -963,12 +988,15 @@ export class LapidaryService {
           },
           include: { media: { select: { id: true, originalName: true, mimeType: true, size: true } } },
         });
-        if (update.isCustomerVisible && request.customerId) {
+        if (update.isCustomerVisible) {
           const projectUrl = `${publicAppOrigin()}/account/lapidary`;
+          const accountAccess = request.customerId
+            ? `<p><a href="${escapeHtml(projectUrl)}">Open your project dashboard</a></p>`
+            : `<p>To see this project in your account, use the secure project link in your request confirmation email after signing in or creating an account with this same email address.</p>`;
           await this.emailOutbox.enqueue(tx, requestId, `lapidary:${requestId}:progress:${update.id}`, {
             to: request.email,
             subject: `Lapidary progress update — ${request.requestNumber}`,
-            html: renderLapidaryEmail("There is a new update on your stone.", `<p>Hello ${escapeHtml(request.name)},</p><p><strong>${escapeHtml(update.title)}</strong></p><p>${escapeHtml(update.body).replaceAll("\n", "<br>")}</p><p><a href="${escapeHtml(projectUrl)}">Open your project dashboard</a></p>`),
+            html: renderLapidaryEmail("There is a new update on your stone.", `<p>Hello ${escapeHtml(request.name)},</p><p>Project <strong>${escapeHtml(request.requestNumber)}</strong></p><p><strong>${escapeHtml(update.title)}</strong></p><p>${escapeHtml(update.body).replaceAll("\n", "<br>")}</p>${accountAccess}`),
           });
         }
         return update;
@@ -1068,7 +1096,7 @@ export class LapidaryService {
     const result = await this.withRequestLock(requestId, async (tx) => {
       const request = await tx.lapidaryRequest.findUnique({ where: { id: requestId } });
       if (!request) throw new NotFoundException("Lapidary request not found");
-      if (request.customerId || !["Approved", "MaterialInTransit", "MaterialReceived", "EstimateSent"].includes(request.status)) throw new ConflictException("Only approved, unlinked projects can receive a new account invitation");
+      if (request.customerId) throw new ConflictException("This project is already linked to a customer account");
       const lifetime = 30 * 24 * 60 * 60_000;
       if (request.claimTokenExpiresAt && request.claimTokenExpiresAt.getTime() - lifetime > Date.now() - 60_000) throw new ConflictException("Wait one minute before sending another invitation");
       const token = randomBytes(32).toString("base64url");
@@ -1286,14 +1314,11 @@ export class LapidaryService {
     const approvalNoticeChanged = nextStatus === "Approved"
       && (existing.status !== "Approved" || estimateChanged || shippingInstructionsChanged);
     if (customerMaterial && approvalNoticeChanged && (!this.email.isEnabled() || !this.email.readiness().senderConfigured)) throw new ServiceUnavailableException("Configure email delivery before approving the project or sending studio instructions");
-    if (customerMaterial && approvalNoticeChanged && !existing.customerId) {
+    const hasActiveClaimLink = Boolean(existing.claimTokenHash && existing.claimTokenExpiresAt && existing.claimTokenExpiresAt > new Date());
+    if (customerMaterial && approvalNoticeChanged && !existing.customerId && !hasActiveClaimLink) {
       claimToken = randomBytes(32).toString("base64url");
       data.claimTokenHash = createHash("sha256").update(claimToken).digest("hex");
       data.claimTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60_000);
-    }
-    if (customerMaterial && ["Cancelled", "Declined"].includes(nextStatus)) {
-      data.claimTokenHash = null;
-      data.claimTokenExpiresAt = null;
     }
     if (customerMaterial && nextStatus === "MaterialReceived" && existing.status !== "MaterialReceived") data.materialReceivedAt = new Date();
 
@@ -1383,8 +1408,12 @@ export class LapidaryService {
           ? `/account/lapidary?claim=${encodeURIComponent(claimToken)}`
           : "/account/lapidary";
         const accountUrl = `${baseUrl}/account/login?next=${encodeURIComponent(nextPath)}`;
+        const accountAccessInstructions = !claimToken && !existing.customerId
+          ? `<p>Use the secure project link in our request confirmation email to link this project to your account. Sign in or create an account using the same email address as this request. If that link has expired, contact the studio and we can send a new one.</p>`
+          : "";
+        const accountLinkLabel = claimToken ? "Create account or sign in" : existing.customerId ? "Open your project account" : "Sign in to your account";
         const emailInstructions = (shippingInstructions || "").split("\n").map(escapeHtml).join("<br>");
-        const customerEmail = renderLapidaryEmail("Your stone can be sent to our studio.", `<p>Hello ${escapeHtml(updated.name)},</p><p>Your customer supplied stone project <strong>${escapeHtml(updated.requestNumber)}</strong> has been approved for studio intake.</p><p><strong>Service estimate range:</strong> ${escapeHtml(updated.quoteCurrency)} ${Number(updated.serviceEstimateMin).toFixed(2)}–${Number(updated.serviceEstimateMax).toFixed(2)}. The final service fee will be set after the work is complete and will not exceed the accepted maximum unless you approve a revised estimate. Return shipping is calculated at completion and included as a separate invoice line.</p><p><strong>Ship your stone to:</strong><br>${emailInstructions}</p><p>Please pay the shipment to the studio yourself, use protective packaging and include your project reference ${escapeHtml(updated.requestNumber)} inside the parcel. Accept the estimate and enter your carrier and tracking number in your account before dispatch.</p><p><a href="${escapeHtml(accountUrl)}" style="display:inline-block;margin-top:8px;padding:12px 18px;background:#183e30;color:#fffdf8;text-decoration:none">Create account or sign in</a></p>`);
+        const customerEmail = renderLapidaryEmail("Your stone can be sent to our studio.", `<p>Hello ${escapeHtml(updated.name)},</p><p>Your customer supplied stone project <strong>${escapeHtml(updated.requestNumber)}</strong> has been approved for studio intake.</p><p><strong>Service estimate range:</strong> ${escapeHtml(updated.quoteCurrency)} ${Number(updated.serviceEstimateMin).toFixed(2)}–${Number(updated.serviceEstimateMax).toFixed(2)}. The final service fee will be set after the work is complete and will not exceed the accepted maximum unless you approve a revised estimate. Return shipping is calculated at completion and included as a separate invoice line.</p><p><strong>Ship your stone to:</strong><br>${emailInstructions}</p><p>Please pay the shipment to the studio yourself, use protective packaging and include your project reference ${escapeHtml(updated.requestNumber)} inside the parcel. Accept the estimate and enter your carrier and tracking number in your account before dispatch.</p>${accountAccessInstructions}<p><a href="${escapeHtml(accountUrl)}" style="display:inline-block;margin-top:8px;padding:12px 18px;background:#183e30;color:#fffdf8;text-decoration:none">${accountLinkLabel}</a></p>`);
         await this.emailOutbox.enqueue(tx, id, `lapidary:${id}:approved:${randomBytes(12).toString("hex")}`, {
           to: updated.email,
           ...(claimToken ? { claimTokenHash: createHash("sha256").update(claimToken).digest("hex") } : {}),

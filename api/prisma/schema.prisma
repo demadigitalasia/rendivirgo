@@ -212,6 +212,18 @@ enum LapidaryEmailOutboxStatus {
   Failed
 }
 
+enum ContactEmailOutboxKind {
+  AdminNotification
+  CustomerReply
+}
+
+enum ContactEmailOutboxStatus {
+  Pending
+  Processing
+  Sent
+  Failed
+}
+
 enum LapidaryMaterialSource {
   CustomerSupplied
   RendiVirgoStock
@@ -963,6 +975,7 @@ model ProductReview {
 }
 
 model Banner {
+  heroContent Json?
   id        String          @id @default(cuid())
   title     String
   subtitle  String?
@@ -1206,21 +1219,43 @@ model LapidaryArtist {
 // ---------------------------------------------------------------- inbox
 
 model Message {
-  id        String        @id @default(cuid())
-  name      String
-  email     String
-  phone     String?
-  subject   String
-  body      String
-  status    MessageStatus @default(New)
+  id         String                   @id @default(cuid())
+  name       String
+  email      String
+  phone      String?
+  subject    String
+  body       String
+  status     MessageStatus            @default(New)
   adminReply String?
-  repliedAt DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  repliedAt  DateTime?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  emailOutbox ContactEmailOutbox[]
 
   @@index([status])
   @@index([createdAt])
   @@index([email])
+}
+
+model ContactEmailOutbox {
+  id               String                  @id @default(cuid())
+  messageId        String
+  kind             ContactEmailOutboxKind
+  dedupeKey        String                  @unique
+  encryptedPayload String                  @db.Text
+  status           ContactEmailOutboxStatus @default(Pending)
+  attempts         Int                     @default(0)
+  availableAt      DateTime                @default(now())
+  lockedAt         DateTime?
+  lastError        String?
+  sentAt           DateTime?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  message          Message                 @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, createdAt])
+  @@index([status, availableAt, createdAt])
+  @@index([status, lockedAt])
 }
 
 model NewsletterSubscriber {

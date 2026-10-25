@@ -31,6 +31,15 @@ import {
 import "./messages.css";
 
 type MessageStatus = "New" | "Read" | "Replied" | "Archived";
+type ContactEmail = {
+  id: string;
+  kind: "AdminNotification" | "CustomerReply";
+  status: "Pending" | "Processing" | "Sent" | "Failed";
+  attempts: number;
+  lastError: string | null;
+  sentAt: string | null;
+  createdAt: string;
+};
 
 type Message = {
   id: string;
@@ -44,9 +53,13 @@ type Message = {
   repliedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  emailOutbox?: ContactEmail[];
 };
 
-type MessageListResponse = PaginatedResponse<Message> & { unreadCount: number };
+type MessageListResponse = PaginatedResponse<Message> & {
+  unreadCount: number;
+  emailReadiness: { enabled: boolean; senderConfigured: boolean; acceptedDoesNotMeanDelivered: boolean };
+};
 
 const statusOptions = [
   { value: "New", label: "New" },
@@ -91,13 +104,24 @@ export default function AdminMessagesPage() {
     setSending(true);
     try {
       await apiFetch(`/api/admin/messages/${selectedId}/reply`, { json: { adminReply: reply.trim() } });
-      toast.success("Reply saved");
+      toast.success("Reply saved and queued for email delivery");
       detail.refresh();
       listRefresh();
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
       setSending(false);
+    }
+  };
+
+  const retryEmail = async (emailId: string) => {
+    if (!selectedId) return;
+    try {
+      await apiFetch(`/api/admin/messages/${selectedId}/emails/${emailId}/retry`, { method: "POST" });
+      toast.success("Email queued for retry");
+      detail.refresh();
+    } catch (error) {
+      toast.error(errorMessage(error));
     }
   };
 
@@ -141,6 +165,16 @@ export default function AdminMessagesPage() {
       />
 
       <div className="rv-content">
+        {data?.emailReadiness && (!data.emailReadiness.enabled || !data.emailReadiness.senderConfigured) ? (
+          <Card title="Email delivery is not ready">
+            <p className="rv-error-text">
+              {!data.emailReadiness.enabled
+                ? "RESEND_API_KEY is not configured. Contact messages are still saved in this inbox, but queued email alerts and replies will wait."
+                : "EMAIL_FROM is not configured. Set a verified sender address before queued alerts and replies can be sent."}
+            </p>
+          </Card>
+        ) : null}
+
         {state.error ? (
           <Card title="Could not load messages">
             <p className="rv-error-text">{state.error}</p>
@@ -249,6 +283,32 @@ export default function AdminMessagesPage() {
 
                 <div className="rv-inbox__body">{selected.body}</div>
 
+                {selected.emailOutbox?.length ? (
+                  <section className="rv-stack" aria-label="Email delivery history">
+                    <div className="rv-inline" style={{ justifyContent: "space-between" }}>
+                      <div>
+                        <h3>Email delivery</h3>
+                        <p className="rv-hint">Sent means accepted by the email provider; it does not confirm inbox delivery.</p>
+                      </div>
+                      <Button size="sm" onClick={detail.refresh}>Refresh status</Button>
+                    </div>
+                    {selected.emailOutbox.map((email) => (
+                      <article className="rv-card rv-stack" key={email.id}>
+                        <div className="rv-inline" style={{ justifyContent: "space-between" }}>
+                          <strong>{email.kind === "AdminNotification" ? "Admin notification" : "Customer reply"}</strong>
+                          <StatusBadge status={email.status} />
+                        </div>
+                        <p className="rv-hint">
+                          {email.attempts} attempt{email.attempts === 1 ? "" : "s"} · queued {formatDateTime(email.createdAt)}
+                          {email.sentAt ? ` · accepted ${formatDateTime(email.sentAt)}` : ""}
+                        </p>
+                        {email.lastError && email.status === "Failed" ? <p className="rv-error-text">{email.lastError}</p> : null}
+                        {email.status === "Failed" ? <Button size="sm" onClick={() => void retryEmail(email.id)}>Retry email</Button> : null}
+                      </article>
+                    ))}
+                  </section>
+                ) : null}
+
                 {selected.adminReply ? (
                   <div className="rv-inbox__reply">
                     <span className="rv-hint">Your reply</span>
@@ -256,7 +316,7 @@ export default function AdminMessagesPage() {
                   </div>
                 ) : null}
 
-                <Field label={selected.adminReply ? "Update reply" : "Reply"} hint="Saving a reply marks the message as Replied">
+                <Field label={selected.adminReply ? "Update reply" : "Reply"} hint="Saving a reply marks the message as Replied and queues a customer email">
                   <TextArea value={reply} onChange={setReply} rows={5} placeholder="Write your reply…" />
                 </Field>
 

@@ -62,8 +62,8 @@ describe("Lapidary workflow with isolated PostgreSQL", { skip: !databaseUrl }, (
     assert.equal(await prisma.lapidaryEmailOutbox.count({ where: { requestId: request.id } }), 2, "Intake emails must be transactional outbox jobs");
     await service.updateRequest(request.id, { status: "Reviewing" }, context);
     await service.updateRequest(request.id, { status: "Approved", serviceEstimateMin: 50, serviceEstimateMax: 100, materialShippingInstructions: "Fixture studio address and parcel instructions" }, context);
-    const approval = await prisma.lapidaryEmailOutbox.findFirstOrThrow({ where: { requestId: request.id, dedupeKey: { contains: ":approved:" } } });
-    const claim = claimFrom(decode(approval.encryptedPayload).html);
+    const intakeInvitation = await prisma.lapidaryEmailOutbox.findFirstOrThrow({ where: { requestId: request.id, dedupeKey: `lapidary:${request.id}:intake-customer` } });
+    const claim = claimFrom(decode(intakeInvitation.encryptedPayload).html);
     let verificationHtml = "";
     const auth = new CustomerAuthService(prisma as never, { enqueue: async (_tx: unknown, job: { email: { html: string } }) => { verificationHtml = job.email.html; } } as never, new ConfigService({ PUBLIC_SITE_URL: "http://localhost:3000", APP_ORIGIN: "http://localhost:3001" }));
     await auth.register({ email: "fixture@example.invalid", next: `/account/lapidary?claim=${claim}` });

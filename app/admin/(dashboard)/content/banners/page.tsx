@@ -46,7 +46,7 @@ const emptyForm: BannerForm = {
   imageUrl: "",
   ctaLabel: "",
   ctaHref: "",
-  placement: "HomeHero",
+  placement: "Promo",
   sortOrder: "0",
   isActive: true,
 };
@@ -172,7 +172,7 @@ export default function BannersPage() {
       header: "",
       align: "right",
       width: "170px",
-      render: (item) => (
+      render: (item) => item.placement === "HomeHero" ? <Button size="sm" href="/admin/content/home/hero-slides">Edit hero slides</Button> : (
         <div className="rv-inline" style={{ justifyContent: "flex-end" }}>
           <Button size="sm" onClick={() => openEdit(item)}>
             Edit
@@ -194,7 +194,7 @@ export default function BannersPage() {
     <>
       <PageHeader
         title="Banners"
-        subtitle="Hero and promotional imagery"
+        subtitle="Promotional imagery · Home hero banners are managed in Home → Hero Slides"
         actions={
           <Button variant="primary" onClick={openCreate}>
             New banner
@@ -265,7 +265,7 @@ export default function BannersPage() {
               <Select
                 value={form.placement}
                 onChange={(value) => update("placement", value as BannerPlacement)}
-                options={bannerPlacementOptions}
+                options={bannerPlacementOptions.filter(option => option.value !== "HomeHero")}
               />
             </Field>
           </div>

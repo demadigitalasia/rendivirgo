@@ -1,5 +1,6 @@
 "use client";
 
+import type { HeroDocument } from "@/lib/hero-slides";
 import { AiDraft } from "@/components/admin/ai-draft";
 import { SeoPanel } from "@/components/admin/seo-panel";
 
@@ -109,6 +110,8 @@ function formFrom(data: SiteContent): HomeForm {
 
 export default function ContentHomePage() {
   const state: ApiState<SiteContent> = useApi<SiteContent>("/api/admin/site-content");
+  const heroState = useApi<HeroDocument>("/api/admin/hero-slides");
+  const hero = heroState.data?.slides.find(slide => slide.isActive);
   const [form, setForm] = useState<HomeForm>(emptyForm);
   const [saved, setSaved] = useState<HomeForm>(emptyForm);
   const [busy, setBusy] = useState(false);
@@ -142,11 +145,6 @@ export default function ContentHomePage() {
     if (form.metaTitleId !== saved.metaTitleId) payload["home.metaTitleId"] = form.metaTitleId;
     if (form.metaDescriptionId !== saved.metaDescriptionId) payload["home.metaDescriptionId"] = form.metaDescriptionId;
 
-    if (form.heroTitle !== saved.heroTitle) payload["home.heroTitle"] = form.heroTitle;
-    if (form.heroSubtitle !== saved.heroSubtitle) payload["home.heroSubtitle"] = form.heroSubtitle;
-    if (form.heroTitleId !== saved.heroTitleId) payload["home.heroTitleId"] = form.heroTitleId;
-    if (form.heroSubtitleId !== saved.heroSubtitleId) payload["home.heroSubtitleId"] = form.heroSubtitleId;
-    if (form.heroImage !== saved.heroImage) payload["home.heroImage"] = form.heroImage;
     if (form.ownerName !== saved.ownerName) payload["home.ownerName"] = form.ownerName;
     if (form.ownerRole !== saved.ownerRole) payload["home.ownerRole"] = form.ownerRole;
     if (form.ownerRoleId !== saved.ownerRoleId) payload["home.ownerRoleId"] = form.ownerRoleId;
@@ -220,12 +218,12 @@ export default function ContentHomePage() {
           <div className="rv-home-layout">
             <div className="rv-stack rv-home-form">
               <Card title="AI content assistant" description="Draft homepage copy from your existing content and verified facts.">
-                <AiDraft kind="home" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle, ownerName: form.ownerName, ownerRole: form.ownerRole, ownerBio: form.ownerBio }} onApply={draft => setForm(current => ({ ...current, heroTitle: draft.heroTitle, heroSubtitle: draft.heroSubtitle, heroTitleId: draft.heroTitleId, heroSubtitleId: draft.heroSubtitleId, ownerBio: draft.ownerBio, ownerBioId: draft.ownerBioId, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+                <AiDraft kind="home" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle, ownerName: form.ownerName, ownerRole: form.ownerRole, ownerBio: form.ownerBio }} onApply={draft => setForm(current => ({ ...current, ownerBio: draft.ownerBio, ownerBioId: draft.ownerBioId, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
               </Card>
               <Card title="Home SEO">
                 <div className="rv-stack">
-                  <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "home", title: form.heroTitle, slug: "", body: `${form.heroSubtitle}\n\n${form.ownerBio}`, metaTitle: form.metaTitle, metaDescription: form.metaDescription, images: [{ url: form.heroImage, alt: form.heroTitle, fallback: true }] }}
-                    translation={{ kind: "home", title: form.heroTitleId, slug: "", body: `${form.heroSubtitleId}\n\n${form.ownerBioId}`, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, images: [{ url: form.heroImage, alt: form.heroTitleId, fallback: true }] }}
+                  <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "home", title: hero?.en.title || form.heroTitle, slug: "", body: `${hero?.en.description || form.heroSubtitle}\n\n${form.ownerBio}`, metaTitle: form.metaTitle, metaDescription: form.metaDescription, images: [{ url: hero?.imageUrl || form.heroImage, alt: hero?.en.alt || form.heroTitle, fallback: true }] }}
+                    translation={{ kind: "home", title: hero?.idCopy.title || form.heroTitleId, slug: "", body: `${hero?.idCopy.description || form.heroSubtitleId}\n\n${form.ownerBioId}`, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, images: [{ url: hero?.imageUrl || form.heroImage, alt: hero?.idCopy.alt || form.heroTitleId, fallback: true }] }}
                     onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
                   <Field label="SEO title (English)"><TextArea rows={2} value={form.metaTitle} onChange={value => update("metaTitle", value)} /></Field>
                   <Field label="Meta description (English)"><TextArea rows={2} value={form.metaDescription} onChange={value => update("metaDescription", value)} /></Field>
@@ -233,32 +231,9 @@ export default function ContentHomePage() {
                   <Field label="Meta description (Bahasa Indonesia)"><TextArea rows={2} value={form.metaDescriptionId} onChange={value => update("metaDescriptionId", value)} /></Field>
                 </div>
               </Card>
-              <Card title="Hero" description="Top of the home page" className="rv-home-section rv-home-section--hero">
-                <div className="rv-stack">
-                  <div className="rv-form-grid">
-                    <Field label="Hero title">
-                      <TextInput value={form.heroTitle} onChange={(value) => update("heroTitle", value)} />
-                    </Field>
-                    <Field label="Hero subtitle">
-                      <TextInput value={form.heroSubtitle} onChange={(value) => update("heroSubtitle", value)} />
-                    </Field>
-                  </div>
-                  <div className="rv-form-grid">
-                    <Field label="Hero title in Bahasa Indonesia">
-                      <TextInput value={form.heroTitleId} onChange={(value) => update("heroTitleId", value)} />
-                    </Field>
-                    <Field label="Hero subtitle in Bahasa Indonesia">
-                      <TextArea rows={2} value={form.heroSubtitleId} onChange={(value) => update("heroSubtitleId", value)} />
-                    </Field>
-                  </div>
-                  <MediaPicker
-                    label="Hero image"
-                    folder="banners"
-                    multiple={false}
-                    value={form.heroImage ? [form.heroImage] : []}
-                    onChange={(urls) => update("heroImage", urls[0] ?? "")}
-                  />
-                </div>
+              <Card title="Hero Slides" description="Images, bilingual copy, buttons, animation and slide order are managed together.">
+                <p>{heroState.loading ? "Loading hero slides…" : `${heroState.data?.slides.filter(slide => slide.isActive).length ?? 0} active slides`}</p>
+                <Button variant="primary" href="/admin/content/home/hero-slides">Manage Hero Slides</Button>
               </Card>
 
               <Card title="Owner" description="Founder story block" className="rv-home-section">
@@ -353,12 +328,12 @@ export default function ContentHomePage() {
             <aside className="rv-stack rv-home-preview-rail">
               <Card title="Preview" description="Hero and owner copy as visitors will read it" className="rv-home-section rv-home-preview-card">
                 <div className="rv-content-preview">
-                  {form.heroImage ? (
-                    <img className="rv-content-preview__image" src={form.heroImage} alt="" />
+                  {(hero?.imageUrl || form.heroImage) ? (
+                    <img className="rv-content-preview__image" src={hero?.imageUrl || form.heroImage} alt="" />
                   ) : null}
                   <div className="rv-content-preview__eyebrow">Home hero</div>
-                  <h2 className="rv-content-preview__title">{form.heroTitle || "Hero title"}</h2>
-                  <p className="rv-content-preview__subtitle">{form.heroSubtitle || "Hero subtitle"}</p>
+                  <h2 className="rv-content-preview__title">{hero?.en.title || form.heroTitle || "Hero title"}</h2>
+                  <p className="rv-content-preview__subtitle">{hero?.en.description || form.heroSubtitle || "Hero subtitle"}</p>
                   <div className="rv-content-preview__owner">
                     <div className="rv-content-preview__owner-name">{form.ownerName || "Owner name"}</div>
                     {form.ownerRole ? <div className="rv-content-preview__owner-role">{form.ownerRole}</div> : null}

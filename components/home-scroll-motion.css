@@ -19,9 +19,9 @@
 }
 .storefront .home-page .home-motion-pending { opacity: 0; translate: 0 28px; }
 .storefront .home-page [data-home-reveal="visual"].home-motion-pending { translate: 0 38px; }
-.storefront .home-page[data-scroll-motion="ready"] .hero__image { transform: translateY(var(--home-shift, 0px)) scale(1.065); }
-.storefront .home-page[data-scroll-motion="ready"] .hero__copy { transform: translateY(var(--home-copy-shift, 0px)); }
-.storefront .home-page[data-scroll-motion="ready"] .hero__spec { translate: 0 var(--home-copy-shift, 0px); }
+.storefront .home-page[data-scroll-motion="ready"] .hero:not(.hero-slider) .hero__image { transform: translateY(var(--home-shift, 0px)) scale(1.065); }
+.storefront .home-page[data-scroll-motion="ready"] .hero:not(.hero-slider) .hero__copy { transform: translateY(var(--home-copy-shift, 0px)); }
+.storefront .home-page[data-scroll-motion="ready"] .hero:not(.hero-slider) .hero__spec { translate: 0 var(--home-copy-shift, 0px); }
 .storefront .home-page[data-scroll-motion="ready"] .nature-note__art img { translate: 0 var(--home-shift, 0px); }
 .storefront .home-page[data-scroll-motion="ready"] .owner-story__stage { translate: 0 var(--home-copy-shift, 0px); }
 .storefront .home-page[data-scroll-motion="ready"] .home-closing > svg { translate: 0 var(--home-copy-shift, 0px); }
@@ -32,9 +32,9 @@
 @media (prefers-reduced-motion: reduce) {
   .storefront .home-page [data-home-reveal], .storefront .home-page [data-home-stagger] > *,
   .storefront .home-page .home-motion-pending { opacity: 1; translate: none; }
-  .storefront .home-page[data-scroll-motion="ready"] .hero__image,
-  .storefront .home-page[data-scroll-motion="ready"] .hero__copy { transform: none; }
-  .storefront .home-page[data-scroll-motion="ready"] .hero__spec,
+  .storefront .home-page[data-scroll-motion="ready"] .hero:not(.hero-slider) .hero__image,
+  .storefront .home-page[data-scroll-motion="ready"] .hero:not(.hero-slider) .hero__copy { transform: none; }
+  .storefront .home-page[data-scroll-motion="ready"] .hero:not(.hero-slider) .hero__spec,
   .storefront .home-page[data-scroll-motion="ready"] .nature-note__art img,
   .storefront .home-page[data-scroll-motion="ready"] .owner-story__stage,
   .storefront .home-page[data-scroll-motion="ready"] .home-closing > svg { translate: none; }

@@ -1,3 +1,4 @@
+import { DEFAULT_HERO, type HeroDocument } from "@/lib/hero-slides";
 import type { Product, ProductStatus, ProductTone, ShippingClass, StockModel, Unit } from "@/lib/catalog";
 import type { Language } from "@/lib/i18n";
 import { defaultProductWatermark, type ProductWatermarkSettings } from "@/lib/product-watermark";
@@ -581,6 +582,10 @@ export async function getPageWithStatus(slug: string, language: Language = "en")
 
 export async function getTestimonials(language: Language = "en") {
   return (await apiGet<ApiTestimonial[]>("/api/testimonials", { language })) ?? [];
+}
+
+export async function getHeroSlides(): Promise<HeroDocument> {
+  return (await apiGet<HeroDocument>("/api/hero-slides", { tags: ["home-hero"] })) ?? DEFAULT_HERO;
 }
 
 export async function getBanners(placement?: ApiBanner["placement"]) {

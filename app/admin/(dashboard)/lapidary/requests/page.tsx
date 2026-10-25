@@ -6,6 +6,7 @@ import { apiFetch, errorMessage, useApi, useList } from "@/components/admin/api"
 import { TablePagination } from "@/components/admin/data-table";
 import { Badge, Button, Card, Field, Loading, Modal, PageHeader, Select, Switch, TextArea, TextInput } from "@/components/admin/ui";
 import { toast } from "@/components/admin/toast";
+import { UploadIcon } from "@/components/icons";
 
 const statuses = ["New", "Reviewing", "QuoteSent", "Approved", "MaterialInTransit", "MaterialReceived", "EstimateSent", "InProgress", "AwaitingPayment", "ReturnPending", "ReturnShipped", "Delivered", "Completed", "Declined", "Cancelled"];
 type LapidaryRequest = {
@@ -232,10 +233,14 @@ export default function AdminLapidaryRequestsPage() {
           <div><h3>Material and return shipment</h3><p className="rv-hint">Customer pays the shipment to the studio. Set the studio receiving address in the approval instructions.</p></div>
           <p>Inbound: {selected.inboundCarrier ? `${selected.inboundCarrier} · ${selected.inboundTrackingNumber || "tracking pending"}` : "Customer has not sent tracking details"}{selected.inboundTrackingUrl ? <> · <a href={selected.inboundTrackingUrl} target="_blank" rel="noreferrer">Track inbound parcel</a></> : null}</p>
           <p>Material received: {selected.materialReceivedAt ? new Date(selected.materialReceivedAt).toLocaleString() : "Not confirmed"} · Estimate accepted: {selected.estimateAcceptedAt ? new Date(selected.estimateAcceptedAt).toLocaleString() : "Awaiting customer"}</p>
-          {selected.customer ? <p>Return destination in customer profile: {[selected.customer.name, selected.customer.phone, selected.customer.addressLine1, selected.customer.addressLine2, selected.customer.city, selected.customer.state, selected.customer.postalCode, selected.customer.country || selected.customer.countryCode].filter(Boolean).join(", ") || "No complete address"}</p> : <div className="rv-stack"><p className="rv-hint">Customer has not linked a verified account yet.</p>{["Approved", "MaterialInTransit", "MaterialReceived", "EstimateSent", "ReturnPending"].includes(selected.status) ? <Button loading={inviting} disabled={!readiness.data?.email.enabled} onClick={() => void reissueInvitation()}>Send new account invitation</Button> : null}</div>}
+          {selected.customer ? <p>Return destination in customer profile: {[selected.customer.name, selected.customer.phone, selected.customer.addressLine1, selected.customer.addressLine2, selected.customer.city, selected.customer.state, selected.customer.postalCode, selected.customer.country || selected.customer.countryCode].filter(Boolean).join(", ") || "No complete address"}</p> : <p className="rv-hint">Customer has not linked a verified account yet.</p>}
           {selected.invoice ? <div><p>Final invoice: {selected.invoice.currency} {Number(selected.invoice.totalAmount).toFixed(2)} · {selected.invoice.status}</p><p>Address used for return shipping: {[selected.invoice.returnRecipientName, selected.invoice.returnPhone, selected.invoice.returnAddressLine1, selected.invoice.returnAddressLine2, selected.invoice.returnCity, selected.invoice.returnState, selected.invoice.returnPostalCode, selected.invoice.returnCountry || selected.invoice.returnCountryCode].filter(Boolean).join(", ")}</p>{selected.invoice.paymentProofUploadedAt ? <p><a href={`/api/admin/lapidary/requests/${selected.id}/invoice/payment-proof`} target="_blank" rel="noreferrer">Review bank transfer receipt</a> · uploaded {new Date(selected.invoice.paymentProofUploadedAt).toLocaleString()}</p> : <p className="rv-hint">No bank transfer receipt uploaded yet.</p>}{selected.invoice.status === "AwaitingPayment" && selected.invoice.paymentProofUploadedAt ? <Button onClick={() => void markInvoicePaid()}>Confirm bank transfer</Button> : null}</div> : null}
           {selected.returnTrackingNumber ? <p>Return: {selected.returnCarrier || "Carrier"} · {selected.returnTrackingNumber}{selected.returnTrackingUrl ? <> · <a href={selected.returnTrackingUrl} target="_blank" rel="noreferrer">Track return parcel</a></> : null}</p> : null}
         </section> : null}
+        <section className="rv-card rv-stack">
+          <div><h3>Customer account</h3>{selected.customer ? <p>Linked to {selected.customer.name} · {selected.customer.email}.</p> : <p className="rv-hint">The customer can claim this project with the secure link sent to their request email. Send a replacement link if needed.</p>}</div>
+          {!selected.customer ? <Button loading={inviting} disabled={!readiness.data?.email.enabled || !readiness.data?.email.senderConfigured} onClick={() => void reissueInvitation()}>Send secure account link</Button> : null}
+        </section>
         <form className="rv-stack" onSubmit={save}>
           <div className="rv-lapidary-admin__edit-grid">
             <Field label="Request status"><Select value={form.status} onChange={(status) => setForm({ ...form, status })} options={availableStatuses(selected).map((value) => ({ value, label: displayStatus(value) }))} /></Field>
@@ -256,20 +261,30 @@ export default function AdminLapidaryRequestsPage() {
             {form.status === "ReturnShipped" ? <section className="rv-card rv-stack"><h3>Return tracking</h3><div className="rv-lapidary-admin__edit-grid"><Field label="Carrier"><TextInput maxLength={120} value={form.returnCarrier} onChange={(returnCarrier) => setForm({ ...form, returnCarrier })} /></Field><Field label="Tracking number"><TextInput maxLength={160} value={form.returnTrackingNumber} onChange={(returnTrackingNumber) => setForm({ ...form, returnTrackingNumber })} /></Field><Field label="Tracking link"><TextInput type="url" maxLength={1000} value={form.returnTrackingUrl} onChange={(returnTrackingUrl) => setForm({ ...form, returnTrackingUrl })} /></Field></div></section> : null}
           </> : null}
           <Field label="Internal notes"><TextArea value={form.adminNotes} onChange={(adminNotes) => setForm({ ...form, adminNotes })} rows={4} maxLength={8000} /></Field>
-          <p className="rv-hint">Status transitions are checked by the API. Approved customer-supplied requests email shipping instructions and a secure account link; invoices are created when you move the project to Awaiting Payment.</p>
+          <p className="rv-hint">Status transitions are checked by the API. Every new request queues a secure account link; approved customer-supplied projects also email studio shipping instructions. Invoices are created when you move the project to Awaiting Payment.</p>
           {error ? <p className="rv-error-text" role="alert">{error}</p> : null}
           <div className="rv-inline rv-lapidary-admin__actions"><Button onClick={() => setSelected(null)} disabled={saving}>Cancel</Button><Button type="submit" variant="primary" loading={saving}>Save request</Button></div>
         </form>
-        {selected.materialSource === "CustomerSupplied" ? <section className="rv-card rv-stack">
+        <section className="rv-card rv-stack">
           <div><h3>Customer progress timeline</h3><p className="rv-hint">Publish a concise step and add photos. Only customer-visible updates are shown in their account.</p></div>
           {selected.progressUpdates?.length ? selected.progressUpdates.map((update) => <article className="rv-lapidary-work-update" key={update.id}><small>{new Date(update.createdAt).toLocaleString()} · {update.isCustomerVisible ? "Customer visible" : "Internal"}</small><h4>{update.title}</h4><p>{update.body}</p>{update.media.length ? <div className="rv-lapidary-admin__media">{update.media.map((media) => <a key={media.id} href={`/api/admin/lapidary/requests/${selected.id}/updates/${update.id}/media/${media.id}`} target="_blank" rel="noreferrer"><img src={`/api/admin/lapidary/requests/${selected.id}/updates/${update.id}/media/${media.id}`} alt={media.originalName} loading="lazy" /></a>)}</div> : null}</article>) : <p className="rv-hint">No progress updates yet.</p>}
           <Field label="Progress template"><Select value="" onChange={(value) => { if (value) setProgressTitle(value); }} options={[{ value: "", label: "Choose a stage or write your own" }, ...["Material received and photographed", "Stone assessment complete", "Shaping complete", "Grinding complete", "Polishing complete", "Final quality review complete", "Finished stone photos"].map((value) => ({ value, label: value }))]} /></Field>
           <Switch checked={progressVisible} onChange={setProgressVisible} label="Visible to the customer (turn off for an internal note)" />
           <Field label="Update title"><TextInput maxLength={160} value={progressTitle} onChange={setProgressTitle} placeholder="e.g. Stone assessment complete" /></Field>
           <Field label="Customer update"><TextArea rows={3} maxLength={4000} value={progressBody} onChange={setProgressBody} /></Field>
-          <Field label="Progress photos"><input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple onChange={(event) => setProgressPhotos(Array.from(event.target.files ?? []))} /><small className="rv-hint">Up to 5 photos, 6 MB each.</small></Field>
+          <Field label="Progress photos" inputId="lapidary-progress-photos" hint="Up to 5 photos, 6 MB each." className="rv-lapidary-admin__progress-upload">
+            <div className="rv-lapidary-progress-upload">
+              <input id="lapidary-progress-photos" className="rv-lapidary-progress-upload__input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple aria-describedby="lapidary-progress-photos-hint" onChange={(event) => setProgressPhotos(Array.from(event.target.files ?? []))} />
+              <label className="rv-lapidary-progress-upload__dropzone" htmlFor="lapidary-progress-photos">
+                <span className="rv-lapidary-progress-upload__icon"><UploadIcon size={20} /></span>
+                <span className="rv-lapidary-progress-upload__copy"><strong>{progressPhotos.length ? `${progressPhotos.length} photo${progressPhotos.length === 1 ? "" : "s"} selected` : "Choose progress photos"}</strong><small>{progressPhotos.length ? "Select again to replace these files." : "JPEG, PNG, WebP, or AVIF · up to 5 photos"}</small></span>
+                <span className="rv-lapidary-progress-upload__browse">Browse files</span>
+              </label>
+              {progressPhotos.length ? <ul className="rv-lapidary-progress-upload__files">{progressPhotos.map((file) => <li key={`${file.name}-${file.size}-${file.lastModified}`}><span>{file.name}</span><small>{(file.size / (1024 * 1024)).toFixed(1)} MB</small></li>)}</ul> : null}
+            </div>
+          </Field>
           <Button variant="primary" loading={publishingProgress} disabled={progressTitle.trim().length < 2 || progressBody.trim().length < 2} onClick={() => void publishProgress()}>Publish progress update</Button>
-        </section> : null}
+        </section>
       </div> : error ? <p className="rv-error-text" role="alert">{error}</p> : null}
     </Modal>
   </>;

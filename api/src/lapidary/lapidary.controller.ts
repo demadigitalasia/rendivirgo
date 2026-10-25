@@ -9,6 +9,7 @@ import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { CustomerGuard } from "../customers/customer.guard";
+import { CUSTOMER_SESSION_COOKIE_NAME, CustomerAuthService } from "../customers/customer-auth.service";
 import {
   AcceptLapidaryEstimateDto,
   ConfirmLapidaryPaymentDto,
@@ -29,7 +30,7 @@ import { LapidaryService } from "./lapidary.service";
 
 @Controller("lapidary")
 export class LapidaryPublicController {
-  constructor(private readonly lapidary: LapidaryService) {}
+  constructor(private readonly lapidary: LapidaryService, private readonly customerAuth: CustomerAuthService) {}
 
   @Public()
   @Get("content")
@@ -57,7 +58,11 @@ export class LapidaryPublicController {
       callback(null, true);
     },
   }))
-  async createRequest(@Body() body: unknown, @UploadedFiles() files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>) {
+  async createRequest(
+    @Body() body: unknown,
+    @UploadedFiles() files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>,
+    @Req() request: AuthenticatedRequest,
+  ) {
     const rawPayload = body && typeof body === "object" && "payload" in body ? (body as { payload: unknown }).payload : body;
     let payload: unknown = rawPayload;
     if (typeof rawPayload === "string") {
@@ -76,7 +81,12 @@ export class LapidaryPublicController {
       collect(errors);
       throw new BadRequestException(messages.length ? messages : "Please review the request details");
     }
-    return this.lapidary.createRequest(dto, files ?? []);
+    const sessionToken = (request.cookies as Record<string, string> | undefined)?.[CUSTOMER_SESSION_COOKIE_NAME];
+    const session = sessionToken ? await this.customerAuth.resolveSession(sessionToken) : null;
+    const customerId = session && session.customer.email.trim().toLowerCase() === dto.email.trim().toLowerCase()
+      ? session.customer.id
+      : null;
+    return this.lapidary.createRequest(dto, files ?? [], customerId);
   }
 }
 

@@ -40,6 +40,11 @@ export async function proxyRequest(request: NextRequest, targetPath: string): Pr
 
   const response = new NextResponse(upstream.body, { status: upstream.status, headers: responseHeaders });
 
+  if (upstream.ok && request.method === "PUT" && targetPath === "/api/admin/hero-slides") {
+    revalidateTag("home-hero", { expire: 0 });
+    revalidatePath("/", "layout");
+  }
+
   const isBlogMutation =
     upstream.ok &&
     ["POST", "PATCH", "DELETE"].includes(request.method) &&
@@ -55,6 +60,7 @@ export async function proxyRequest(request: NextRequest, targetPath: string): Pr
   const isContentMutation = upstream.ok && ["POST", "PATCH", "DELETE"].includes(request.method) &&
     /^\/api\/admin\/(?:products|categories|pages|site-content)(?:\/[^/]+)?$/.test(targetPath) && !targetPath.endsWith("/generate-copy");
   if (isContentMutation) {
+    revalidateTag("home-hero", { expire: 0 });
     revalidatePath("/", "layout");
     revalidatePath("/sitemap.xml");
   }

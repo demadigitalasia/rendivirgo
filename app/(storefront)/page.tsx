@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { HomeContent } from "@/components/home-content";
 import { absoluteUrl, siteUrl, socialMetadata } from "@/lib/seo";
-import { getCategories, getProducts, getPublicSettings, getSiteContent, getTestimonials } from "@/lib/storefront";
+import { getHeroSlides, getBlogPosts, getCategories, getProducts, getPublicSettings, getSiteContent, getTestimonials } from "@/lib/storefront";
 import { dictionaries } from "@/lib/i18n";
 import { getRequestLanguage } from "@/lib/server-locale";
 import { localizedAlternates, localizedPath } from "@/lib/locale";
@@ -10,9 +10,10 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const language = await getRequestLanguage();
-  const [content, translatedContent] = await Promise.all([
+  const [content, translatedContent, heroDocument] = await Promise.all([
     getSiteContent(language),
     language === "en" ? getSiteContent("id") : Promise.resolve(null),
+    getHeroSlides(),
   ]);
   const hasIndonesianTranslation = language === "id" ? content.contentLocale === "id" : translatedContent?.contentLocale === "id";
   const translated = language !== "id" || content.contentLocale === "id";
@@ -21,19 +22,21 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath("/", language) : "/", content.heroImage),
+    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath("/", language) : "/", heroDocument.slides.find(slide => slide.isActive)?.imageUrl || content.heroImage),
     alternates: localizedAlternates("/", language, hasIndonesianTranslation),
   };
 }
 
 export default async function HomePage() {
   const language = await getRequestLanguage();
-  const [featuredResult, categories, siteContent, testimonials, store] = await Promise.all([
+  const [featuredResult, categories, siteContent, testimonials, store, heroDocument, journalResult] = await Promise.all([
     getProducts({ featured: true, pageSize: 4 }, language),
     getCategories(language),
     getSiteContent(language),
     getTestimonials(language),
     getPublicSettings(),
+    getHeroSlides(),
+    getBlogPosts({ pageSize: 3 }, language),
   ]);
 
   let featured = featuredResult.products;
@@ -71,12 +74,14 @@ export default async function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organization).replace(/</g, "\\u003c") }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website).replace(/</g, "\\u003c") }} />
       <HomeContent
+        heroDocument={heroDocument}
         featured={featured}
         categories={categories
           .slice(0, 5)
           .map((category) => ({ slug: category.slug, name: category.name, imageUrl: category.imageUrl, contentLocale: category.contentLocale }))}
         siteContent={siteContent}
         testimonials={testimonials}
+        articles={journalResult.posts}
         whatsapp={store.store.whatsapp}
         whatsappSecondary={store.store.whatsappSecondary}
       />

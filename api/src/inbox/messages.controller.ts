@@ -14,6 +14,7 @@ export class ContactController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post()
   create(@Body() dto: CreateMessageDto) {
+    if (dto.website?.trim()) return { ok: true, id: null };
     return this.messagesService.create(dto);
   }
 }
@@ -40,6 +41,11 @@ export class AdminMessagesController {
   @Post(":id/reply")
   reply(@Param("id") id: string, @Body() dto: ReplyMessageDto, @Req() request: AuthenticatedRequest) {
     return this.messagesService.reply(id, dto.adminReply, auditContextFrom(request));
+  }
+
+  @Post(":id/emails/:emailId/retry")
+  retryEmail(@Param("id") id: string, @Param("emailId") emailId: string, @Req() request: AuthenticatedRequest) {
+    return this.messagesService.retryEmail(id, emailId, auditContextFrom(request));
   }
 
   @Delete(":id")
