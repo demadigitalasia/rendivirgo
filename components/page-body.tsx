@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
 import type { Language } from "@/lib/i18n";
 import { parseBlogBodyImage } from "@/lib/blog-images";
 
@@ -125,9 +124,7 @@ export function PageBody({ body, className = "article", numberParagraphsAfterFir
     if (block.kind === "image") {
       return (
         <figure className="article__image-block" key={index}>
-          <div className="article__image-frame">
-            <Image src={block.url} alt={block.alt} fill sizes="(max-width: 980px) 100vw, 68vw" style={{ objectFit: "contain" }} />
-          </div>
+          <img className="article__image" src={block.url} alt={block.alt} loading="lazy" decoding="async" />
           {block.caption ? <figcaption>{renderInline(block.caption)}</figcaption> : null}
         </figure>
       );
