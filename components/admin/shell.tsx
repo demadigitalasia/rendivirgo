@@ -170,6 +170,7 @@ export function AdminShell({
       items: [
         { href: "/admin/seo", label: "SEO Audit", icon: SearchCheck },
         { href: "/admin/content/home", label: "Home page", icon: House },
+        { href: "/admin/content/navigation", label: "Navigation", icon: Menu },
         { href: "/admin/content/blog", label: "Blog", icon: NotebookTabs },
         { href: "/admin/content/pages", label: "Pages", icon: Files },
         { href: "/admin/content/testimonials", label: "Testimonials", icon: MessageSquareQuote },

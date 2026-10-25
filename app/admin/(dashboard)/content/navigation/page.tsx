@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import { ArrowUpRight, ChevronDown, Heart, Search, ShoppingBag, Sparkles } from "lucide-react";
 import { apiFetch, errorMessage, useApi, type ApiState } from "@/components/admin/api";
 import { toast } from "@/components/admin/toast";
 import { Button, Card, Field, Loading, PageHeader, Select, Switch, TextInput } from "@/components/admin/ui";
@@ -273,6 +275,7 @@ export default function NavigationSettingsPage() {
   const [busy, setBusy] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [previewLanguage, setPreviewLanguage] = useState<"en" | "id">("en");
+  const [previewOpenItemId, setPreviewOpenItemId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (state.data) setItems(state.data.items);
@@ -299,6 +302,11 @@ export default function NavigationSettingsPage() {
   };
 
   const data = state.data;
+  const visiblePreviewItems = items.filter((item) => item.enabled);
+  const firstPreviewSubmenu = visiblePreviewItems.find((item) => item.children.some((child) => child.enabled));
+  const openPreviewItemId = previewOpenItemId === undefined ? firstPreviewSubmenu?.id : previewOpenItemId;
+  const openPreviewItem = visiblePreviewItems.find((item) => item.id === openPreviewItemId && item.children.some((child) => child.enabled));
+  const previewLabel = (item: AdminNavigationItem) => (previewLanguage === "id" ? item.labelId : item.labelEn) || item.labelEn;
 
   return (
     <>
@@ -319,7 +327,7 @@ export default function NavigationSettingsPage() {
 
         {data ? (
           <>
-            <Card title="Storefront preview" description="Check the menu at desktop and mobile widths before saving.">
+              <Card title="Storefront preview" description="Select a menu item with a submenu to inspect its dropdown before saving.">
               <div className="rv-navigation-preview-controls">
                 <div className="rv-inline">
                   <Button size="sm" ariaPressed={previewDevice === "desktop"} onClick={() => setPreviewDevice("desktop")}>Desktop</Button>
@@ -329,22 +337,52 @@ export default function NavigationSettingsPage() {
                   options={[{ value: "en", label: "English" }, { value: "id", label: "Bahasa Indonesia" }]} />
               </div>
               <div className={`rv-navigation-preview rv-navigation-preview--${previewDevice}`}>
-                <div className="rv-navigation-preview__brand">RENDI VIRGO</div>
-                <nav aria-label="Navigation preview">
-                  {items.filter((item) => item.enabled).map((item) => (
-                    <div className="rv-navigation-preview__item" key={item.id}>
-                      <span>{(previewLanguage === "id" ? item.labelId : item.labelEn) || item.labelEn}</span>
-                      {item.children.some((child) => child.enabled) ? <small aria-hidden="true">{item.children.filter((child) => child.enabled).length} links</small> : null}
-                      {item.children.some((child) => child.enabled) ? (
-                        <div className="rv-navigation-preview__children">
-                          {item.children.filter((child) => child.enabled).map((child) => (
-                            <span key={child.id}>{(previewLanguage === "id" ? child.labelId : child.labelEn) || child.labelEn}</span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                <div className="rv-navigation-preview__brand">
+                  <Image src="/brand/rendi-virgo-primary.webp" alt="RENDI VIRGO" width={780} height={260} sizes="148px" />
+                </div>
+                <nav className="rv-navigation-preview__nav" aria-label="Navigation preview">
+                  {visiblePreviewItems.map((item) => {
+                    const hasChildren = item.children.some((child) => child.enabled);
+                    const label = previewLabel(item);
+                    const isOpen = openPreviewItem?.id === item.id;
+                    return (
+                      <div className={`rv-navigation-preview__item${isOpen ? " is-open" : ""}`} key={item.id}>
+                        {hasChildren ? (
+                          <button
+                            className="rv-navigation-preview__link"
+                            type="button"
+                            aria-expanded={isOpen}
+                            aria-controls="rv-navigation-preview-submenu"
+                            onClick={() => setPreviewOpenItemId(isOpen ? null : item.id)}
+                          >
+                            <span>{label}</span><ChevronDown size={13} strokeWidth={1.7} aria-hidden="true" />
+                          </button>
+                        ) : <span className="rv-navigation-preview__link">{label}</span>}
+                      </div>
+                    );
+                  })}
                 </nav>
+                <div className="rv-navigation-preview__actions" aria-hidden="true">
+                  <span><Search size={16} strokeWidth={1.6} /></span>
+                  <span><Heart size={16} strokeWidth={1.6} /></span>
+                  <span><ShoppingBag size={16} strokeWidth={1.6} /></span>
+                </div>
+                {openPreviewItem ? (
+                  <div className="rv-navigation-preview__submenu" id="rv-navigation-preview-submenu">
+                    <div className="rv-navigation-preview__submenu-heading">
+                      <div>
+                        <span>{openPreviewItem.target.type === "route" && openPreviewItem.target.route === "shop" ? "SHOP CATEGORIES" : "SUBMENU"}</span>
+                        <strong>{previewLabel(openPreviewItem)}</strong>
+                      </div>
+                      <Sparkles size={17} strokeWidth={1.6} aria-hidden="true" />
+                    </div>
+                    <div className="rv-navigation-preview__children">
+                      {openPreviewItem.children.filter((child) => child.enabled).map((child) => (
+                        <div key={child.id}><span>{previewLabel(child)}</span><ArrowUpRight size={13} strokeWidth={1.6} aria-hidden="true" /></div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </Card>
 

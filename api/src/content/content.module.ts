@@ -6,6 +6,8 @@ import { AdminBannersController, BannersController } from "./banners.controller"
 import { BlogService } from "./blog.service";
 import { BlogCopyService } from "./blog-copy.service";
 import { AdminBlogController, BlogController } from "./blog.controller";
+import { AdminNavigationController, StorefrontNavigationController } from "./navigation.controller";
+import { NavigationService } from "./navigation.service";
 import { PagesService } from "./pages.service";
 import { AdminPagesController, PagesController } from "./pages.controller";
 import { AdminSiteContentController, SiteContentController } from "./site-content.controller";
@@ -20,6 +22,8 @@ import { SettingsModule } from "../settings/settings.module";
     ContentCopyController,
     BlogController,
     AdminBlogController,
+    StorefrontNavigationController,
+    AdminNavigationController,
     PagesController,
     AdminPagesController,
     TestimonialsController,
@@ -29,7 +33,7 @@ import { SettingsModule } from "../settings/settings.module";
     SiteContentController,
     AdminSiteContentController,
   ],
-  providers: [ContentCopyService, BlogService, BlogCopyService, PagesService, TestimonialsService, BannersService, SiteContentService],
+  providers: [ContentCopyService, BlogService, BlogCopyService, NavigationService, PagesService, TestimonialsService, BannersService, SiteContentService],
   exports: [BlogService, PagesService, TestimonialsService, BannersService, SiteContentService],
 })
 export class ContentModule {}
