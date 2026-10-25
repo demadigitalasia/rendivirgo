@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, ChevronRight, Clock3, ContactRound, Gem, LayoutDashboard, LogOut, Package, PackageOpen, PackageSearch, ReceiptText, Store, Truck, UserRound } from "lucide-react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, ChevronRight, Clock3, ContactRound, Gem, KeyRound, LayoutDashboard, LogOut, Package, PackageOpen, PackageSearch, ReceiptText, Store, Truck, UserRound } from "lucide-react";
 import { useCart, useCopy } from "@/components/providers";
 import { LocalizedLink as Link } from "@/components/localized-link";
 import { CountryDropdown } from "@/components/country-dropdown";
@@ -15,6 +15,7 @@ import { lapidaryRegistrationIntent, safeCustomerReturnPath, wholesaleRegistrati
 type AccessMode = "login" | "register" | "verify" | "forgot" | "reset";
 type CustomerProfile = {
   id: string;
+  avatarUrl: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -24,6 +25,7 @@ type CustomerProfile = {
   wholesaleReviewReason?: string | null;
   address: { line1: string | null; line2: string | null; city: string | null; state: string | null; postalCode: string | null; country: string | null; countryCode: string | null };
 };
+type CustomerSession = { id: string; ip: string | null; userAgent: string | null; createdAt: string; expiresAt: string; current: boolean };
 type AccountOrder = { id: string; orderNumber: string; source: string; status: string; paymentStatus: string; currency: string; total: number; itemCount: number; placedAt: string };
 type OrderSummaryStats = { total: number; pendingPayment: number; activeOrders: number };
 type OrderDetail = AccountOrder & {
@@ -57,6 +59,11 @@ function customerApiError(payload: unknown, status: number): string {
   }
   if (combined.includes("verify your email before signing in")) return "Please verify your email before signing in.";
   if (combined.includes("invalid email or password")) return "Email or password is incorrect.";
+  if (combined.includes("current password is incorrect")) return "Your current password is incorrect.";
+  if (combined.includes("choose a new password that you have not used")) return "Choose a different password from the one you currently use.";
+  if (combined.includes("choose a valid jpeg or png")) return "Choose a valid JPEG or PNG image.";
+  if (combined.includes("profile photo must be 5 mb or smaller")) return "The profile photo must be 5 MB or smaller.";
+  if (combined.includes("4096")) return "Choose an image no larger than 4096 × 4096 pixels.";
   if (combined.includes("email must")) return "Enter a valid email address.";
   if (status === 429) return "Too many attempts. Please wait a moment and try again.";
   if (status >= 500) return "We couldn't complete your request right now. Please try again shortly.";
@@ -157,6 +164,10 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (mode === "reset" && password !== confirmPassword) {
+      setError("The passwords do not match. Enter the same password in both fields.");
+      return;
+    }
     setBusy(true);
     setError("");
     setMessage("");
@@ -178,6 +189,8 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
       } else if (mode === "reset") {
         await sendJson("/api/customer-auth/reset-password", { token, newPassword: password });
         setMessage("Password updated. Sign in with your new password.");
+        setPassword("");
+        setConfirmPassword("");
       }
     } catch (caught) {
       setError(customerErrorMessage(caught, "We couldn't complete your request."));
@@ -297,6 +310,23 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
                   </span>
                 </div>
               ) : null}
+              {mode === "reset" ? (
+                <div className="customer-access__password-control">
+                  <label htmlFor="customer-password-confirm">Confirm new password</label>
+                  <span className="customer-access__password-field">
+                    <input id="customer-password-confirm" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={200} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+                    <button
+                      className="customer-access__password-toggle"
+                      type="button"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                      aria-pressed={showConfirmPassword}
+                      onClick={() => setShowConfirmPassword((visible) => !visible)}
+                    >
+                      <Icon name={showConfirmPassword ? "eye" : "eyeOff"} size={18} />
+                    </button>
+                  </span>
+                </div>
+              ) : null}
               {error ? <p className="customer-account__error" role="alert">{error}</p> : null}
               {message ? <p className="customer-account__message" role="status">{message}</p> : null}
               <button className="button button--primary" disabled={busy}>{busy ? "Please wait…" : mode === "register" ? "Create account" : mode === "forgot" ? "Send reset link" : mode === "reset" ? "Update password" : "Sign in"}<ArrowIcon size={17} /></button>
@@ -327,6 +357,36 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState("");
+  const [avatarError, setAvatarError] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [sessions, setSessions] = useState<CustomerSession[]>([]);
+  const [sessionsBusy, setSessionsBusy] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const [sessionMessage, setSessionMessage] = useState("");
+
+  const refreshSessions = async () => {
+    if (ordersOnly) return;
+    setSessionsBusy(true);
+    setSessionError("");
+    try {
+      const response = await fetch("/api/customer-account/sessions", { credentials: "same-origin", cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.message || "Could not load active sessions.");
+      setSessions(Array.isArray(payload) ? payload : []);
+    } catch (caught) {
+      setSessionError(caught instanceof Error ? caught.message : "Could not load active sessions.");
+    } finally {
+      setSessionsBusy(false);
+    }
+  };
 
   const load = async () => {
     const [meResponse, orderResponse] = await Promise.all([
@@ -349,6 +409,7 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
     setOrders(Array.isArray(list?.orders) ? list.orders : []);
     setSummary(list?.summary ?? { total: list?.total ?? 0, pendingPayment: 0, activeOrders: 0 });
     setPageCount(Math.max(1, Number(list?.pageCount) || 1));
+    await refreshSessions();
   };
 
   useEffect(() => {
@@ -391,6 +452,98 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
     }
   };
 
+  const updateAvatar = async (file?: File) => {
+    if (!file) return;
+    setAvatarBusy(true);
+    setAvatarMessage("");
+    setAvatarError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/customer-account/avatar", {
+        method: "POST",
+        credentials: "same-origin",
+        body: form,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(customerApiError(payload, response.status));
+      setProfile(payload);
+      setAvatarMessage("Profile photo updated.");
+    } catch (caught) {
+      setAvatarError(caught instanceof Error ? caught.message : "Profile photo could not be updated.");
+    } finally {
+      setAvatarBusy(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const removeAvatar = async () => {
+    setAvatarBusy(true);
+    setAvatarMessage("");
+    setAvatarError("");
+    try {
+      const response = await fetch("/api/customer-account/avatar", { method: "DELETE", credentials: "same-origin" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.message || "Profile photo could not be removed.");
+      setProfile(payload);
+      setAvatarMessage("Profile photo removed.");
+    } catch (caught) {
+      setAvatarError(caught instanceof Error ? caught.message : "Profile photo could not be removed.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const changePassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("The new passwords do not match.");
+      setPasswordMessage("");
+      return;
+    }
+    setPasswordBusy(true);
+    setPasswordMessage("");
+    setPasswordError("");
+    try {
+      await sendJson("/api/customer-account/change-password", { currentPassword, newPassword });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordMessage("Password changed. Other signed-in sessions have been signed out.");
+      await refreshSessions();
+    } catch (caught) {
+      setPasswordError(customerErrorMessage(caught, "Password could not be changed."));
+    } finally {
+      setPasswordBusy(false);
+    }
+  };
+
+  const revokeSession = async (sessionId: string) => {
+    setSessionError("");
+    setSessionMessage("");
+    try {
+      const response = await fetch(`/api/customer-account/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE", credentials: "same-origin" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.message || "Session could not be signed out.");
+      setSessions((current) => current.filter((session) => session.id !== sessionId));
+      setSessionMessage("The selected session has been signed out.");
+    } catch (caught) {
+      setSessionError(caught instanceof Error ? caught.message : "Session could not be signed out.");
+    }
+  };
+
+  const revokeOtherSessions = async () => {
+    setSessionError("");
+    setSessionMessage("");
+    try {
+      const payload = await sendJson("/api/customer-account/sessions/revoke-others", {});
+      setSessions((current) => current.filter((session) => session.current));
+      setSessionMessage(payload.revokedCount ? `${payload.revokedCount} other session${payload.revokedCount === 1 ? "" : "s"} signed out.` : "There are no other active sessions.");
+    } catch (caught) {
+      setSessionError(customerErrorMessage(caught, "Other sessions could not be signed out."));
+    }
+  };
+
   const logout = async () => {
     try {
       await sendJson("/api/customer-account/logout", {});
@@ -413,7 +566,7 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
       <aside className="customer-dashboard__sidebar">
         <div className="customer-dashboard__identity">
           <span className="customer-dashboard__avatar">
-            {profile.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word.charAt(0)).join("").toUpperCase() || "R"}
+            {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : profile.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word.charAt(0)).join("").toUpperCase() || "R"}
           </span>
           <span className="customer-dashboard__identity-copy"><strong>{profile.name}</strong><small>{profile.email}</small></span>
         </div>
@@ -481,6 +634,32 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
                 <span className="customer-dashboard__section-icon"><ContactRound className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
                 <span><small>PERSONAL DETAILS</small><h2>Profile information</h2><p>Keep your contact and delivery details up to date.</p></span>
               </div>
+              <div className="customer-avatar-editor">
+                <span className="customer-avatar-editor__preview">
+                  {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : profile.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word.charAt(0)).join("").toUpperCase() || "R"}
+                </span>
+                <div className="customer-avatar-editor__details">
+                  <strong>Profile photo</strong>
+                  <small>JPEG or PNG · up to 5 MB</small>
+                  <input
+                    ref={avatarInputRef}
+                    id="customer-avatar-file"
+                    className="customer-avatar-editor__input"
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    aria-label="Choose a profile photo"
+                    onChange={(event) => void updateAvatar(event.target.files?.[0])}
+                  />
+                  <div className="customer-avatar-editor__actions">
+                    <button className="button button--outline button--compact" type="button" disabled={avatarBusy} onClick={() => avatarInputRef.current?.click()}>
+                      {avatarBusy ? "Uploading…" : profile.avatarUrl ? "Change photo" : "Upload photo"}
+                    </button>
+                    {profile.avatarUrl ? <button className="customer-avatar-editor__remove" type="button" disabled={avatarBusy} onClick={() => void removeAvatar()}>Remove photo</button> : null}
+                  </div>
+                  {avatarMessage ? <small className="customer-avatar-editor__status" role="status">{avatarMessage}</small> : null}
+                  {avatarError ? <small className="customer-avatar-editor__error" role="alert">{avatarError}</small> : null}
+                </div>
+              </div>
               <form className="customer-account__form customer-dashboard__profile-form" onSubmit={(event) => void updateProfile(event)}>
                 <div className="customer-account__grid customer-dashboard__profile-grid">
                   <label>Name<input name="name" autoComplete="name" required defaultValue={profile.name} /></label>
@@ -515,6 +694,46 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
                 <button className="button button--primary customer-dashboard__save-button" disabled={saving}>{saving ? "Saving…" : "Save profile"}<ArrowRight className="rv-icon" size={17} strokeWidth={1.6} aria-hidden="true" /></button>
               </form>
             </div>
+
+            <section className="customer-dashboard__card customer-dashboard__security-card">
+              <div className="customer-dashboard__card-heading">
+                <span className="customer-dashboard__section-icon"><KeyRound className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
+                <span><small>ACCOUNT SECURITY</small><h2>Change password</h2><p>Confirm your current password before setting a new one.</p></span>
+              </div>
+              <form className="customer-account__form customer-dashboard__security-form" onSubmit={(event) => void changePassword(event)}>
+                <label>Current password<input type="password" autoComplete="current-password" minLength={1} maxLength={200} required value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+                <label>New password<input type="password" autoComplete="new-password" minLength={12} maxLength={200} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /><small>Use at least 12 characters.</small></label>
+                <label>Confirm new password<input type="password" autoComplete="new-password" minLength={12} maxLength={200} required value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} /></label>
+                {passwordMessage ? <p className="customer-account__message" role="status">{passwordMessage}</p> : null}
+                {passwordError ? <p className="customer-account__error" role="alert">{passwordError}</p> : null}
+                <button className="button button--primary customer-dashboard__save-button" disabled={passwordBusy}>{passwordBusy ? "Updating…" : "Update password"}<ArrowRight className="rv-icon" size={17} strokeWidth={1.6} aria-hidden="true" /></button>
+                <Link className="customer-dashboard__forgot-password" href="/account/forgot-password">Forgot your current password?</Link>
+              </form>
+            </section>
+
+            <section className="customer-dashboard__card customer-dashboard__sessions-card">
+              <div className="customer-dashboard__card-heading customer-dashboard__sessions-heading">
+                <span className="customer-dashboard__section-icon"><UserRound className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
+                <span><small>ACCOUNT SECURITY</small><h2>Active sessions</h2><p>Sign out browsers you no longer use.</p></span>
+                <button className="button button--outline button--compact" type="button" disabled={sessionsBusy || sessions.filter((session) => !session.current).length === 0} onClick={() => void revokeOtherSessions()}>Sign out others</button>
+              </div>
+              {sessionMessage ? <p className="customer-account__message" role="status">{sessionMessage}</p> : null}
+              {sessionError ? <p className="customer-account__error" role="alert">{sessionError}</p> : null}
+              {sessionsBusy ? <p className="customer-dashboard__sessions-empty">Loading active sessions…</p> : sessions.length ? (
+                <div className="customer-dashboard__sessions-list">
+                  {sessions.map((session) => (
+                    <article className="customer-dashboard__session" key={session.id}>
+                      <div>
+                        <strong>{session.current ? "This device · Current session" : session.userAgent || "Unknown device"}</strong>
+                        <small>Signed in {new Date(session.createdAt).toLocaleString()}{session.ip ? ` · ${session.ip}` : ""}</small>
+                        <small>Expires {new Date(session.expiresAt).toLocaleDateString()}</small>
+                      </div>
+                      {session.current ? <span className="customer-dashboard__current-session">Current</span> : <button type="button" className="customer-dashboard__session-revoke" onClick={() => void revokeSession(session.id)}>Sign out</button>}
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="customer-dashboard__sessions-empty">No active sessions found.</p>}
+            </section>
           </>
         ) : null}
 

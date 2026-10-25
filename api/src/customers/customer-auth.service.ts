@@ -5,7 +5,7 @@ import { createHash, randomBytes } from "node:crypto";
 import * as bcrypt from "bcryptjs";
 import type { Prisma } from "../../generated/prisma";
 import { AuthEmailOutboxService } from "../email/auth-email-outbox.service";
-import { renderCustomerPasswordResetEmail, renderCustomerVerificationEmail, renderCustomerVerificationEmailText, type CustomerEmailLanguage } from "../email/email.templates";
+import { renderCustomerPasswordChangedEmail, renderCustomerPasswordResetEmail, renderCustomerVerificationEmail, renderCustomerVerificationEmailText, type CustomerEmailLanguage } from "../email/email.templates";
 import { PrismaService } from "../prisma/prisma.service";
 import type { UpdateCustomerProfileDto } from "./customer-auth.dto";
 
@@ -207,6 +207,58 @@ export class CustomerAuthService {
     });
   }
 
+  listSessions(customerId: string) {
+    return this.prisma.customerSession.findMany({
+      where: { customerId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+      take: 25,
+      select: { id: true, ip: true, userAgent: true, createdAt: true, expiresAt: true },
+    });
+  }
+
+  async revokeSessionById(customerId: string, sessionId: string): Promise<boolean> {
+    const result = await this.prisma.customerSession.updateMany({
+      where: { id: sessionId, customerId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return result.count > 0;
+  }
+
+  async revokeOtherSessions(customerId: string, currentSessionId: string): Promise<number> {
+    const result = await this.prisma.customerSession.updateMany({
+      where: { customerId, id: { not: currentSessionId }, revokedAt: null, expiresAt: { gt: new Date() } },
+      data: { revokedAt: new Date() },
+    });
+    return result.count;
+  }
+
+  async changePassword(customerId: string, currentPassword: string, newPassword: string, keepToken?: string): Promise<boolean> {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true, email: true, name: true, passwordHash: true },
+    });
+    if (!customer?.passwordHash || !(await bcrypt.compare(currentPassword, customer.passwordHash))) return false;
+    if (await bcrypt.compare(newPassword, customer.passwordHash)) {
+      throw new BadRequestException("Choose a new password that you have not used for this account.");
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const keepHash = keepToken ? this.hashToken(keepToken) : null;
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.customer.updateMany({
+        where: { id: customer.id, passwordHash: customer.passwordHash },
+        data: { passwordHash },
+      });
+      if (changed.count !== 1) return false;
+      await tx.customerSession.updateMany({
+        where: { customerId, revokedAt: null, ...(keepHash ? { tokenHash: { not: keepHash } } : {}) },
+        data: { revokedAt: new Date() },
+      });
+      await this.enqueuePasswordChangedNotice(tx, customer);
+      return true;
+    });
+  }
+
   async requestPasswordReset(emailInput: string): Promise<void> {
     const email = emailInput.trim().toLowerCase();
     const customer = await this.prisma.customer.findUnique({ where: { email } });
@@ -250,14 +302,14 @@ export class CustomerAuthService {
     });
   }
 
-  async resetPassword(token: string, password: string): Promise<boolean> {
+  async resetPassword(token: string, password: string): Promise<string | null> {
     const now = new Date();
     const tokenHash = this.hashToken(token.trim());
     const customer = await this.prisma.customer.findFirst({
       where: { resetTokenHash: tokenHash, resetTokenExpiresAt: { gt: now }, emailVerifiedAt: { not: null } },
-      select: { id: true },
+      select: { id: true, email: true, name: true },
     });
-    if (!customer) return false;
+    if (!customer) return null;
     const passwordHash = await bcrypt.hash(password, 12);
     return this.prisma.$transaction(async (tx) => {
       const changed = await tx.customer.updateMany({
@@ -268,9 +320,31 @@ export class CustomerAuthService {
           resetTokenExpiresAt: null,
         },
       });
-      if (changed.count !== 1) return false;
+      if (changed.count !== 1) return null;
       await tx.customerSession.updateMany({ where: { customerId: customer.id, revokedAt: null }, data: { revokedAt: new Date() } });
-      return true;
+      await this.enqueuePasswordChangedNotice(tx, customer);
+      return customer.id;
+    });
+  }
+
+  private async enqueuePasswordChangedNotice(
+    tx: Prisma.TransactionClient,
+    customer: { id: string; email: string; name: string },
+  ): Promise<void> {
+    const tokenHash = this.hashToken(randomBytes(32).toString("base64url"));
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60_000);
+    const email = renderCustomerPasswordChangedEmail(customer.name);
+    await this.emailOutbox.enqueue(tx, {
+      kind: "CustomerPasswordChanged",
+      targetId: customer.id,
+      tokenHash,
+      expiresAt,
+      email: {
+        to: customer.email,
+        subject: "Your RENDI VIRGO password was changed",
+        html: email.html,
+        text: email.text,
+      },
     });
   }
 
@@ -279,6 +353,7 @@ export class CustomerAuthService {
     if (!customer) throw new UnauthorizedException("Customer account is unavailable");
     return {
       id: customer.id,
+      avatarUrl: customer.avatarUrl,
       name: customer.name,
       email: customer.email,
       emailVerifiedAt: customer.emailVerifiedAt,

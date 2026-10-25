@@ -54,6 +54,18 @@ export class CustomerResetPasswordDto extends CustomerEmailTokenDto {
   newPassword: string;
 }
 
+export class ChangeCustomerPasswordDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  currentPassword: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(200)
+  newPassword: string;
+}
+
 export class UpdateCustomerProfileDto {
   @IsOptional()
   @IsString()

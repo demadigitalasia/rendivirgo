@@ -143,6 +143,7 @@ enum OrderOutboxStatus {
 enum AuthEmailOutboxKind {
   CustomerVerification
   CustomerPasswordReset
+  CustomerPasswordChanged
   AdminPasswordReset
   WholesaleCustomerNotification
   WholesaleAdminNotification
@@ -621,6 +622,7 @@ model Customer {
   id            String   @id @default(cuid())
   email         String   @unique
   name          String
+  avatarUrl     String?
   phone         String?
   country       String?
   countryCode   String?

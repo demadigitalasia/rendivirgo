@@ -5,7 +5,7 @@ import type { Prisma } from "../../generated/prisma";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailService, type SendEmailInput } from "./email.service";
 
-export type AuthEmailOutboxKind = "CustomerVerification" | "CustomerPasswordReset" | "AdminPasswordReset" | "WholesaleCustomerNotification" | "WholesaleAdminNotification";
+export type AuthEmailOutboxKind = "CustomerVerification" | "CustomerPasswordReset" | "CustomerPasswordChanged" | "AdminPasswordReset" | "WholesaleCustomerNotification" | "WholesaleAdminNotification";
 
 type EnqueueAuthEmailInput = {
   kind: AuthEmailOutboxKind;
@@ -58,7 +58,7 @@ export class AuthEmailOutboxService implements OnModuleInit, OnModuleDestroy {
   }
 
   async enqueue(tx: Prisma.TransactionClient, input: EnqueueAuthEmailInput): Promise<void> {
-    if (!this.email.isEnabled() && !input.kind.startsWith("Wholesale")) {
+    if (!this.email.isEnabled() && !input.kind.startsWith("Wholesale") && input.kind !== "CustomerPasswordChanged") {
       throw new ServiceUnavailableException("Email delivery is currently unavailable");
     }
     await tx.authEmailOutbox.create({
@@ -214,6 +214,12 @@ export class AuthEmailOutboxService implements OnModuleInit, OnModuleDestroy {
     if (job.kind === "CustomerPasswordReset") {
       return Boolean(await this.prisma.customer.findFirst({
         where: { id: job.targetId, resetTokenHash: job.tokenHash, resetTokenExpiresAt: { gt: now }, emailVerifiedAt: { not: null } },
+        select: { id: true },
+      }));
+    }
+    if (job.kind === "CustomerPasswordChanged") {
+      return Boolean(await this.prisma.customer.findFirst({
+        where: { id: job.targetId, emailVerifiedAt: { not: null } },
         select: { id: true },
       }));
     }

@@ -337,3 +337,16 @@ export const renderCustomerPasswordResetEmail = (data: { name: string; link: str
       <p style="font-size:12px;color:#8a8477;word-break:break-all;">${escapeHtml(data.link)}</p>`,
     footer: "If you did not request this, you can safely ignore this email.",
   });
+
+export const renderCustomerPasswordChangedEmail = (name: string): { html: string; text: string } => {
+  const firstName = name.trim().split(/\s+/)[0] || name;
+  return {
+    html: layout({
+      heading: "Your password was changed",
+      intro: `Hi ${firstName}, the password for your RENDI VIRGO customer account was changed successfully.`,
+      body: "<p style=\"font-size:13px;line-height:1.6;color:#4c483f;\">If you did not make this change, reset your password immediately and contact our support team.</p>",
+      footer: "This is a security notification for your RENDI VIRGO account.",
+    }),
+    text: `Hi ${name.trim().split(/\s+/)[0] || name},\n\nThe password for your RENDI VIRGO customer account was changed successfully. If you did not make this change, reset your password immediately and contact our support team at https://rendivirgo.com/contact.`,
+  };
+};
