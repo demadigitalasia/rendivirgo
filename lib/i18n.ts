@@ -631,6 +631,7 @@ const en = {
     shopCabochons: "Shop cabochons", browseStones: "Browse all stones",
     inGuide: "In this guide", atGlance: "At a glance", topic: "Topic", readingTime: "Reading time",
     published: "Published", keepReading: "Keep reading", allEntries: "All journal entries",
+    readArticle: "Read article",
   },
   orderStatus: {
     New: "New", Processing: "Processing", Packed: "Packed", Shipped: "Shipped", Completed: "Completed",
@@ -1318,6 +1319,7 @@ const id: Copy = {
     shopCabochons: "Lihat batu cabochon", browseStones: "Jelajahi semua batu",
     inGuide: "Dalam panduan ini", atGlance: "Ringkasan", topic: "Topik", readingTime: "Waktu baca",
     published: "Terbit", keepReading: "Baca artikel lain", allEntries: "Semua artikel jurnal",
+    readArticle: "Baca artikel",
   },
   orderStatus: {
     New: "Baru", Processing: "Sedang diproses", Packed: "Sudah dikemas", Shipped: "Sudah dikirim", Completed: "Selesai",

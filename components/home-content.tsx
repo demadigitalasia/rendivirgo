@@ -124,7 +124,7 @@ export function HomeContent({ featured, categories, siteContent, testimonials, a
               <Link href="/blog" className="text-button">{t.journal.allEntries}<ArrowIcon /></Link>
             </div>
             <div className="journal-grid" data-home-stagger>
-              {articles.slice(0, 3).map((post, index) => <JournalCard key={post.slug} post={post} index={index} />)}
+              {articles.slice(0, 3).map((post, index) => <JournalCard key={post.slug} post={post} index={index} featured={index === 0} showReadLink />)}
             </div>
           </div>
         </section>
