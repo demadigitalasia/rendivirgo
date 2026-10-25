@@ -874,6 +874,7 @@ model Discount {
 model BlogPost {
   id             String        @id @default(cuid())
   slug           String        @unique
+  previousSlugs  String[]      @default([])
   title          String
   excerpt        String        @default("")
   body           String        @default("")

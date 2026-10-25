@@ -261,6 +261,7 @@ export function FilterDropdown({
       {name || required ? (
         <select
           className="filter-dropdown__native"
+          id={`${id}-native`}
           name={name}
           value={value}
           required={required}

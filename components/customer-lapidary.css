@@ -62,3 +62,124 @@
   .customer-lapidary__payment { grid-column:auto; }
   .customer-lapidary__project-heading { align-items:flex-start; flex-direction:column; }
 }
+
+/* The lapidary area shares the account dashboard shell and keeps its sidebar visible. */
+.customer-account.customer-dashboard.customer-lapidary {
+  width: min(calc(100% - 72px), 1240px);
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 42px 0 76px;
+}
+.customer-lapidary__content { display: grid; gap: 19px; }
+.customer-account.customer-dashboard.customer-lapidary .customer-lapidary__header {
+  align-items: flex-end;
+  margin: 0 0 4px;
+}
+.customer-account.customer-dashboard.customer-lapidary .customer-lapidary__header h1 {
+  margin: 0;
+  color: #202b24;
+  font: 400 clamp(2rem, 3.4vw, 2.85rem)/1.08 var(--font-display);
+  letter-spacing: -.04em;
+}
+.customer-account.customer-dashboard.customer-lapidary .customer-lapidary__header > div > p:last-child {
+  margin: 9px 0 0;
+  color: #76796e;
+  font: .82rem/1.55 var(--font-display);
+}
+.customer-lapidary__workspace {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  border: 1px solid #e3e5da;
+  border-radius: 9px;
+  background: linear-gradient(110deg, #f5f6ef, #fbfaf5);
+}
+.customer-lapidary__workspace-copy { display: grid; gap: 4px; }
+.customer-lapidary__workspace-copy p { margin: 0; color: #70786b; font-size: .7rem; line-height: 1.45; }
+.customer-lapidary__eyebrow { color: #74816c; font-size: .55rem; font-weight: 700; letter-spacing: .16em; }
+.customer-lapidary__refresh { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; margin: 0; }
+.customer-lapidary__refresh small { color: #818477; font-size: .64rem; }
+.customer-lapidary__refresh .button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 8px; padding: 8px 13px; font-size: .65rem; white-space: nowrap; }
+.customer-lapidary__refresh .button .rv-icon { flex: 0 0 auto; }
+.customer-lapidary__empty {
+  position: relative;
+  display: grid;
+  min-height: 355px;
+  justify-items: center;
+  align-content: center;
+  gap: 12px;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 42px);
+  border: 1px solid #e0e3d8;
+  border-top: 2px solid #a8814c;
+  border-radius: 11px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(219, 228, 211, .46), transparent 52%), linear-gradient(145deg, #fffefa, #f8f8f1);
+  box-shadow: 0 10px 28px rgba(33, 41, 31, .04);
+  text-align: center;
+}
+.customer-lapidary__empty::before,
+.customer-lapidary__empty::after { position: absolute; width: 180px; height: 1px; background: linear-gradient(90deg, transparent, #d9ddcf, transparent); content: ""; }
+.customer-lapidary__empty::before { top: 30px; left: 50%; transform: translateX(-50%); }
+.customer-lapidary__empty::after { right: 0; bottom: 0; left: 0; width: auto; background: linear-gradient(90deg, transparent 8%, #e5e7dd 50%, transparent 92%); }
+.customer-lapidary__empty-mark {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  margin-bottom: 1px;
+  border: 1px solid #dfe4d7;
+  border-radius: 50%;
+  background: #f1f4eb;
+  color: #4c6b52;
+  box-shadow: 0 0 0 7px rgba(241, 244, 235, .52);
+}
+.customer-lapidary__empty .customer-lapidary__eyebrow { margin-top: 4px; }
+.customer-lapidary__empty h2 { margin: 0; color: #24392d; font: 400 clamp(1.55rem, 2.4vw, 2rem)/1.2 var(--font-display); }
+.customer-lapidary__empty p { max-width: 510px; margin: 0; color: #6d7669; font-size: .77rem; line-height: 1.7; }
+.customer-lapidary__empty > a.button { display: inline-flex; min-height: 41px; align-items: center; gap: 10px; margin-top: 5px; padding: 10px 16px; color: #f8f5e9; font-size: .68rem; text-decoration: none; }
+.customer-lapidary__empty > small { max-width: 480px; margin-top: 2px; color: #898b7f; font-size: .62rem; line-height: 1.55; }
+.customer-lapidary__loading {
+  display: flex;
+  min-height: 260px;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  border: 1px solid #e3e4da;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #fffefa, #f8f8f2);
+  color: #687365;
+  font-size: .78rem;
+}
+.customer-lapidary__loading-mark { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #e2e6d9; border-radius: 50%; background: #f3f5ed; color: #60785b; animation: lapidary-loading-pulse 1.6s ease-in-out infinite; }
+@keyframes lapidary-loading-pulse { 50% { box-shadow: 0 0 0 6px rgba(96, 120, 91, .08); transform: scale(1.04); } }
+.customer-lapidary .customer-dashboard__nav-link.is-active { font-weight: 600; }
+.customer-lapidary :is(a, button):focus-visible { outline: 2px solid #a8814c; outline-offset: 3px; }
+.customer-lapidary__project { border-top-color: #a8814c; }
+
+@media (max-width: 980px) {
+  .customer-account.customer-dashboard.customer-lapidary { width: min(calc(100% - 56px), 1240px); }
+}
+@media (max-width: 720px) {
+  .customer-account.customer-dashboard.customer-lapidary {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(calc(100% - 36px), 620px);
+    gap: 18px;
+    padding: 30px 0 64px;
+  }
+  .customer-lapidary__content { gap: 15px; }
+  .customer-lapidary__workspace { align-items: flex-start; flex-direction: column; gap: 11px; }
+  .customer-lapidary__refresh { width: 100%; justify-content: space-between; }
+  .customer-lapidary__empty { min-height: 320px; }
+}
+@media (max-width: 560px) {
+  .customer-account.customer-dashboard.customer-lapidary { width: min(calc(100% - 28px), 500px); gap: 15px; padding-top: 21px; }
+  .customer-account.customer-dashboard.customer-lapidary .customer-lapidary__header { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .customer-account.customer-dashboard.customer-lapidary .customer-lapidary__header h1 { font-size: clamp(1.85rem, 8vw, 2.35rem); }
+  .customer-lapidary__workspace { padding: 12px; }
+  .customer-lapidary__refresh { align-items: flex-start; flex-direction: column; }
+  .customer-lapidary__empty { min-height: 300px; padding: 28px 18px; }
+  .customer-lapidary__empty p { font-size: .72rem; }
+  .customer-lapidary__empty > small { font-size: .59rem; }
+}

@@ -3,6 +3,9 @@
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { PageBody } from "@/components/page-body";
 import { Icon, LinkIcon } from "@/components/icons";
+import { Button, Field, TextInput } from "@/components/admin/ui";
+import { MediaPicker } from "@/components/admin/media";
+import { blogBodyImageMarkdown } from "@/lib/blog-images";
 
 type Alignment = "left" | "center" | "right" | "justify";
 const alignmentIcons = { left: "alignLeft", center: "alignCenter", right: "alignRight", justify: "alignJustify" } as const;
@@ -25,7 +28,14 @@ function ToolButton({
 
 export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imageCursorRef = useRef({ start: 0, end: 0 });
   const [mode, setMode] = useState<"write" | "preview">("write");
+  const [imageComposerOpen, setImageComposerOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageAlt, setImageAlt] = useState("");
+  const [imageCaption, setImageCaption] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState("");
 
   const commit = (nextValue: string, selectionStart: number, selectionEnd: number) => {
     onChange(nextValue);
@@ -34,6 +44,40 @@ export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (
       textarea?.focus();
       textarea?.setSelectionRange(selectionStart, selectionEnd);
     });
+  };
+
+  const rememberImageCursor = () => {
+    const textarea = textareaRef.current;
+    if (textarea) imageCursorRef.current = { start: textarea.selectionStart, end: textarea.selectionEnd };
+  };
+
+  const openImageComposer = () => {
+    rememberImageCursor();
+    setImageError("");
+    setImageComposerOpen(true);
+  };
+
+  const insertImage = () => {
+    const markdown = blogBodyImageMarkdown({ url: imageUrl, alt: imageAlt, caption: imageCaption });
+    if (!markdown || !imageAlt.trim()) {
+      setImageError("Choose an image and add descriptive alt text before inserting it.");
+      return;
+    }
+
+    const { start, end } = imageCursorRef.current;
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const leading = before && !before.endsWith("\n\n") ? before.endsWith("\n") ? "\n" : "\n\n" : "";
+    const trailing = !after.startsWith("\n\n") ? after.startsWith("\n") ? "" : "\n\n" : "";
+    const nextValue = `${before}${leading}${markdown}${trailing}${after}`;
+    const existingSeparator = after.startsWith("\n\n") ? 2 : after.startsWith("\n") ? 1 : 0;
+    const cursor = start + leading.length + markdown.length + trailing.length + existingSeparator;
+    commit(nextValue, cursor, cursor);
+    setImageComposerOpen(false);
+    setImageUrl("");
+    setImageAlt("");
+    setImageCaption("");
+    setImageError("");
   };
 
   const toggleInline = (open: string, close: string, placeholder: string) => {
@@ -218,6 +262,7 @@ export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (
               <ToolButton title="Numbered list" onClick={() => toggleList(true)}><Icon name="listOrdered" size={17} /></ToolButton>
               <ToolButton title="Block quote" onClick={toggleQuote}><Icon name="quote" size={17} /></ToolButton>
               <ToolButton title="Horizontal divider" onClick={insertDivider}><Icon name="divider" size={17} /></ToolButton>
+              <ToolButton title="Insert image" onClick={openImageComposer}><Icon name="image" size={17} /></ToolButton>
             </div>
             <div className="rv-rich-editor__group rv-rich-editor__group--last" aria-label="Paragraph alignment">
               {(["left", "center", "right", "justify"] as const).map((alignment) => (
@@ -234,7 +279,7 @@ export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (
         ) : <span className="rv-rich-editor__preview-label">Article preview</span>}
         <div className="rv-rich-editor__modes" role="group" aria-label="Editor mode">
           <button type="button" aria-pressed={mode === "write"} onClick={() => setMode("write")}>Write</button>
-          <button type="button" aria-pressed={mode === "preview"} onClick={() => setMode("preview")}>Preview</button>
+          <button type="button" aria-pressed={mode === "preview"} onClick={() => { setMode("preview"); setImageComposerOpen(false); }}>Preview</button>
         </div>
       </div>
 
@@ -246,6 +291,9 @@ export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
+          onSelect={rememberImageCursor}
+          onKeyUp={rememberImageCursor}
+          onClick={rememberImageCursor}
           rows={18}
         />
       ) : (
@@ -253,8 +301,37 @@ export function BlogBodyEditor({ value, onChange }: { value: string; onChange: (
           {value.trim() ? <PageBody body={value} className="article__body rv-rich-editor__preview-body" /> : <p className="rv-rich-editor__empty">Nothing to preview yet.</p>}
         </div>
       )}
+      {mode === "write" && imageComposerOpen ? (
+        <div className="rv-rich-editor__image-composer">
+          <div className="rv-rich-editor__image-composer-heading">
+            <strong>Insert an article image</strong>
+            <span className="rv-hint">The image will be placed at the current cursor position.</span>
+          </div>
+          <MediaPicker
+            label="Choose or upload image"
+            folder="blog"
+            multiple={false}
+            value={imageUrl ? [imageUrl] : []}
+            onChange={(urls) => { setImageUrl(urls[0] ?? ""); setImageError(""); }}
+            onBusyChange={setImageUploading}
+          />
+          <div className="rv-rich-editor__image-fields">
+            <Field label="Alt text" hint="Describe what the image shows. Required for accessibility.">
+              <TextInput value={imageAlt} onChange={setImageAlt} required maxLength={300} placeholder="A polished moss agate cabochon" />
+            </Field>
+            <Field label="Caption" hint="Optional text shown below the image.">
+              <TextInput value={imageCaption} onChange={setImageCaption} maxLength={300} placeholder="Stone photographed in natural light" />
+            </Field>
+          </div>
+          {imageError ? <p className="rv-error-text" role="alert">{imageError}</p> : null}
+          <div className="rv-inline rv-rich-editor__image-actions">
+            <Button onClick={insertImage} variant="primary" disabled={!imageUrl || !imageAlt.trim() || imageUploading}>Insert image</Button>
+            <Button onClick={() => { setImageComposerOpen(false); setImageError(""); }}>Cancel</Button>
+          </div>
+        </div>
+      ) : null}
       <p className="rv-rich-editor__hint">
-        Select text for inline styles. Block tools apply to the current paragraph or selected lines; use Preview before saving.
+        Select text for inline styles. Block tools apply to the current paragraph or selected lines. Insert an image between paragraphs, then preview before saving.
       </p>
     </div>
   );

@@ -43,7 +43,7 @@ export default function BlogListPage() {
     },
     {
       key: "seo",
-      header: "SEO Score · EN",
+      header: "Editorial · EN",
       width: "144px",
       render: (post) => (
         <SeoBadge

@@ -525,7 +525,7 @@ export default function AdminSettingsPage() {
                   <Field label="Default title">
                     <TextInput value={form.seoTitle} onChange={(value) => update("seoTitle", value)} />
                   </Field>
-                  <Field label="Default description" hint="Aim for 150–160 characters">
+                  <Field label="Default description" hint="Write an accurate fallback; around 120–160 characters is an editorial guide, not a Google limit">
                     <TextArea value={form.seoDescription} onChange={(value) => update("seoDescription", value)} rows={4} />
                   </Field>
                 </div>

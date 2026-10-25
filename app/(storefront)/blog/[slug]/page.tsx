@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { JournalCover } from "@/components/journal-cover";
 import { journalCover } from "@/lib/editorial-images";
 import Link from "@/components/localized-link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { ArticleShare } from "@/components/article-share";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { PageBody, formatContentDate, slugifyHeading } from "@/components/page-body";
@@ -12,23 +12,30 @@ import { getBlogPost, getBlogPosts } from "@/lib/storefront";
 import { dictionaries } from "@/lib/i18n";
 import { getRequestLanguage } from "@/lib/server-locale";
 import { localizedAlternates, localizedPath } from "@/lib/locale";
+import { extractBlogBodyImages } from "@/lib/blog-images";
 
 const escapeJsonLd = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const language = await getRequestLanguage();
-  const post = await getBlogPost(slug, language, (await headers()).get("x-rv-seo-audit") === "1");
+  const seoAudit = (await headers()).get("x-rv-seo-audit") === "1";
+  const [post, translatedPost] = await Promise.all([
+    getBlogPost(slug, language, seoAudit),
+    language === "en" ? getBlogPost(slug, "id", seoAudit) : Promise.resolve(null),
+  ]);
   if (!post) return {};
   const journal = dictionaries[language].journal;
   const englishFallback = language === "id" && post.contentLocale === "en";
+  const hasIndonesianTranslation = language === "id" ? !englishFallback : translatedPost?.contentLocale === "id";
+  const path = `/blog/${post.slug}`;
   const title = englishFallback ? `Artikel berbahasa Inggris | ${post.title} | RENDI VIRGO` : post.metaTitle ?? `${post.title} | RENDI VIRGO ${journal.eyebrow}`;
   const description = englishFallback ? dictionaries.id.draft.fallback : post.metaDescription ?? post.excerpt;
   const coverImage = absoluteUrl(journalCover(post.coverImage, post.slug));
   return {
     title,
     description,
-    alternates: localizedAlternates(`/blog/${post.slug}`, language),
+    alternates: localizedAlternates(path, language, hasIndonesianTranslation),
     openGraph: {
       title: post.title,
       description,
@@ -67,6 +74,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
   const journal = t.journal;
   const post = await getBlogPost(slug, language, (await headers()).get("x-rv-seo-audit") === "1");
   if (!post) notFound();
+  if (post.slug !== slug) permanentRedirect(localizedPath(`/blog/${post.slug}`, language));
 
   const publishedAt = post.publishedAt ?? post.updatedAt;
   const publishedLabel = formatContentDate(publishedAt, language);
@@ -84,7 +92,10 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
     description: post.excerpt,
     datePublished: publishedAt,
     dateModified: post.updatedAt,
-    image: [absoluteUrl(journalCover(post.coverImage, post.slug))],
+    image: [...new Set([
+      absoluteUrl(journalCover(post.coverImage, post.slug)),
+      ...extractBlogBodyImages(post.body ?? "").map(image => absoluteUrl(image.url)),
+    ])],
     author: {
       "@type": post.authorType ?? "Organization",
       name: post.author || "RENDI VIRGO",

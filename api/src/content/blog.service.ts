@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ContentStatus, Prisma } from "../../generated/prisma";
 import { AuditService } from "../audit/audit.service";
 import { paginated, skipTake, type Paginated } from "../common/dto/pagination.dto";
@@ -48,13 +48,13 @@ export class BlogService {
     title: string; excerpt: string; tags: string[]; metaTitle: string | null; metaDescription: string | null;
     coverAlt: string | null; coverAltId: string | null;
     titleId: string | null; excerptId: string | null; bodyId: string | null; tagsId: string[];
-    metaTitleId: string | null; metaDescriptionId: string | null; idTranslationStatus: string; body?: string;
+    metaTitleId: string | null; metaDescriptionId: string | null; idTranslationStatus: string; body?: string; previousSlugs?: string[];
   }>(post: T, language: StorefrontLanguage) {
     const idReady = language === "id" && post.idTranslationStatus === "Ready" && Boolean(post.titleId?.trim()) &&
       (!post.excerpt.trim() || Boolean(post.excerptId?.trim())) &&
       post.tagsId.length === post.tags.length &&
       (post.body === undefined || !post.body.trim() || Boolean(post.bodyId?.trim()));
-    const { titleId, excerptId, bodyId, tagsId, metaTitleId, metaDescriptionId, coverAltId, idTranslationStatus, ...publicPost } = post;
+    const { titleId, excerptId, bodyId, tagsId, metaTitleId, metaDescriptionId, coverAltId, idTranslationStatus, previousSlugs, ...publicPost } = post;
     return {
       ...publicPost,
       title: idReady ? titleId! : post.title,
@@ -63,7 +63,7 @@ export class BlogService {
       tags: idReady ? tagsId : post.tags,
       metaTitle: idReady ? metaTitleId : post.metaTitle,
       metaDescription: idReady ? metaDescriptionId : post.metaDescription,
-      coverAlt: idReady ? coverAltId : post.coverAlt,
+      coverAlt: idReady && coverAltId?.trim() ? coverAltId : post.coverAlt,
       contentLocale: idReady ? "id" : "en",
     };
   }
@@ -71,24 +71,43 @@ export class BlogService {
   // ------------------------------------------------------------ queries
 
   private buildWhere(query: BlogQueryDto, publicOnly: boolean, language: StorefrontLanguage = "en"): Prisma.BlogPostWhereInput {
-    const where: Prisma.BlogPostWhereInput = {};
+    const filters: Prisma.BlogPostWhereInput[] = [];
+    const now = new Date();
 
     if (publicOnly) {
-      where.status = "Published";
-      where.publishedAt = { lte: new Date() };
+      filters.push({
+        OR: [
+          { status: "Published", publishedAt: { lte: now } },
+          { status: "Scheduled", publishedAt: { lte: now } },
+        ],
+      });
+    } else if (query.status === "Published") {
+      filters.push({
+        OR: [
+          { status: "Published" },
+          { status: "Scheduled", publishedAt: { lte: now } },
+        ],
+      });
+    } else if (query.status === "Scheduled") {
+      filters.push({
+        status: "Scheduled",
+        OR: [{ publishedAt: null }, { publishedAt: { gt: now } }],
+      });
     } else if (query.status) {
-      where.status = query.status;
+      filters.push({ status: query.status });
     }
 
-    if (query.tag) where.OR = [
+    if (query.tag) filters.push({ OR: [
       { tags: { has: query.tag } },
       ...(language === "id" ? [{ tagsId: { has: query.tag } }] : []),
-    ];
+    ] });
 
     const search = query.search?.trim();
     if (search) {
       const searchOr: Prisma.BlogPostWhereInput[] = [
         { title: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } },
+        { previousSlugs: { has: search } },
         ...(language === "id" ? [{ titleId: { contains: search, mode: "insensitive" as const } }] : []),
         { excerpt: { contains: search, mode: "insensitive" } },
         ...(language === "id" ? [{ excerptId: { contains: search, mode: "insensitive" as const } }] : []),
@@ -96,10 +115,10 @@ export class BlogService {
         ...(language === "id" ? [{ bodyId: { contains: search, mode: "insensitive" as const } }] : []),
         { author: { contains: search, mode: "insensitive" } },
       ];
-      where.AND = [{ OR: searchOr }];
+      filters.push({ OR: searchOr });
     }
 
-    return where;
+    return filters.length ? { AND: filters } : {};
   }
 
   async listPublic(query: BlogQueryDto, language: StorefrontLanguage = "en") {
@@ -120,7 +139,11 @@ export class BlogService {
 
   async getPublicBySlug(slug: string, language: StorefrontLanguage = "en", countView = true) {
     const post = await this.prisma.blogPost.findFirst({
-      where: { slug, status: "Published", publishedAt: { lte: new Date() } },
+      where: {
+        OR: [{ slug }, { previousSlugs: { has: slug } }],
+        status: { in: ["Published", "Scheduled"] },
+        publishedAt: { lte: new Date() },
+      },
     });
     if (!post) throw new NotFoundException("Post not found");
 
@@ -128,12 +151,12 @@ export class BlogService {
       .update({ where: { id: post.id }, data: { views: { increment: 1 } } })
       .catch(() => undefined);
 
-    return this.toPublic(post, language);
+    return this.toPublic(this.effectiveStatus(post), language);
   }
 
   async tags(language: StorefrontLanguage = "en"): Promise<string[]> {
     const posts = await this.prisma.blogPost.findMany({
-      where: { status: "Published", publishedAt: { lte: new Date() } },
+      where: { status: { in: ["Published", "Scheduled"] }, publishedAt: { lte: new Date() } },
       select: { tags: true, tagsId: true, idTranslationStatus: true },
     });
     return [...new Set(posts.flatMap((post) => language === "id" && post.idTranslationStatus === "Ready" && post.tagsId.length === post.tags.length ? post.tagsId : post.tags))]
@@ -152,13 +175,28 @@ export class BlogService {
       }),
     ]);
 
-    return paginated(posts, total, query.page, query.pageSize);
+    return paginated(posts.map((post) => this.effectiveStatus(post)), total, query.page, query.pageSize);
   }
 
   async getAdminById(id: string) {
     const post = await this.prisma.blogPost.findUnique({ where: { id } });
     if (!post) throw new NotFoundException("Post not found");
-    return post;
+    return this.effectiveStatus(post);
+  }
+
+  private effectiveStatus<T extends { status: ContentStatus; publishedAt: Date | null }>(post: T) {
+    return post.status === "Scheduled" && post.publishedAt && post.publishedAt <= new Date()
+      ? { ...post, status: ContentStatus.Published }
+      : post;
+  }
+
+  private assertPublishReady(post: { status: ContentStatus; excerpt: string; body: string; publishedAt: Date | null }) {
+    if (post.status !== "Published" && post.status !== "Scheduled") return;
+    if (!post.excerpt.trim()) throw new BadRequestException("Add an article excerpt before publishing.");
+    if (!post.body.trim()) throw new BadRequestException("Add article content before publishing.");
+    if (post.status === "Scheduled" && (!post.publishedAt || post.publishedAt <= new Date())) {
+      throw new BadRequestException("Scheduled articles need a publication date in the future.");
+    }
   }
 
   // ------------------------------------------------------------ mutations
@@ -177,11 +215,12 @@ export class BlogService {
 
   async create(dto: CreateBlogPostDto, context: AuditContext) {
     const slug = await uniqueSlug(slugify(dto.slug ?? dto.title), (candidate) =>
-      this.prisma.blogPost.findUnique({ where: { slug: candidate } }),
+      this.prisma.blogPost.findFirst({ where: { OR: [{ slug: candidate }, { previousSlugs: { has: candidate } }] } }),
     );
 
     const status = dto.status ?? "Draft";
     const publishedAt = this.resolvePublishedAt(dto.publishedAt, status, null);
+    this.assertPublishReady({ status, excerpt: dto.excerpt ?? "", body: dto.body ?? "", publishedAt });
 
     const post = await this.prisma.blogPost.create({
       data: {
@@ -232,12 +271,20 @@ export class BlogService {
     const slug =
       dto.slug && slugify(dto.slug) !== existing.slug
         ? await uniqueSlug(slugify(dto.slug), (candidate) =>
-            this.prisma.blogPost.findUnique({ where: { slug: candidate } }),
+            this.prisma.blogPost.findFirst({ where: { OR: [{ slug: candidate }, { previousSlugs: { has: candidate } }] } }),
           )
         : undefined;
 
     const nextStatus = dto.status ?? existing.status;
     const publishedAt = this.resolvePublishedAt(dto.publishedAt, nextStatus, existing.publishedAt);
+    if (dto.status !== undefined && dto.status !== existing.status) {
+      this.assertPublishReady({
+        status: nextStatus,
+        excerpt: dto.excerpt ?? existing.excerpt,
+        body: dto.body ?? existing.body,
+        publishedAt,
+      });
+    }
     const shouldUpdatePublishedAt =
       dto.publishedAt !== undefined || (nextStatus === "Published" && !existing.publishedAt);
 
@@ -245,7 +292,7 @@ export class BlogService {
       where: { id },
       data: {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
-        ...(slug ? { slug } : {}),
+        ...(slug ? { slug, previousSlugs: [...new Set([...existing.previousSlugs, existing.slug])] } : {}),
         ...(dto.excerpt !== undefined ? { excerpt: dto.excerpt } : {}),
         ...(dto.body !== undefined ? { body: dto.body } : {}),
         ...(dto.coverImage !== undefined ? { coverImage: dto.coverImage } : {}),

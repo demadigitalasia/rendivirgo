@@ -184,7 +184,6 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
             </div>
           ) : null}
           <div className="product-gallery__caption">
-            <span>{t.product.imageLabel} {String(activeImageIndex + 1).padStart(2, "0")}</span>
             <span className="product-gallery__hint">{t.product.zoomHint}</span>
           </div>
           {product.videoUrl ? (

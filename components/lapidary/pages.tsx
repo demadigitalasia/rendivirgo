@@ -13,10 +13,10 @@ const copy = {
       cta: "Start a custom request",
       note: "Made to order · Studio review before any work begins",
       cards: [
-        ["01 / BEGIN A PROJECT", "Custom Order", "Tell us about your stone, the cut you have in mind, and the finish you need.", "/lapidary/custom-order", "/images/wholesale/finished-products-banner.png", "Request a quote"],
-        ["02 / THE WORKROOM", "Our Studio", "Learn how our studio approaches each stone and see the workroom as its gallery grows.", "/lapidary/studio", "/images/editorial/stone-forms.webp", "Explore the studio"],
-        ["03 / THE HANDS BEHIND THE CUT", "Meet the Artists", "Meet the cutters who bring practical skill and a careful eye to each piece.", "/lapidary/artists", "/images/editorial/moss-agate-fern.webp", "Meet our artists"],
-        ["04 / HOW WE WORK", "Our Craft Standards", "A clear look at assessment, cutting, finishing, and quality review.", "/lapidary/process", "/images/wholesale/rough-materials-banner.png", "Read our standards"],
+        ["01 / BEGIN A PROJECT", "Custom Order", "Tell us about your stone, the cut you have in mind, and the finish you need.", "/lapidary/custom-order", "Request a quote"],
+        ["02 / THE WORKROOM", "Our Studio", "Learn how our studio approaches each stone and see the workroom as its gallery grows.", "/lapidary/studio", "Explore the studio"],
+        ["03 / THE HANDS BEHIND THE CUT", "Meet the Artists", "Meet the cutters who bring practical skill and a careful eye to each piece.", "/lapidary/artists", "Meet our artists"],
+        ["04 / HOW WE WORK", "Our Craft Standards", "A clear look at assessment, cutting, finishing, and quality review.", "/lapidary/process", "Read our standards"],
       ],
       processTitle: "A considered process",
       process: ["Share your brief", "We review the stone and scope", "You approve a written quote", "The studio begins the work"],
@@ -39,10 +39,10 @@ const copy = {
       cta: "Mulai permintaan custom",
       note: "Dibuat sesuai pesanan · Ditinjau studio sebelum pengerjaan",
       cards: [
-        ["01 / MULAI PROYEK", "Pesanan Custom", "Ceritakan batu Anda, bentuk yang diinginkan, dan hasil akhir yang dibutuhkan.", "/lapidary/custom-order", "/images/wholesale/finished-products-banner.png", "Minta penawaran"],
-        ["02 / RUANG KERJA", "Studio Kami", "Kenali pendekatan studio kami terhadap setiap batu dan lihat galeri yang terus berkembang.", "/lapidary/studio", "/images/editorial/stone-forms.webp", "Jelajahi studio"],
-        ["03 / PENGRAJIN DI BALIK POTONGAN", "Kenali Pengrajin", "Kenali para pemotong batu dengan keterampilan dan ketelitian dalam setiap karya.", "/lapidary/artists", "/images/editorial/moss-agate-fern.webp", "Kenali pengrajin"],
-        ["04 / CARA KAMI BEKERJA", "Standar Pengerjaan", "Lihat proses penilaian, pemotongan, pemolesan, dan pemeriksaan kualitas.", "/lapidary/process", "/images/wholesale/rough-materials-banner.png", "Baca standar kami"],
+        ["01 / MULAI PROYEK", "Pesanan Custom", "Ceritakan batu Anda, bentuk yang diinginkan, dan hasil akhir yang dibutuhkan.", "/lapidary/custom-order", "Minta penawaran"],
+        ["02 / RUANG KERJA", "Studio Kami", "Kenali pendekatan studio kami terhadap setiap batu dan lihat galeri yang terus berkembang.", "/lapidary/studio", "Jelajahi studio"],
+        ["03 / PENGRAJIN DI BALIK POTONGAN", "Kenali Pengrajin", "Kenali para pemotong batu dengan keterampilan dan ketelitian dalam setiap karya.", "/lapidary/artists", "Kenali pengrajin"],
+        ["04 / CARA KAMI BEKERJA", "Standar Pengerjaan", "Lihat proses penilaian, pemotongan, pemolesan, dan pemeriksaan kualitas.", "/lapidary/process", "Baca standar kami"],
       ],
       processTitle: "Proses yang terukur",
       process: ["Kirimkan brief", "Kami meninjau batu dan lingkup kerja", "Anda menyetujui penawaran tertulis", "Studio memulai pengerjaan"],
@@ -60,6 +60,18 @@ const copy = {
 } as const;
 
 type PageLanguage = keyof typeof copy;
+
+const lapidaryPathIcons = [
+  "/images/lapidary/icons/custom-order.png",
+  "/images/lapidary/icons/studio.png",
+  "/images/lapidary/icons/artists.png",
+  "/images/lapidary/icons/craft-standards.png",
+] as const;
+
+function LapidaryPathIcon({ index }: { index: number }) {
+  const src = lapidaryPathIcons[index] ?? lapidaryPathIcons[0];
+  return <img src={src} alt="" width={48} height={48} loading="lazy" decoding="async" />;
+}
 
 function SubpageHeader({ language, eyebrow, title, body }: { language: Language; eyebrow: string; title: string; body: string }) {
   const text = copy[language as PageLanguage].sub;
@@ -86,7 +98,17 @@ export function LapidaryLanding({ language }: { language: Language }) {
           <LocalizedLink className="lapidary-button" href="/lapidary/custom-order">{text.cta}<span aria-hidden="true">↗</span></LocalizedLink>
           <p className="lapidary-hero__note">{text.note}</p>
         </div>
-        <div className="lapidary-hero__image" role="img" aria-label={language === "id" ? "Batu alam Indonesia dengan pola moss agate" : "Indonesian natural stone with moss agate patterns"} />
+        <figure className="lapidary-hero__visual">
+          <img
+            className="lapidary-hero__image"
+            src="/images/lapidary/lapidary-bench-polishing.webp"
+            alt={language === "id" ? "Tangan pengrajin memoles cabochon moss agate menggunakan roda poles" : "An artisan's hands polish a moss-agate cabochon at the wheel"}
+            width={1254}
+            height={1254}
+            fetchPriority="high"
+          />
+          <figcaption><span>{language === "id" ? "PROSES" : "PROCESS"}</span>{language === "id" ? "PEMOLESAN MANUAL" : "FINISHED BY HAND"}</figcaption>
+        </figure>
       </section>
 
       <section className="lapidary-intro page-container">
@@ -95,10 +117,10 @@ export function LapidaryLanding({ language }: { language: Language }) {
       </section>
 
       <section className="lapidary-card-grid page-container" aria-label={language === "id" ? "Pilihan layanan lapidary" : "Lapidary services"}>
-        {text.cards.map(([eyebrow, title, body, href, image, action], index) => (
+        {text.cards.map(([eyebrow, title, body, href, action], index) => (
           <LocalizedLink className="lapidary-path-card" href={href} key={href}>
-            <div className="lapidary-path-card__image"><img src={image} alt="" loading={index === 0 ? "eager" : "lazy"} /><span>{eyebrow}</span></div>
-            <div className="lapidary-path-card__body"><div><h2>{title}</h2><p>{body}</p></div><span className="lapidary-card-link">{action}<span aria-hidden="true">↗</span></span></div>
+            <div className="lapidary-path-card__mark" aria-hidden="true"><LapidaryPathIcon index={index} /></div>
+            <div className="lapidary-path-card__body"><div><p className="lapidary-path-card__eyebrow">{eyebrow}</p><h2>{title}</h2><p>{body}</p></div><span className="lapidary-card-link">{action}<span aria-hidden="true">↗</span></span></div>
           </LocalizedLink>
         ))}
       </section>

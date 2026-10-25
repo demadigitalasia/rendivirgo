@@ -11,12 +11,22 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 12;
 
-export async function generateMetadata({ params }: { params: Promise<{ category: string }> }): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: {
+  params: Promise<{ category: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
   const { category: slug } = await params;
-  const language = await getRequestLanguage();
-  const category = await getCategory(slug, language);
+  const [language, query] = await Promise.all([getRequestLanguage(), searchParams]);
+  const [category, translatedCategory] = await Promise.all([
+    getCategory(slug, language),
+    language === "en" ? getCategory(slug, "id") : Promise.resolve(null),
+  ]);
   if (!category) return {};
   const englishFallback = language === "id" && category.contentLocale === "en";
+  const hasIndonesianTranslation = language === "id" ? !englishFallback : translatedCategory?.contentLocale === "id";
+  const rawPage = Array.isArray(query.page) ? query.page[0] : query.page;
+  const page = Math.max(1, Number(rawPage) || 1);
+  const path = `/shop/${category.slug}${page > 1 ? `?page=${page}` : ""}`;
   const note = category.description ?? (language === "id" ? "Batu alam dari Indonesia" : "Indonesian natural stones");
   const title = (!englishFallback && category.metaTitle?.trim()) || `${category.name} | RENDI VIRGO`;
   const description = englishFallback
@@ -25,8 +35,8 @@ export async function generateMetadata({ params }: { params: Promise<{ category:
   return {
     title,
     description,
-    alternates: localizedAlternates(`/shop/${category.slug}`, language),
-    ...socialMetadata(title, description, localizedPath(`/shop/${category.slug}`, language), category.imageUrl || undefined),
+    alternates: localizedAlternates(path, language, hasIndonesianTranslation),
+    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath(path, language) : path, category.imageUrl || undefined),
   };
 }
 

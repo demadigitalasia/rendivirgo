@@ -4,11 +4,44 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Activity,
+  ArrowUpRight,
+  BookOpenText,
+  ChartColumn,
+  ClipboardList,
+  Files,
+  FolderTree,
+  House,
+  Image as ImageIcon,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  Menu,
+  MessageSquareQuote,
+  NotebookTabs,
+  Package,
+  PanelsTopLeft,
+  Percent,
+  Pickaxe,
+  ReceiptText,
+  Scissors,
+  SearchCheck,
+  Settings2,
+  ShieldCheck,
+  Star,
+  Store,
+  Truck,
+  TriangleAlert,
+  UsersRound,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { apiFetch } from "./api";
 import { Toaster, toast } from "./toast";
-import { AlertTriangleIcon, CloseIcon, Icon, LogOutIcon, MenuIcon, StoreIcon, type IconName } from "@/components/icons";
 
-type NavItem = { href: string; label: string; icon: IconName; exact?: boolean; badge?: number; warning?: string };
+type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean; badge?: number; warning?: string };
 
 type NavGroup = { label: string; items: NavItem[] };
 
@@ -97,55 +130,63 @@ export function AdminShell({
   };
 
   const isActive = (item: NavItem) => (item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const adminInitials = admin.name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "A";
 
   const groups: NavGroup[] = [
     {
       label: "Overview",
-      items: [{ href: "/admin", label: "Dashboard", icon: "dashboard", exact: true }],
+      items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true }],
     },
     {
       label: "Catalog",
       items: [
-        { href: "/admin/products", label: "Products", icon: "box" },
-        { href: "/admin/categories", label: "Categories", icon: "layers" },
-        { href: "/admin/conditions", label: "Conditions", icon: "shieldCheck" },
-        { href: "/admin/catalog", label: "PDF catalog", icon: "book" },
+        { href: "/admin/products", label: "Products", icon: Package },
+        { href: "/admin/categories", label: "Categories", icon: FolderTree },
+        { href: "/admin/conditions", label: "Conditions", icon: ShieldCheck },
+        { href: "/admin/catalog", label: "PDF catalog", icon: BookOpenText },
       ],
     },
     {
       label: "Sales",
       items: [
-        { href: "/admin/pos", label: "Workshop POS", icon: "receipt" },
-        { href: "/admin/orders", label: "Orders", icon: "fileText" },
-        { href: "/admin/customers", label: "Customers", icon: "users" },
-        { href: "/admin/wholesale", label: "Wholesale", icon: "gem" },
-        { href: "/admin/rough-materials", label: "Rough Materials", icon: "gem" },
-        { href: "/admin/lapidary/requests", label: "Lapidary requests", icon: "gem" },
-        { href: "/admin/discounts", label: "Discounts", icon: "tag" },
+        { href: "/admin/pos", label: "Workshop POS", icon: ReceiptText },
+        { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+        { href: "/admin/customers", label: "Customers", icon: UsersRound },
+        { href: "/admin/wholesale", label: "Wholesale", icon: Store },
+        { href: "/admin/rough-materials", label: "Rough Materials", icon: Pickaxe },
+        { href: "/admin/lapidary/requests", label: "Lapidary requests", icon: Scissors },
+        { href: "/admin/discounts", label: "Discounts", icon: Percent },
       ],
     },
     {
       label: "Content",
       items: [
-        { href: "/admin/seo", label: "SEO Audit", icon: "seo" },
-        { href: "/admin/content/home", label: "Home page", icon: "home" },
-        { href: "/admin/content/blog", label: "Blog", icon: "notebook" },
-        { href: "/admin/content/pages", label: "Pages", icon: "fileText" },
-        { href: "/admin/content/testimonials", label: "Testimonials", icon: "message" },
-        { href: "/admin/content/banners", label: "Banners", icon: "image" },
-        { href: "/admin/lapidary/content", label: "Lapidary content", icon: "image" },
+        { href: "/admin/seo", label: "SEO Audit", icon: SearchCheck },
+        { href: "/admin/content/home", label: "Home page", icon: House },
+        { href: "/admin/content/blog", label: "Blog", icon: NotebookTabs },
+        { href: "/admin/content/pages", label: "Pages", icon: Files },
+        { href: "/admin/content/testimonials", label: "Testimonials", icon: MessageSquareQuote },
+        { href: "/admin/content/banners", label: "Banners", icon: ImageIcon },
+        { href: "/admin/lapidary/content", label: "Lapidary content", icon: PanelsTopLeft },
       ],
     },
     {
       label: "Operations",
       items: [
-        { href: "/admin/messages", label: "Inbox", icon: "inbox", badge: unread, warning: unreadSyncError ? "Inbox count unavailable" : undefined },
-        { href: "/admin/reviews", label: "Reviews", icon: "star" },
-        { href: "/admin/newsletter", label: "Newsletter", icon: "mail" },
-        { href: "/admin/reports", label: "Reports", icon: "chart" },
-        { href: "/admin/settings", label: "Settings", icon: "settings", exact: true },
-        { href: "/admin/settings/shipping", label: "Shipping", icon: "truck" },
-        { href: "/admin/system", label: "System & audit", icon: "shieldCheck" },
+        { href: "/admin/messages", label: "Inbox", icon: Inbox, badge: unread, warning: unreadSyncError ? "Inbox count unavailable" : undefined },
+        { href: "/admin/reviews", label: "Reviews", icon: Star },
+        { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
+        { href: "/admin/reports", label: "Reports", icon: ChartColumn },
+        { href: "/admin/settings", label: "Settings", icon: Settings2, exact: true },
+        { href: "/admin/settings/shipping", label: "Shipping", icon: Truck },
+        { href: "/admin/system", label: "System & audit", icon: Activity },
       ],
     },
   ];
@@ -190,24 +231,44 @@ export function AdminShell({
                   className={isActive(item) ? "rv-nav-item is-active" : "rv-nav-item"}
                   aria-current={isActive(item) ? "page" : undefined}
                 >
-                  <Icon name={item.icon} className="rv-nav-item__icon" />
+                  <item.icon className="rv-nav-item__icon" size={18} strokeWidth={1.7} aria-hidden="true" />
                   <span className="rv-nav-item__label">{item.label}</span>
                   {item.badge ? <span className="rv-nav-item__badge">{item.badge}</span> : null}
-                  {item.warning ? <span className="rv-nav-item__warning" title={item.warning} aria-label={item.warning}><AlertTriangleIcon size={14} /></span> : null}
+                  {item.warning ? <span className="rv-nav-item__warning" title={item.warning} aria-label={item.warning}><TriangleAlert size={14} strokeWidth={1.7} aria-hidden="true" /></span> : null}
                 </Link>
               ))}
             </div>
           ))}
         </nav>
         <div className="rv-sidebar__footer">
-          <strong>{admin.name}</strong>
-          <span>{admin.email}</span>
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-            <Link className="rv-btn rv-btn--sm" href="/" target="_blank" rel="noreferrer noopener">
-              <StoreIcon size={15} /> View store <span className="rv-sr-only">in a new tab</span><Icon name="externalLink" size={14} />
+          <div className="rv-sidebar__account">
+            <span className="rv-sidebar__account-avatar" aria-hidden="true">{adminInitials}</span>
+            <div className="rv-sidebar__account-copy">
+              <strong>{admin.name}</strong>
+              <span>{admin.email}</span>
+            </div>
+          </div>
+          <div className="rv-sidebar__actions">
+            <Link
+              className="rv-btn rv-btn--sm"
+              href="/"
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label="View store in a new tab"
+            >
+              <Store size={15} strokeWidth={1.7} aria-hidden="true" />
+              <span>Store</span>
+              <span className="rv-sr-only">in a new tab</span>
+              <ArrowUpRight className="rv-sidebar__action-external" size={12} strokeWidth={1.7} aria-hidden="true" />
             </Link>
-            <button className="rv-btn rv-btn--sm" type="button" onClick={signOut} disabled={signingOut}>
-              <LogOutIcon size={15} /> {signingOut ? "Signing out…" : "Sign out"}
+            <button
+              className="rv-btn rv-btn--sm"
+              type="button"
+              onClick={signOut}
+              disabled={signingOut}
+            >
+              <LogOut size={15} strokeWidth={1.7} aria-hidden="true" />
+              <span>{signingOut ? "Signing out…" : "Sign out"}</span>
             </button>
           </div>
         </div>
@@ -223,7 +284,7 @@ export function AdminShell({
             aria-controls="admin-navigation"
             onClick={() => setNavOpen((value) => !value)}
           >
-            {navOpen ? <CloseIcon size={17} /> : <MenuIcon size={17} />}
+            {navOpen ? <X size={17} strokeWidth={1.7} aria-hidden="true" /> : <Menu size={17} strokeWidth={1.7} aria-hidden="true" />}
             {navOpen ? "Close menu" : "Menu"}
           </button>
           <span className="rv-mobile-admin-bar__label">RENDI VIRGO · Admin workspace</span>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { Language } from "@/lib/i18n";
+import { FilterDropdown } from "@/components/filter-dropdown";
 import { Cabochon3DPreview, type CabochonShape } from "./oval-cabochon-preview";
 import { cabochonShapes, standardCabochonKeys, cabochonAssetVersion } from "@/lib/lapidary-shapes";
 
@@ -132,6 +133,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
   const [draftReady, setDraftReady] = useState(false);
   const [draftExists, setDraftExists] = useState(false);
   const [shapePreviewKey, setShapePreviewKey] = useState<string | null>(null);
+  const [shapeSearches, setShapeSearches] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
   const previousStep = useRef(step);
 
@@ -456,15 +458,24 @@ export function CustomOrderForm({ language }: { language: Language }) {
   function workName(type: ServiceType) { const item = serviceChoices.find((choice) => choice.value === type); return isId ? item?.id : item?.en; }
   function formatDimension(value: string) { return value.trim() ? `${value} mm` : "—"; }
   function renderShapePicker(selected: ShapeKey | "", onSelect: (shape: ShapeKey) => void, label: string, pickerKey: string, matchedPair = false, workItem?: WorkItem) {
+    const searchValue = shapeSearches[pickerKey] ?? "";
+    const normalizedSearch = searchValue.trim().toLocaleLowerCase();
+    const visibleShapes = normalizedSearch
+      ? shapeOptions.filter((shape) => (isId ? shape.id : shape.en).toLocaleLowerCase().includes(normalizedSearch))
+      : shapeOptions;
+    const selectedShape = shapeOptions.find((shape) => shape.value === selected);
+    const searchId = `${pickerKey.replace(/[^a-zA-Z0-9_-]/g, "-")}-shape-search`;
     const renderChoice = (shape: typeof shapeOptions[number]) => <button type="button" key={shape.value} aria-pressed={selected === shape.value} className={selected === shape.value ? "is-selected" : ""} onClick={() => {
         onSelect(shape.value);
         if (shape.value !== "custom") setShapePreviewKey(pickerKey);
         else if (shapePreviewKey === pickerKey) setShapePreviewKey(null);
-      }}><Image src={shape.value === "custom" ? "/images/lapidary/shapes/custom.png" : matchedPair ? `/models/lapidary/${shape.value}-v1/matched-pair-front-v1.png` : `/models/lapidary/${shape.value}-v1/front-v${cabochonAssetVersion(shape.value)}.png`} alt="" width={72} height={72} sizes="72px" /><span>{isId ? shape.id : shape.en}</span></button>;
+      }}><Image src={shape.value === "custom" ? "/images/lapidary/shapes/custom.png" : matchedPair ? `/models/lapidary/${shape.value}-v1/matched-pair-front-v1.png` : `/models/lapidary/${shape.value}-v1/front-v${cabochonAssetVersion(shape.value)}.png`} alt="" width={72} height={72} sizes="72px" /><span>{isId ? shape.id : shape.en}</span><span className="lapidary-shape-picker__check" aria-hidden="true">✓</span></button>;
     return <div className="lapidary-shape-picker-group">
       <fieldset className="lapidary-shape-picker"><legend>{label}</legend>
-        <p className="lapidary-shape-scroll-hint">{t(`Scroll up or down to explore all ${standardCabochonKeys.length} shapes`, `Scroll ke atas atau ke bawah untuk melihat seluruh ${standardCabochonKeys.length} bentuk`)} <span aria-hidden="true">↕</span></p>
-        <div className="lapidary-shape-scroll" role="region" aria-label={t("All basic shapes — scroll to browse", "Seluruh bentuk dasar — scroll untuk melihat")} tabIndex={0}>{shapeOptions.map(renderChoice)}</div>
+        <p className="lapidary-shape-scroll-hint">{t(`Search or scroll to explore all ${standardCabochonKeys.length} shapes`, `Cari atau scroll untuk melihat seluruh ${standardCabochonKeys.length} bentuk`)} <span aria-hidden="true">↕</span></p>
+        <label className="lapidary-shape-search" htmlFor={searchId}>{t("Find a shape", "Cari bentuk")}<input id={searchId} type="search" value={searchValue} onChange={(event) => setShapeSearches((current) => ({ ...current, [pickerKey]: event.target.value }))} placeholder={t("Search by shape name", "Cari berdasarkan nama bentuk")} /></label>
+        {selectedShape ? <p className="lapidary-shape-selected">{t("Selected", "Dipilih")}: <strong>{isId ? selectedShape.id : selectedShape.en}</strong></p> : null}
+        <div className="lapidary-shape-scroll" role="region" aria-label={t("All basic shapes — scroll to browse", "Seluruh bentuk dasar — scroll untuk melihat")} tabIndex={0}>{visibleShapes.length ? visibleShapes.map(renderChoice) : <p className="lapidary-shape-scroll-empty">{t("No shapes match your search.", "Tidak ada bentuk yang cocok dengan pencarian.")}</p>}</div>
         {matchedPair ? <p className="lapidary-shape-aliases">{t("Two cabochons per pair. Asymmetric shapes are mirrored left and right. Color and pattern matching will be confirmed by the studio.", "Dua cabochon per pasang. Bentuk asimetris dibuat sebagai pasangan cermin kiri–kanan. Kesesuaian warna dan pola dikonfirmasi oleh studio.")}</p> : null}
         <p className="lapidary-shape-aliases">{t("Long oval is also called elongated oval; marquise is also called navette. These are smooth cabochon shapes; Emerald octagon describes the outline.", "Long oval juga disebut elongated oval; marquise juga disebut navette. Semua contoh berkubah halus; Emerald octagon menjelaskan garis bentuknya.")}</p>
       </fieldset>
@@ -506,7 +517,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
           <div className="lapidary-form__grid">
             <label className="lapidary-form__full">{t("Stone type and notes", "Jenis batu dan catatan material")}<textarea value={materialDescription} onChange={(event) => setMaterialDescription(event.target.value)} minLength={2} maxLength={2000} required rows={3} placeholder={t("For example: moss agate, rough piece…", "Contoh: moss agate, batu rough…")} /></label>
             <label>{t("Origin (if known)", "Asal batu (jika diketahui)")}<input value={materialOrigin} onChange={(event) => setMaterialOrigin(event.target.value)} maxLength={160} placeholder={t("Region or mine", "Daerah atau lokasi tambang")} /></label>
-            <label>{t("Approximate weight", "Perkiraan berat")}<span className="lapidary-input-with-unit"><input type="number" min="0.01" step="0.01" value={materialWeight} onChange={(event) => setMaterialWeight(event.target.value)} required inputMode="decimal" /><select value={weightUnit} onChange={(event) => setWeightUnit(event.target.value as "g" | "kg")} aria-label={t("Weight unit", "Satuan berat")}><option value="g">g</option><option value="kg">kg</option></select></span></label>
+            <div className="lapidary-field"><label htmlFor="lapidary-material-weight">{t("Approximate weight", "Perkiraan berat")}</label><span className="lapidary-input-with-unit"><input id="lapidary-material-weight" type="number" min="0.01" step="0.01" value={materialWeight} onChange={(event) => setMaterialWeight(event.target.value)} required inputMode="decimal" /><FilterDropdown id="lapidary-weight-unit" ariaLabel={t("Weight unit", "Satuan berat")} value={weightUnit} compact wideMenu onChange={(value) => setWeightUnit(value as "g" | "kg")} options={[{ value: "g", label: "g" }, { value: "kg", label: "kg" }]} /></span></div>
             <label className="lapidary-form__full">{t("Condition or known concerns (optional)", "Kondisi atau hal yang perlu diperhatikan (opsional)")}<input value={materialCondition} onChange={(event) => setMaterialCondition(event.target.value)} maxLength={500} placeholder={t("Cracks, inclusions, previous cuts…", "Retakan, inklusi, bekas potongan…")} /></label>
             <p className="lapidary-wizard__notice lapidary-form__full">{t("Please do not ship your stone until our team confirms the packing and delivery instructions.", "Jangan mengirim batu sebelum tim kami mengonfirmasi instruksi pengemasan dan pengiriman.")}</p>
             <MediaPicker isId={isId} files={mediaFiles} previews={mediaPreviews} onChange={addMedia} onRemove={(index) => setMediaFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} />
@@ -534,8 +545,32 @@ export function CustomOrderForm({ language }: { language: Language }) {
         <p className="lapidary-eyebrow">{t("STEP 02 · WORK", "LANGKAH 02 · PENGERJAAN")}</p><h3 id="lapidary-step-title" tabIndex={-1}>{t("What would you like us to make?", "Pengerjaan apa yang Anda butuhkan?")}</h3><p className="lapidary-wizard__intro">{t("Each work item can have its own shape, dimensions, output quantity, and material.", "Setiap item dapat memiliki bentuk, ukuran, jumlah hasil, dan material sendiri.")}</p>
         <div className="lapidary-work-list">{items.map((item, index) => <article className="lapidary-work-item" key={item.id}>
           <div className="lapidary-work-item__heading"><span>{t("WORK ITEM", "ITEM PENGERJAAN")} {String(index + 1).padStart(2, "0")}</span>{items.length > 1 ? <button type="button" onClick={() => removeWorkItem(item.id)} aria-label={t(`Remove work item ${index + 1}`, `Hapus item ${index + 1}`)}>×</button> : null}</div>
-          <label className="lapidary-field">{t("Service type", "Jenis pengerjaan")}<select value={item.serviceType} onChange={(event) => updateServiceType(item.id, event.target.value as ServiceType)}>{serviceChoices.map((choice) => <option key={choice.value} value={choice.value}>{isId ? choice.id : choice.en}</option>)}</select></label>
-          {source === "RendiVirgoStock" ? <label className="lapidary-field">{t("Material for this item", "Material untuk item ini")}<select value={item.productId} onChange={(event) => updateItem(item.id, { productId: event.target.value, materialQuantity: "" })} required><option value="">{t("Choose a selected stone", "Pilih batu yang sudah dipilih")}</option>{selectedProductIds.map((id) => { const product = selectedProduct(id); return product ? <option value={id} key={id}>{product.name} · {product.sku}</option> : null; })}</select></label> : null}
+          <FilterDropdown
+            id={`lapidary-service-type-${index}`}
+            label={t("Service type", "Jenis pengerjaan")}
+            value={item.serviceType}
+            searchable={serviceChoices.length > 8}
+            searchPlaceholder={t("Search work types…", "Cari jenis pengerjaan…")}
+            emptyMessage={t("No work types match your search.", "Tidak ada jenis pengerjaan yang cocok.")}
+            onChange={(value) => updateServiceType(item.id, value as ServiceType)}
+            options={serviceChoices.map((choice) => ({ value: choice.value, label: isId ? choice.id : choice.en }))}
+          />
+          {source === "RendiVirgoStock" ? <FilterDropdown
+            id={`lapidary-item-material-${index}`}
+            label={t("Material for this item", "Material untuk item ini")}
+            value={item.productId}
+            placeholder={t("Choose a selected stone", "Pilih batu yang sudah dipilih")}
+            wideMenu
+            searchable={selectedProductIds.length > 5}
+            searchPlaceholder={t("Search selected stones…", "Cari batu yang dipilih…")}
+            emptyMessage={selectedProductIds.length ? t("No selected stones match your search.", "Tidak ada batu pilihan yang cocok.") : t("Select stones in the Material step first.", "Pilih batu di langkah Material terlebih dahulu.")}
+            required
+            onChange={(value) => updateItem(item.id, { productId: value, materialQuantity: "" })}
+            options={selectedProductIds.flatMap((id) => {
+              const product = selectedProduct(id);
+              return product ? [{ value: id, label: `${product.name} · ${product.sku}` }] : [];
+            })}
+          /> : null}
         </article>)}</div>
         {items.length < 8 ? <button type="button" className="lapidary-add-item" onClick={() => setItems((current) => [...current, makeItem(`work-${Date.now()}`, selectedProductIds[0] ?? "")])}><span>＋</span>{t("Add another work item", "Tambah item pengerjaan lain")}</button> : <p className="lapidary-wizard__hint">{t("You can add up to 8 distinct work items.", "Anda dapat menambahkan maksimal 8 item pengerjaan.")}</p>}
       </section> : null}

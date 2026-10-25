@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ArrowRight, ArrowUpRight, ChevronDown, Globe, Heart, Menu, Search, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
-import { ArrowIcon, ArrowUpRightIcon, BagIcon, ChevronIcon, CloseIcon, GlobeIcon, HeartIcon, MenuIcon, SearchIcon, SparkleIcon } from "@/components/icons";
 import { LocalizedLink as Link } from "@/components/localized-link";
 import { localizedPath, stripLocalePrefix, type Language } from "@/lib/locale";
 import { isStorefrontRouteActive, storefrontRoutes } from "@/lib/navigation";
@@ -24,7 +24,7 @@ function LanguageSwitch({
   const t = useCopy();
   return (
     <div className={`language-switch ${className}`} role="group" aria-label={t.nav.language}>
-      <GlobeIcon />
+      <Globe className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" />
       {languages.includes("en") ? <button type="button" lang="en" aria-pressed={language === "en"} onClick={() => onSelect("en")}>English</button> : null}
       {languages.includes("en") && languages.includes("id") ? <span aria-hidden="true">/</span> : null}
       {languages.includes("id") ? <button type="button" lang="id" aria-pressed={language === "id"} onClick={() => onSelect("id")}>Bahasa Indonesia</button> : null}
@@ -150,23 +150,23 @@ export function SiteHeader({ languages, categories }: { languages: Language[]; c
               aria-controls="shop-category-navigation"
               onClick={() => setShopMenuOpen((open) => !open)}
             >
-              <ChevronIcon size={14} />
+              <ChevronDown className="rv-icon" size={14} strokeWidth={1.6} aria-hidden="true" />
             </button>
             <div id="shop-category-navigation" className="main-nav__shop-panel" hidden={!shopMenuOpen}>
               <div className="main-nav__shop-panel-head">
                 <p className="main-nav__shop-heading">{t.nav.shopCategories}</p>
-                <span className="main-nav__shop-panel-mark"><SparkleIcon size={15} /></span>
+                <span className="main-nav__shop-panel-mark"><Sparkles className="rv-icon" size={15} strokeWidth={1.6} aria-hidden="true" /></span>
               </div>
               <div className="main-nav__shop-links">
                 {shopCategories.map((category) => {
                   const categoryPath = `${storefrontRoutes.shop}/${category.slug}`;
                   const active = isStorefrontRouteActive(routePath, categoryPath);
                   return <Link key={category.slug} href={categoryPath} aria-current={active ? "page" : undefined}
-                    onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}><span>{category.name}</span><ArrowUpRightIcon size={13} /></Link>;
+                    onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}><span>{category.name}</span><ArrowUpRight className="rv-icon" size={13} strokeWidth={1.6} aria-hidden="true" /></Link>;
                 })}
               </div>
               <Link className="main-nav__shop-all" href={storefrontRoutes.shop} aria-current={routePath === storefrontRoutes.shop ? "page" : undefined}
-                onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.shopAll}<ArrowIcon size={15} /></Link>
+                onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{t.nav.shopAll}<ArrowRight className="rv-icon" size={15} strokeWidth={1.6} aria-hidden="true" /></Link>
             </div>
           </div>
           <Link href={storefrontRoutes.wholesaleHome} className={`nav-link ${isStorefrontRouteActive(routePath, storefrontRoutes.wholesaleHome) ? "is-active" : ""}`}
@@ -180,31 +180,31 @@ export function SiteHeader({ languages, categories }: { languages: Language[]; c
             return <Link key={href} href={href} className={`nav-link ${active ? "is-active" : ""}`}
               aria-current={active ? "page" : undefined} onClick={() => { setMenuOpen(false); setShopMenuOpen(false); }}>{label}</Link>;
           })}
-          <Link className="mobile-wishlist nav-link" href="/wishlist" onClick={() => setMenuOpen(false)}>{t.nav.wishlist}<HeartIcon /></Link>
+          <Link className="mobile-wishlist nav-link" href="/wishlist" onClick={() => setMenuOpen(false)}>{t.nav.wishlist}<Heart className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></Link>
           <div className="mobile-nav-language"><span>{t.nav.language}</span><LanguageSwitch languages={languages} onSelect={(next) => void selectLanguage(next)} /></div>
         </nav>
         <div className="header-actions">
           <button ref={searchButtonRef} type="button" className="icon-button"
             onClick={() => { setSearchOpen((value) => !value); setMenuOpen(false); setShopMenuOpen(false); }}
-            aria-label={t.nav.search} aria-expanded={searchOpen} aria-controls="site-search"><SearchIcon /></button>
-          <Link className="icon-button header-wishlist" href="/wishlist" aria-label={t.nav.wishlist}><HeartIcon /></Link>
+            aria-label={t.nav.search} aria-expanded={searchOpen} aria-controls="site-search"><Search className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></button>
+          <Link className="icon-button header-wishlist" href="/wishlist" aria-label={t.nav.wishlist}><Heart className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></Link>
           <Link className="icon-button icon-button--bag" href="/cart" aria-label={itemCount > 0 ? `${t.nav.cart} (${itemCount})` : t.nav.cart}>
-            <BagIcon />{itemCount > 0 && <span aria-hidden="true">{itemCount}</span>}
+            <ShoppingBag className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" />{itemCount > 0 && <span aria-hidden="true">{itemCount}</span>}
           </Link>
           <button ref={menuButtonRef} type="button" className="mobile-menu-button"
             onClick={() => { setMenuOpen((value) => !value); setSearchOpen(false); setShopMenuOpen(false); }}
             aria-label={menuOpen ? t.nav.closeMenu : t.nav.openMenu} aria-expanded={menuOpen} aria-controls="primary-navigation">
-            {menuOpen ? <CloseIcon /> : <MenuIcon />}
+            {menuOpen ? <X className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /> : <Menu className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" />}
           </button>
         </div>
       </div>
       {searchOpen && (
         <div className="search-panel" id="site-search">
           <form className="page-container search-panel__inner" role="search" onSubmit={submitSearch}>
-            <SearchIcon />
+            <Search className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" />
             <input autoFocus type="search" name="q" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.nav.searchPlaceholder} aria-label={t.nav.search} />
-            <button type="submit" aria-label={t.nav.search}><ArrowIcon /></button>
-            <button type="button" onClick={() => { setSearchOpen(false); searchButtonRef.current?.focus(); }} aria-label={t.nav.closeSearch}><CloseIcon /></button>
+            <button type="submit" aria-label={t.nav.search}><ArrowRight className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></button>
+            <button type="button" onClick={() => { setSearchOpen(false); searchButtonRef.current?.focus(); }} aria-label={t.nav.closeSearch}><X className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></button>
           </form>
         </div>
       )}

@@ -134,11 +134,13 @@ export class UploadsService {
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException("Media not found");
 
-    const [productImages, productVideos, categories, blogPosts, banners, orderItems, admins, artists, siteSettings] = await Promise.all([
+    const [productImages, productVideos, categories, blogPosts, blogInlineImages, blogInlineImagesId, banners, orderItems, admins, artists, siteSettings] = await Promise.all([
       this.prisma.productImage.count({ where: { url: asset.url } }),
       this.prisma.product.count({ where: { videoUrl: asset.url } }),
       this.prisma.category.count({ where: { imageUrl: asset.url } }),
       this.prisma.blogPost.count({ where: { coverImage: asset.url } }),
+      this.prisma.blogPost.count({ where: { body: { contains: asset.url } } }),
+      this.prisma.blogPost.count({ where: { bodyId: { contains: asset.url } } }),
       this.prisma.banner.count({ where: { imageUrl: asset.url } }),
       this.prisma.orderItem.count({ where: { imageUrl: asset.url } }),
       this.prisma.admin.count({ where: { avatarUrl: asset.url } }),
@@ -160,6 +162,8 @@ export class UploadsService {
       productVideos ? `${productVideos} product video(s)` : null,
       categories ? `${categories} category image(s)` : null,
       blogPosts ? `${blogPosts} blog cover image(s)` : null,
+      blogInlineImages ? `${blogInlineImages} blog article body image reference(s)` : null,
+      blogInlineImagesId ? `${blogInlineImagesId} Indonesian blog article body image reference(s)` : null,
       banners ? `${banners} banner image(s)` : null,
       orderItems ? `${orderItems} order image snapshot(s)` : null,
       admins ? `${admins} admin avatar(s)` : null,

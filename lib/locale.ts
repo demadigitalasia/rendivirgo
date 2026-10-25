@@ -38,8 +38,14 @@ export function localizedHref(href: string, language: Language): string {
   return `${localizedPath(pathname || "/", language)}${suffix}`;
 }
 
-export function localizedAlternates(pathname: string, language: Language) {
+export function localizedAlternates(pathname: string, language: Language, hasIndonesianTranslation = true) {
   const basePath = stripLocalePrefix(pathname);
+  if (!hasIndonesianTranslation) {
+    return {
+      canonical: basePath,
+      languages: { en: basePath },
+    };
+  }
   return {
     canonical: localizedPath(basePath, language),
     languages: { en: basePath, id: localizedPath(basePath, "id") },

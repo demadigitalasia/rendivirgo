@@ -78,6 +78,7 @@ export type ApiCategory = {
   productCount?: number;
   metaTitle: string | null;
   metaDescription: string | null;
+  updatedAt?: string;
 };
 
 export type ApiBlogPost = {
@@ -148,6 +149,7 @@ export type LapidaryArtistProfile = {
   stoneExperience: string[];
   imageUrl: string | null;
   imageAlt: string;
+  contentLocale?: Language;
   imagePosition: "left" | "center" | "right";
   portfolioImages: Array<{ url: string; altText: string; caption: string }>;
 };
@@ -360,6 +362,7 @@ export function mapProduct(item: ApiProduct): Product {
     currency: "USD",
     unit: item.unit,
     stockModel: item.stockModel,
+    inStock: item.inStock,
     ...(item.stockModel === "Quantity" ? { stockQuantity: item.stockQuantity } : {}),
     weightGram: item.weightGram,
     weightCarat: item.weightCarat ?? Math.round(item.weightGram * 5 * 10) / 10,
@@ -554,6 +557,10 @@ export async function getBlogPosts(params: { page?: number; pageSize?: number; t
   }
   const result = await apiGet<{ items: ApiBlogPost[]; total: number; pageCount: number }>(`/api/blog?${search.toString()}`, { language, tags: ["blog-posts"] });
   return { posts: result?.items ?? [], total: result?.total ?? 0, pageCount: result?.pageCount ?? 1 };
+}
+
+export async function getBlogTags(language: Language = "en") {
+  return (await apiGet<string[]>("/api/blog/tags", { language, tags: ["blog-posts"] })) ?? [];
 }
 
 export async function getBlogPost(slug: string, language: Language = "en", seoAudit = false) {

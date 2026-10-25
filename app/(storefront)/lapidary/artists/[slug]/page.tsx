@@ -8,8 +8,8 @@ import { getLapidaryArtistSamples } from "@/lib/lapidary-artist-samples";
 
 type Props = { params: Promise<{ slug: string }> };
 
-async function getArtist(slug: string) {
-  const language = await getRequestLanguage();
+async function getArtist(slug: string, requestedLanguage?: "en" | "id") {
+  const language = requestedLanguage ?? await getRequestLanguage();
   const content = await getLapidaryContent(language);
   const isSamplePreview = process.env.NODE_ENV !== "production" && content.artists.length === 0;
   const artist = content.artists.find((profile) => profile.slug === slug)
@@ -19,14 +19,18 @@ async function getArtist(slug: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const { language, content, artist } = await getArtist(slug);
+  const { language, content, artist, isSamplePreview } = await getArtist(slug);
   if (!artist) return { title: language === "id" ? "Profil Pengrajin — RENDI VIRGO" : "Artist Profile — RENDI VIRGO" };
+  const translated = language === "en" ? await getArtist(slug, "id") : null;
+  const hasIndonesianTranslation = !isSamplePreview &&
+    (language === "id" ? artist.contentLocale === "id" : translated?.artist?.contentLocale === "id");
+  const path = `/lapidary/artists/${artist.slug}`;
   const description = artist.bio.slice(0, 320);
   return {
     title: `${artist.name} — ${language === "id" ? "Pengrajin Lapidary" : "Lapidary Artist"} | RENDI VIRGO`,
     description,
     openGraph: { title: artist.name, description, images: artist.imageUrl ? [artist.imageUrl] : [content.artistsPresentation.heroImage] },
-    alternates: localizedAlternates(`/lapidary/artists/${artist.slug}`, language),
+    alternates: localizedAlternates(path, language, hasIndonesianTranslation),
   };
 }
 

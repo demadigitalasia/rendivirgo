@@ -181,7 +181,7 @@ export function MediaPicker({
             ))}
           </div>
         ) : (
-          <p className="rv-hint">No media uploaded yet. Upload from the product form.</p>
+          <p className="rv-hint">No media uploaded yet. Upload an image to add it to the library.</p>
         )}
       </Modal>
     </div>

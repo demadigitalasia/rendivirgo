@@ -16,14 +16,22 @@ const fallback = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const language = await getRequestLanguage();
-  const page = await getPage("about-us", language);
+  const [page, translatedPage, siteContent, translatedSiteContent] = await Promise.all([
+    getPage("about-us", language),
+    language === "en" ? getPage("about-us", "id") : Promise.resolve(null),
+    getSiteContent(language),
+    language === "en" ? getSiteContent("id") : Promise.resolve(null),
+  ]);
   const copy = dictionaries[language].metadata;
   const useLocalizedFallback = language === "id" && (!page || page.contentLocale === "en");
+  const hasIndonesianTranslation = language === "id"
+    ? !useLocalizedFallback && siteContent.contentLocale === "id"
+    : translatedPage?.contentLocale === "id" && translatedSiteContent?.contentLocale === "id";
   return {
     title: useLocalizedFallback ? copy.aboutTitle : page?.metaTitle ?? page?.title ?? copy.aboutTitle,
     description: useLocalizedFallback ? copy.aboutDescription : page?.metaDescription ?? copy.aboutDescription,
-    alternates: localizedAlternates("/about-us", language),
-    ...socialMetadata(useLocalizedFallback ? copy.aboutTitle : page?.metaTitle || page?.title || copy.aboutTitle, useLocalizedFallback ? copy.aboutDescription : page?.metaDescription || copy.aboutDescription, localizedPath("/about-us", language)),
+    alternates: localizedAlternates("/about-us", language, hasIndonesianTranslation),
+    ...socialMetadata(useLocalizedFallback ? copy.aboutTitle : page?.metaTitle || page?.title || copy.aboutTitle, useLocalizedFallback ? copy.aboutDescription : page?.metaDescription || copy.aboutDescription, hasIndonesianTranslation ? localizedPath("/about-us", language) : "/about-us"),
   };
 }
 

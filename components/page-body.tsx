@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import type { Language } from "@/lib/i18n";
+import { parseBlogBodyImage } from "@/lib/blog-images";
 
 type ListBlock = { kind: "list"; ordered: boolean; items: string[] };
 type Alignment = "left" | "center" | "right" | "justify";
@@ -7,6 +9,7 @@ type TextBlock = { kind: "heading" | "subheading" | "paragraph"; text: string; a
 type Block =
   | ListBlock
   | TextBlock
+  | { kind: "image"; url: string; alt: string; caption?: string }
   | { kind: "quote"; text: string }
   | { kind: "rule" }
   | { kind: "aligned"; align: Alignment; blocks: Block[] };
@@ -48,6 +51,12 @@ function parseBlocks(body: string, allowAlignment = true): Block[] {
     }
 
     if (!line) {
+      index += 1;
+      continue;
+    }
+    const image = parseBlogBodyImage(line);
+    if (image) {
+      blocks.push({ kind: "image", ...image });
       index += 1;
       continue;
     }
@@ -113,6 +122,16 @@ export function slugifyHeading(text: string): string {
 export function PageBody({ body, className = "article", numberParagraphsAfterFirst = false, numberAllParagraphs = false }: { body: string; className?: string; numberParagraphsAfterFirst?: boolean; numberAllParagraphs?: boolean }) {
   let paragraphNumber = 0;
   const renderBlocks = (blocks: Block[]): ReactNode[] => blocks.map((block, index) => {
+    if (block.kind === "image") {
+      return (
+        <figure className="article__image-block" key={index}>
+          <div className="article__image-frame">
+            <Image src={block.url} alt={block.alt} fill sizes="(max-width: 980px) 100vw, 68vw" style={{ objectFit: "contain" }} />
+          </div>
+          {block.caption ? <figcaption>{renderInline(block.caption)}</figcaption> : null}
+        </figure>
+      );
+    }
     if (block.kind === "list") {
       const items = block.items.map((item, itemIndex) => <li key={itemIndex}>{renderInline(item)}</li>);
       return block.ordered ? <ol key={index}>{items}</ol> : <ul key={index}>{items}</ul>;

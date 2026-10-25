@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "@/components/localized-link";
 import { useState } from "react";
+import { Landmark } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Icon } from "@/components/icons";
 import {
   faFacebook,
   faInstagram,
@@ -146,7 +146,7 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
                 <span>Mastercard</span>
               </li>
               <li className="site-footer__payment-mark site-footer__payment-mark--bank" aria-label="Bank transfer">
-                <Icon name="bank" size={18} />
+                <Landmark className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" />
                 <span>{t.footer.bankTransfer}</span>
               </li>
             </ul>

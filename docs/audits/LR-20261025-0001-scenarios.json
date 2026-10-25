@@ -1,0 +1,153 @@
+[
+  {
+    "name": "DTO: inbound tracking URL omitted is allowed",
+    "result": "PASS",
+    "evidence": "Valid"
+  },
+  {
+    "name": "DEFECT: inbound tracking URL empty string is rejected",
+    "result": "PASS",
+    "evidence": [
+      "trackingUrl"
+    ]
+  },
+  {
+    "name": "DTO: admin blank URL normalized to null is allowed",
+    "result": "PASS",
+    "evidence": "Valid"
+  },
+  {
+    "name": "DEFECT: whitespace-only progress passes DTO",
+    "result": "PASS",
+    "evidence": "Whitespace passes MinLength before service trims"
+  },
+  {
+    "name": "Guard: cannot skip New to Approved",
+    "result": "PASS",
+    "evidence": "Cannot move a customer supplied project from New to Approved"
+  },
+  {
+    "name": "Guard: approval requires estimate",
+    "result": "PASS",
+    "evidence": "Add the service estimate range before approving this customer supplied stone"
+  },
+  {
+    "name": "Guard: approval requires studio shipping address",
+    "result": "PASS",
+    "evidence": "Add the studio address and material shipping instructions before approving this request"
+  },
+  {
+    "name": "Approval: secure claim and approval email are enqueued in memory",
+    "result": "PASS",
+    "evidence": {
+      "status": "Approved",
+      "hasClaimHash": true,
+      "emailSubject": "Studio approval and shipping instructions — AUDIT-ONLY",
+      "linkOrigin": "https://rendivirgo.com"
+    }
+  },
+  {
+    "name": "Guard: no work before material received",
+    "result": "PASS",
+    "evidence": "Confirm receipt of the customer's material before starting work"
+  },
+  {
+    "name": "Guard: no work before estimate acceptance",
+    "result": "PASS",
+    "evidence": "The customer must accept the current estimate before work begins"
+  },
+  {
+    "name": "Estimate revision resets acceptance and queues notice",
+    "result": "PASS",
+    "evidence": {
+      "status": "EstimateSent",
+      "acceptance": null
+    }
+  },
+  {
+    "name": "Guard: invoice requires completed work",
+    "result": "PASS",
+    "evidence": "Cannot move a customer supplied project from In Progress to Awaiting Payment"
+  },
+  {
+    "name": "Guard: final fee cannot exceed accepted maximum",
+    "result": "PASS",
+    "evidence": "The final service fee exceeds the accepted maximum. Send an updated estimate and receive customer approval first"
+  },
+  {
+    "name": "Guard: invoice requires complete return address",
+    "result": "PASS",
+    "evidence": "Ask the customer to complete their delivery address in their account before issuing the return shipping invoice"
+  },
+  {
+    "name": "Guard: final invoice currency must match estimate",
+    "result": "PASS",
+    "evidence": "The final invoice must use the same currency as the customer accepted service estimate"
+  },
+  {
+    "name": "Invoice: separate fees and frozen return address",
+    "result": "PASS",
+    "evidence": {
+      "service": 90,
+      "returnShipping": 20,
+      "total": 110,
+      "emailCount": 1
+    }
+  },
+  {
+    "name": "Guard: no return shipment before payment",
+    "result": "PASS",
+    "evidence": "Confirm payment before shipping the finished stone back"
+  },
+  {
+    "name": "Guard: paid return requires tracking",
+    "result": "PASS",
+    "evidence": "Add the return carrier and tracking number before marking the parcel shipped"
+  },
+  {
+    "name": "Paid return shipment stores dispatch time and queues email",
+    "result": "PASS",
+    "evidence": {
+      "status": "ReturnShipped",
+      "hasDispatchTime": true
+    }
+  },
+  {
+    "name": "Guard: cannot mark delivered before dispatch",
+    "result": "PASS",
+    "evidence": "Cannot move a customer supplied project from Awaiting Payment to Delivered"
+  },
+  {
+    "name": "DEFECT: shipped tracking can be cleared after guard uses old values",
+    "result": "PASS",
+    "evidence": {
+      "status": "ReturnShipped",
+      "carrier": null,
+      "tracking": null
+    }
+  },
+  {
+    "name": "GAP: cancellation after material receipt produces terminal Cancelled",
+    "result": "PASS",
+    "evidence": "No dedicated material-return state is created"
+  },
+  {
+    "name": "GAP: saving unchanged Approved cannot refresh claim or resend approval",
+    "result": "PASS",
+    "evidence": "No email queued; claim expiry remains unchanged"
+  },
+  {
+    "name": "Guard: disabled email provider refuses enqueue",
+    "result": "PASS",
+    "evidence": "Email delivery is currently unavailable"
+  },
+  {
+    "name": "DEFECT: stale cancellation can void an invoice paid concurrently",
+    "result": "PASS",
+    "evidence": {
+      "status": "Cancelled",
+      "invoiceStatus": "Void",
+      "paidAtRecorded": true
+    }
+  }
+]

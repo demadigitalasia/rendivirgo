@@ -239,7 +239,7 @@ export default function AdminCategoriesPage() {
     },
     {
       key: "seo",
-      header: "SEO Score · EN",
+      header: "Editorial · EN",
       width: "154px",
       render: (category) => (
         <SeoBadge

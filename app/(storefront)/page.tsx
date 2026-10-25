@@ -10,15 +10,19 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const language = await getRequestLanguage();
-  const content = await getSiteContent(language);
+  const [content, translatedContent] = await Promise.all([
+    getSiteContent(language),
+    language === "en" ? getSiteContent("id") : Promise.resolve(null),
+  ]);
+  const hasIndonesianTranslation = language === "id" ? content.contentLocale === "id" : translatedContent?.contentLocale === "id";
   const translated = language !== "id" || content.contentLocale === "id";
   const title = (translated && content.metaTitle?.trim()) || `RENDI VIRGO | ${dictionaries[language].metadata.homeTitle}`;
   const description = (translated && content.metaDescription?.trim()) || dictionaries[language].metadata.homeDescription;
   return {
     title,
     description,
-    ...socialMetadata(title, description, localizedPath("/", language), content.heroImage),
-    alternates: localizedAlternates("/", language),
+    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath("/", language) : "/", content.heroImage),
+    alternates: localizedAlternates("/", language, hasIndonesianTranslation),
   };
 }
 

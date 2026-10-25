@@ -415,10 +415,16 @@ export class LapidaryService {
       artistsPresentation: artistsPresentation(artistsSetting?.value),
       artists: artists.map((artist) => {
         const portfolio = Array.isArray(artist.portfolioImages) ? artist.portfolioImages : [];
+        const idReady = Boolean(artist.bioId?.trim()) &&
+          (!artist.experienceEn?.trim() || Boolean(artist.experienceId?.trim())) &&
+          (!artist.signatureStyle?.trim() || Boolean(artist.signatureStyleId?.trim())) &&
+          (artist.stoneExperienceEn.length === 0 || artist.stoneExperienceId.length >= artist.stoneExperienceEn.length &&
+            artist.stoneExperienceEn.every((_, index) => Boolean(artist.stoneExperienceId[index]?.trim())));
         return {
           id: artist.id,
           slug: artist.slug,
           name: artist.name,
+          contentLocale: language === "id" && idReady ? "id" : "en",
           signatureStyle: language === "id" ? artist.signatureStyleId || artist.signatureStyle || "" : artist.signatureStyle || "",
           location: artist.location,
           bio: language === "id" ? artist.bioId || artist.bio : artist.bio,

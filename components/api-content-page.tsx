@@ -20,19 +20,23 @@ export async function contentPageMetadata(
   fallback: { title: string; description: string },
 ): Promise<Metadata> {
   const language = await getRequestLanguage();
-  const page = await getPage(slug, language);
+  const [page, translatedPage] = await Promise.all([
+    getPage(slug, language),
+    language === "en" ? getPage(slug, "id") : Promise.resolve(null),
+  ]);
   const metadata = dictionaries[language].metadata;
   const metadataKey = contentPageKeys[slug as keyof typeof contentPageKeys];
   const fallbackTitle = metadataKey ? metadata[`${metadataKey}Title`] : fallback.title;
   const fallbackDescription = metadataKey ? metadata[`${metadataKey}Description`] : fallback.description;
   const useLocalizedFallback = language === "id" && (!page || page.contentLocale === "en");
+  const hasIndonesianTranslation = language === "id" ? !useLocalizedFallback : translatedPage?.contentLocale === "id";
   const title = useLocalizedFallback ? fallbackTitle : page?.metaTitle?.trim() || page?.title || fallbackTitle;
   const description = useLocalizedFallback ? fallbackDescription : page?.metaDescription?.trim() || fallbackDescription;
   return {
     title,
     description,
-    alternates: localizedAlternates(`/${slug}`, language),
-    ...socialMetadata(title, description, localizedPath(`/${slug}`, language)),
+    alternates: localizedAlternates(`/${slug}`, language, hasIndonesianTranslation),
+    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath(`/${slug}`, language) : `/${slug}`),
   };
 }
 

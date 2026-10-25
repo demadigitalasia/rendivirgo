@@ -50,6 +50,7 @@ export type Product = {
   currency: "USD";
   unit: Unit;
   stockModel: StockModel;
+  inStock?: boolean;
   stockQuantity?: number;
   weightGram: number;
   weightCarat: number;

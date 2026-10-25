@@ -15,9 +15,14 @@ export const revalidate = 0;
 export async function generateMetadata({ params }: { params: Promise<{ category: string; slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const language = await getRequestLanguage();
-  const product = await getProductBySlug(slug, language);
+  const [product, translatedProduct] = await Promise.all([
+    getProductBySlug(slug, language),
+    language === "en" ? getProductBySlug(slug, "id") : Promise.resolve(null),
+  ]);
   if (!product) return {};
   const englishFallback = language === "id" && product.contentLocale === "en";
+  const hasIndonesianTranslation = language === "id" ? !englishFallback : translatedProduct?.contentLocale === "id";
+  const path = `/shop/${product.categorySlug}/${product.slug}`;
   const title = englishFallback
     ? `${product.name} | RENDI VIRGO`
     : product.seo.metaTitle || `${product.name} — ${product.category} | RENDI VIRGO`;
@@ -30,8 +35,8 @@ export async function generateMetadata({ params }: { params: Promise<{ category:
   return {
     title,
     description,
-    alternates: localizedAlternates(`/shop/${product.categorySlug}/${product.slug}`, language),
-    ...socialMetadata(title, description, localizedPath(`/shop/${product.categorySlug}/${product.slug}`, language), product.images[0]),
+    alternates: localizedAlternates(path, language, hasIndonesianTranslation),
+    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath(path, language) : path, product.images[0]),
   };
 }
 
@@ -73,7 +78,7 @@ export default async function ProductPage({ params }: { params: Promise<{ catego
       "@type": "Offer",
       priceCurrency: "USD",
       price: product.price,
-      availability: product.status === "Available" ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       url: absoluteUrl(localizedPath(`/shop/${product.categorySlug}/${product.slug}`, language)),
     },
   };

@@ -1,6 +1,7 @@
 "use client";
 
 import LocalizedLink from "@/components/localized-link";
+import { BadgeCheck, Clock3 } from "lucide-react";
 import { useCart, useCopy } from "@/components/providers";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -81,6 +82,9 @@ export function WholesaleNavigation() {
               <span>{wholesaleCount > 0 ? t.wholesaleNavigation.order : t.wholesaleNavigation.startOrder}</span>
               {hydrated && wholesaleCount > 0 && minimums ? (
                 <small className={meetsMinimum ? "is-met" : "is-pending"}>
+                  {meetsMinimum
+                    ? <BadgeCheck className="rv-icon" size={13} strokeWidth={1.8} aria-hidden="true" />
+                    : <Clock3 className="rv-icon" size={13} strokeWidth={1.8} aria-hidden="true" />}
                   {meetsMinimum ? t.wholesaleNavigation.minimumMet : t.wholesaleNavigation.minimumPending}
                 </small>
               ) : null}

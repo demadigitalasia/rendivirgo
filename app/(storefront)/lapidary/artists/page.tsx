@@ -7,7 +7,14 @@ import { getLapidaryArtistSamples } from "@/lib/lapidary-artist-samples";
 
 export async function generateMetadata(): Promise<Metadata> {
   const language = await getRequestLanguage();
-  const { artistsPresentation } = await getLapidaryContent(language);
+  const [content, translatedContent] = await Promise.all([
+    getLapidaryContent(language),
+    language === "en" ? getLapidaryContent("id") : Promise.resolve(null),
+  ]);
+  const { artistsPresentation } = content;
+  const hasIndonesianTranslation = language === "id"
+    ? content.artists.every(artist => artist.contentLocale === "id")
+    : Boolean(translatedContent?.artists.every(artist => artist.contentLocale === "id"));
   const title = language === "id" ? artistsPresentation.metaTitleId : artistsPresentation.metaTitleEn;
   const description = language === "id" ? artistsPresentation.metaDescriptionId : artistsPresentation.metaDescriptionEn;
   return {
@@ -15,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     openGraph: { title, description, images: [artistsPresentation.heroImage] },
     twitter: { card: "summary_large_image", title, description, images: [artistsPresentation.heroImage] },
-    alternates: localizedAlternates("/lapidary/artists", language),
+    alternates: localizedAlternates("/lapidary/artists", language, hasIndonesianTranslation),
   };
 }
 

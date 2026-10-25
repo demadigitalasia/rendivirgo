@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUpRight } from "lucide-react";
 import Link from "@/components/localized-link";
 import { formatUSD } from "@/lib/catalog";
 import type { CartLine } from "@/components/providers";
@@ -38,39 +39,51 @@ export function CheckoutOrderSummary({
 
   return (
     <section className={"summary-card " + className}>
-      <h2>{t.checkout.summary}</h2>
-      <Link href={editHref} className="text-button checkout-summary__edit">{t.checkout.editCart}</Link>
-      {lines.map((line) => (
-        <div className="summary-row" key={line.id + ":" + (line.variantId ?? "base")}>
-          <span>
-            {line.name}{line.variantName ? " — " + line.variantName : ""} × {line.quantity}
-          </span>
-          <strong>{formatUSD(line.price * line.quantity, language)}</strong>
+      <div className="checkout-summary__header">
+        <h2>{t.checkout.summary}</h2>
+        <Link href={editHref} className="checkout-summary__edit">
+          <span>{t.checkout.editCart}</span>
+          <ArrowUpRight className="rv-icon" size={15} strokeWidth={1.7} aria-hidden="true" />
+        </Link>
+      </div>
+      <div className="checkout-summary__items" role="list">
+        {lines.map((line) => (
+          <div className="checkout-summary__item" role="listitem" key={line.id + ":" + (line.variantId ?? "base")}>
+            <div className="checkout-summary__item-main">
+              <span className="checkout-summary__item-name">
+                {line.name}{line.variantName ? " — " + line.variantName : ""}
+              </span>
+              <span className="checkout-summary__quantity">× {line.quantity}</span>
+            </div>
+            <strong className="checkout-summary__item-price">{formatUSD(line.price * line.quantity, language)}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="checkout-summary__totals">
+        <div className="summary-row summary-row--subtotal">
+          <span>{t.checkout.subtotal}</span>
+          <strong>{formatUSD(subtotal, language)}</strong>
         </div>
-      ))}
-      <div className="summary-row">
-        <span>{t.checkout.subtotal}</span>
-        <strong>{formatUSD(subtotal, language)}</strong>
-      </div>
-      <div className="summary-row">
-        <span>{t.checkout.totalWeight}</span>
-        <span>{t.checkout.weightUnit(totalWeight)}</span>
-      </div>
-      {discountTotal > 0 ? (
         <div className="summary-row">
-          <span>{discount?.code}</span>
-          <strong>−{formatUSD(discountTotal, language)}</strong>
+          <span>{t.checkout.totalWeight}</span>
+          <span>{t.checkout.weightUnit(totalWeight)}</span>
         </div>
-      ) : null}
-      <div className="summary-row">
-        <span>{t.checkout.shipping}</span>
-        <strong>
-          {selectedOption
-            ? shippingCost === 0
-              ? t.checkout.freeShipping
-              : formatUSD(shippingCost, language)
-            : t.checkout.calculatedShipping}
-        </strong>
+        {discountTotal > 0 ? (
+          <div className="summary-row summary-row--discount">
+            <span>{discount?.code}</span>
+            <strong>−{formatUSD(discountTotal, language)}</strong>
+          </div>
+        ) : null}
+        <div className="summary-row">
+          <span>{t.checkout.shipping}</span>
+          <strong>
+            {selectedOption
+              ? shippingCost === 0
+                ? t.checkout.freeShipping
+                : formatUSD(shippingCost, language)
+              : t.checkout.calculatedShipping}
+          </strong>
+        </div>
       </div>
       <div className="summary-row summary-row--total">
         <span>{t.checkout.total}</span>

@@ -8,7 +8,7 @@ import { formatContentDate } from "@/components/page-body";
 import { dictionaries } from "@/lib/i18n";
 import { getRequestLanguage } from "@/lib/server-locale";
 import { localizedAlternates, localizedPath } from "@/lib/locale";
-import { getBlogPosts } from "@/lib/storefront";
+import { getBlogPosts, getBlogTags } from "@/lib/storefront";
 
 const PAGE_SIZE = 9;
 
@@ -28,11 +28,19 @@ export async function generateMetadata({
   if (page > 1) params.set("page", String(page));
   const queryString = params.toString();
   const currentPath = `${localizedPath("/blog", language)}${queryString ? `?${queryString}` : ""}`;
+  const [pagePosts, translatedPagePosts] = await Promise.all([
+    getBlogPosts({ page, pageSize: PAGE_SIZE, tag: activeTag || undefined }, language),
+    language === "en" ? getBlogPosts({ page, pageSize: PAGE_SIZE, tag: activeTag || undefined }, "id") : Promise.resolve(null),
+  ]);
+  const hasIndonesianTranslation = language === "id"
+    ? pagePosts.posts.every(post => post.contentLocale === "id")
+    : Boolean(translatedPagePosts?.posts.length === pagePosts.posts.length && translatedPagePosts.posts.every(post => post.contentLocale === "id"));
+  const pagePath = `/blog${queryString ? `?${queryString}` : ""}`;
+  const canonicalPath = !activeTag && !hasIndonesianTranslation && language === "id" ? localizedPath(pagePath, "en") : currentPath;
   const paginatedLanguages = page > 1 && !activeTag
-    ? {
-        en: `${localizedPath("/blog", "en")}?page=${page}`,
-        id: `${localizedPath("/blog", "id")}?page=${page}`,
-      }
+    ? hasIndonesianTranslation
+      ? { en: localizedPath(pagePath, "en"), id: localizedPath(pagePath, "id") }
+      : { en: localizedPath(pagePath, "en") }
     : undefined;
 
   const title = page > 1
@@ -40,11 +48,11 @@ export async function generateMetadata({
     : `${journal.eyebrow} — RENDI VIRGO`;
   return {
     title,
-    ...socialMetadata(title, journal.intro, currentPath),
+    ...socialMetadata(title, journal.intro, canonicalPath),
     description: journal.intro,
     alternates: activeTag || page > 1
-      ? { canonical: currentPath, ...(paginatedLanguages ? { languages: paginatedLanguages } : {}) }
-      : localizedAlternates("/blog", language),
+      ? { canonical: canonicalPath, ...(paginatedLanguages ? { languages: paginatedLanguages } : {}) }
+      : localizedAlternates("/blog", language, hasIndonesianTranslation),
   };
 }
 
@@ -62,12 +70,12 @@ export default async function BlogPage({
   const page = Math.max(1, Number(rawPage) || 1);
   const activeTag = rawTag?.trim() || "";
 
-  const [{ posts, pageCount }, all] = await Promise.all([
+  const [{ posts, pageCount, total }, allTags] = await Promise.all([
     getBlogPosts({ page, pageSize: PAGE_SIZE, tag: activeTag || undefined }, language),
-    getBlogPosts({ pageSize: 100 }, language),
+    getBlogTags(language),
   ]);
 
-  const tags = Array.from(new Set(all.posts.flatMap((post) => post.tags))).slice(0, 8);
+  const tags = allTags.slice(0, 8);
   const showFeatured = !activeTag && page === 1 && posts.length > 0;
   const featured = showFeatured ? posts[0] : null;
   const gridPosts = showFeatured ? posts.slice(1) : posts;
@@ -86,7 +94,7 @@ export default async function BlogPage({
             <dl className="journal-hero__facts">
               <div>
                 <dt>{journal.entries}</dt>
-                <dd>{all.total} {journal.guides}</dd>
+                <dd>{total} {journal.guides}</dd>
               </div>
               <div>
                 <dt>{journal.topics}</dt>

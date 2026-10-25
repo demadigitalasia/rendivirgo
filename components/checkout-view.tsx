@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "@/components/localized-link";
+import { Landmark, WalletCards } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart, useCopy, useLanguage } from "@/components/providers";
@@ -742,13 +743,15 @@ export function CheckoutView() {
             {paymentMethods?.paypal.enabled ? (
               <label className={`payment-method-option ${selectedPaymentMethod === "PayPal" ? "is-selected" : ""}`}>
                 <input type="radio" name="payment-method" value="PayPal" checked={selectedPaymentMethod === "PayPal"} onChange={() => setSelectedPaymentMethod("PayPal")} />
-                <span><strong>{t.checkout.paypalTitle}</strong><small>{t.checkout.paypalRedirectHint}</small></span>
+                <span className="payment-method-option__icon" aria-hidden="true"><WalletCards className="rv-icon" size={18} strokeWidth={1.7} /></span>
+                <span className="payment-method-option__copy"><strong>{t.checkout.paypalTitle}</strong><small>{t.checkout.paypalRedirectHint}</small></span>
               </label>
             ) : null}
             {paymentMethods?.bankTransfer.enabled ? (
               <label className={`payment-method-option ${selectedPaymentMethod === "BankTransfer" ? "is-selected" : ""}`}>
                 <input type="radio" name="payment-method" value="BankTransfer" checked={selectedPaymentMethod === "BankTransfer"} onChange={() => setSelectedPaymentMethod("BankTransfer")} />
-                <span><strong>{t.checkout.bankTransferOption}</strong><small>{t.checkout.bankTransferOptionHint}</small></span>
+                <span className="payment-method-option__icon" aria-hidden="true"><Landmark className="rv-icon" size={18} strokeWidth={1.7} /></span>
+                <span className="payment-method-option__copy"><strong>{t.checkout.bankTransferOption}</strong><small>{t.checkout.bankTransferOptionHint}</small></span>
               </label>
             ) : null}
             {paymentAvailability === "loading" ? <span>{t.checkout.checkingPayment}</span> : null}

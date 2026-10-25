@@ -9,14 +9,33 @@ import { dictionaries } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const language = await getRequestLanguage();
+export async function generateMetadata({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const [language, params] = await Promise.all([getRequestLanguage(), searchParams]);
   const t = dictionaries[language].metadata;
+  const get = (key: string) => Array.isArray(params[key]) ? params[key]?.[0] : params[key];
+  const page = Math.max(1, Number(get("page")) || 1);
+  const hasFilters = (get("category") && get("category") !== "all") ||
+    (get("stone") && get("stone") !== "all") ||
+    (get("price") && get("price") !== "all") ||
+    (get("weight") && get("weight") !== "all") ||
+    (get("origin") && get("origin") !== "all") ||
+    (get("sort") && get("sort") !== "featured");
+  const path = !hasFilters && page > 1 ? `/shop?page=${page}` : "/shop";
   return {
     title: t.shopTitle,
     description: t.shopDescription,
-    alternates: localizedAlternates("/shop", language),
-    ...socialMetadata(t.shopTitle, t.shopDescription, localizedPath("/shop", language)),
+    alternates: hasFilters
+      ? { canonical: localizedPath("/shop", language) }
+      : page > 1
+        ? {
+            canonical: localizedPath(path, language),
+            languages: { en: path, id: localizedPath(path, "id") },
+          }
+        : localizedAlternates("/shop", language),
+    ...(hasFilters ? { robots: { index: false, follow: true } } : {}),
+    ...socialMetadata(t.shopTitle, t.shopDescription, localizedPath(path, language)),
   };
 }
 

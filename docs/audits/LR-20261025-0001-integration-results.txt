@@ -1,0 +1,14 @@
+▶ Lapidary workflow with isolated PostgreSQL
+  ✔ runs intake, verified registration, claim, material, photos, revised invoice, payment and delivery (827.358292ms)
+  ✔ serializes concurrent payment and cancellation without a paid-and-void result (9.623208ms)
+  ✔ recovers expired invitations and makes old tokens unusable (13.532208ms)
+  ✔ keeps custody after cancellation and supports a free return invoice (25.297208ms)
+✔ Lapidary workflow with isolated PostgreSQL (942.748917ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1444.413542

@@ -16,6 +16,7 @@ import {
 } from "@/components/admin/api";
 import { MediaPicker } from "@/components/admin/media";
 import { BlogBodyEditor } from "@/components/admin/blog-body-editor";
+import { contentSeoInput, plainText } from "@/lib/seo-analysis";
 import { toast } from "@/components/admin/toast";
 import {
   Button,
@@ -113,6 +114,11 @@ function formFrom(post: BlogPost): BlogForm {
   };
 }
 
+function estimateReadMinutes(body: string) {
+  const words = plainText(body).split(/\s+/u).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
 export default function BlogEditorPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -143,6 +149,20 @@ export default function BlogEditorPage() {
     const readMinutes = Number.parseInt(form.readMinutes, 10);
     if (form.readMinutes.trim() !== "" && (!Number.isInteger(readMinutes) || readMinutes < 1 || readMinutes > 240)) {
       toast.error("Read minutes must be between 1 and 240");
+      return;
+    }
+
+    const isPublishing = (!state.data || state.data.status !== form.status) && (form.status === "Published" || form.status === "Scheduled");
+    if (isPublishing && !form.excerpt.trim()) {
+      toast.error("Add an article excerpt before publishing.");
+      return;
+    }
+    if (isPublishing && !form.body.trim()) {
+      toast.error("Add article content before publishing.");
+      return;
+    }
+    if (isPublishing && form.status === "Scheduled" && (!form.publishedAt || new Date(form.publishedAt).getTime() <= Date.now())) {
+      toast.error("Scheduled articles need a publication date in the future.");
       return;
     }
 
@@ -272,8 +292,8 @@ export default function BlogEditorPage() {
 
             <aside className="rv-blog-editor-rail">
               <Card className="rv-blog-editor-card" title="Publishing" description="Set visibility, timing, and author details.">
-                <div className="rv-stack">
-                  <div className="rv-form-grid">
+                <div className="rv-stack rv-blog-editor-publishing">
+                  <div className="rv-form-grid rv-blog-editor-publishing-grid">
                     <Field label="Status">
                       <Select
                         value={form.status}
@@ -281,11 +301,6 @@ export default function BlogEditorPage() {
                         options={contentStatusOptions}
                       />
                     </Field>
-                    <Field label="Author">
-                      <TextInput value={form.author} onChange={(value) => update("author", value)} />
-                    </Field>
-                  </div>
-                  <div className="rv-form-grid">
                     <Field label="Author type">
                       <Select
                         value={form.authorType}
@@ -296,33 +311,37 @@ export default function BlogEditorPage() {
                         ]}
                       />
                     </Field>
-                    <Field label="Author profile URL" hint="Optional; add a public profile or About page for a person author.">
-                      <TextInput
-                        type="url"
-                        value={form.authorUrl}
-                        onChange={(value) => update("authorUrl", value)}
-                        placeholder="https://rendivirgo.com/about-us"
-                      />
+                    <Field label="Author">
+                      <TextInput value={form.author} onChange={(value) => update("author", value)} />
                     </Field>
-                  </div>
-                  <div className="rv-form-grid">
                     <Field label="Read minutes">
-                      <TextInput
-                        type="number"
-                        min={1}
-                        max={240}
-                        value={form.readMinutes}
-                        onChange={(value) => update("readMinutes", value)}
-                      />
-                    </Field>
-                    <Field label="Published at" hint={isNew ? "Optional; set a date and time to schedule this post." : "Leave blank to keep the current schedule."}>
-                      <TextInput
-                        type="datetime-local"
-                        value={form.publishedAt}
-                        onChange={(value) => update("publishedAt", value)}
-                      />
+                      <div className="rv-blog-editor-read-time-control">
+                        <TextInput
+                          type="number"
+                          min={1}
+                          max={240}
+                          value={form.readMinutes}
+                          onChange={(value) => update("readMinutes", value)}
+                        />
+                        <Button size="sm" onClick={() => update("readMinutes", String(estimateReadMinutes(form.body)))}>Estimate</Button>
+                      </div>
                     </Field>
                   </div>
+                  <Field label="Author profile URL" hint="Optional; add a public profile or About page for a person author.">
+                    <TextInput
+                      type="url"
+                      value={form.authorUrl}
+                      onChange={(value) => update("authorUrl", value)}
+                      placeholder="https://rendivirgo.com/about-us"
+                    />
+                  </Field>
+                  <Field label="Published at" hint={isNew ? "Optional; set a date and time to schedule this post." : "Leave blank to keep the current schedule."}>
+                    <TextInput
+                      type="datetime-local"
+                      value={form.publishedAt}
+                      onChange={(value) => update("publishedAt", value)}
+                    />
+                  </Field>
                   {!isNew && state.data ? (
                     <KeyValue
                       entries={[
@@ -335,12 +354,7 @@ export default function BlogEditorPage() {
                 </div>
               </Card>
 
-              <SeoPanel translationStatus={form.idTranslationStatus}
-                input={{ kind: "blog", title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription, images: [{ url: form.coverImage, alt: form.coverAlt }] }}
-                translation={{ kind: "blog", title: form.titleId, slug: form.slug, body: form.bodyId, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, images: [{ url: form.coverImage, alt: form.coverAltId }] }}
-                onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))}
-              />
-              <Card className="rv-blog-editor-card" title="Cover & SEO" description="Choose the cover image and search preview.">
+              <Card className="rv-blog-editor-card rv-blog-editor-cover" title="Cover & SEO" description="Choose the cover image and search preview.">
                 <div className="rv-stack">
                   <MediaPicker
                     label="Cover image"
@@ -360,12 +374,17 @@ export default function BlogEditorPage() {
                   </Field>
                 </div>
               </Card>
+              <SeoPanel compact translationStatus={form.idTranslationStatus}
+                input={contentSeoInput({ title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription, coverImage: form.coverImage, coverAlt: form.coverAlt }, "blog")}
+                translation={contentSeoInput({ title: form.titleId, slug: form.slug, body: form.bodyId, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, coverImage: form.coverImage, coverAlt: form.coverAltId }, "blog")}
+                onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))}
+              />
             </aside>
 
             <div className="rv-blog-editor-translation">
               <Card className="rv-blog-editor-card" title="Bahasa Indonesia" description="Add a reviewed Indonesian version. Set the status to Ready when all required fields are translated.">
                 <div className="rv-stack">
-                  <div className="rv-form-grid">
+                  <div className="rv-form-grid rv-blog-editor-translation-fields">
                     <Field label="Translation status">
                       <Select value={form.idTranslationStatus} onChange={(value) => update("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
                     </Field>

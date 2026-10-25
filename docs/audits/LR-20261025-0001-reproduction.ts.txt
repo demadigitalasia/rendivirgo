@@ -1,0 +1,69 @@
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { writeFileSync } from 'node:fs';
+const require = createRequire(resolve(process.cwd(), 'package.json'));
+require('reflect-metadata');
+async function main() {
+  const { plainToInstance } = require('class-transformer');
+  const { validate } = require('class-validator');
+  const { ConfigService } = require('@nestjs/config');
+  const { LapidaryService } = await import(resolve(process.cwd(), 'src/lapidary/lapidary.service.ts'));
+  const dto = await import(resolve(process.cwd(), 'src/lapidary/lapidary.dto.ts'));
+  const { LapidaryEmailOutboxService } = await import(resolve(process.cwd(), 'src/lapidary/lapidary-email-outbox.service.ts'));
+  const results: any[] = [];
+  const assert = (ok: unknown, message: string) => { if (!ok) throw new Error(message); };
+  async function check(name: string, fn: () => Promise<any>) {
+    try { const evidence = await fn(); results.push({name, result:'PASS', evidence}); }
+    catch (e: any) { results.push({name, result:'FAIL', evidence:e.message}); }
+  }
+  const now = new Date();
+  const base: any = {id:'audit-fixture', requestNumber:'AUDIT-ONLY',name:'Audit',email:'audit@example.invalid',phone:'+6281234567890',status:'Reviewing',materialSource:'CustomerSupplied',quoteCurrency:'USD',quoteAmount:null,serviceEstimateMin:50,serviceEstimateMax:100,estimateAcceptedAt:now,materialReceivedAt:now,reviewedAt:now,materialShippingInstructions:'Fixture studio address',customerId:'fixture-customer',customer:{name:'Audit',phone:'+6281234567890',addressLine1:'Fixture address',addressLine2:null,city:'Fixture city',state:null,postalCode:'12345',country:'Indonesia',countryCode:'ID'},invoice:null,returnCarrier:null,returnTrackingNumber:null,returnTrackingUrl:null};
+  function setup(overrides:any={}, beforeTransaction?: (state:any)=>void) {
+    let state = {...base,...overrides};
+    const emails:any[] = []; const updates:any[] = [];
+    const tx:any = {lapidaryRequest:{
+      findUnique:async()=>({...state}),
+      findUniqueOrThrow:async()=>({...state}),
+      update:async({data}:any)=>{state={...state,...data};return {...state};},
+    },lapidaryProgressUpdate:{create:async({data}:any)=>{updates.push(data);return {id:'fixture-update',...data,media:[]};}},lapidaryInvoice:{
+      create:async({data}:any)=>{state.invoice={id:'fixture-invoice',...data};return state.invoice;},
+      findUniqueOrThrow:async()=>state.invoice,
+      update:async({data}:any)=>{state.invoice={...state.invoice,...data};return state.invoice;},
+    }};
+    const prisma:any={...tx,$transaction:async(fn:any)=>{beforeTransaction?.(state);return fn(tx);}};
+    const service=new LapidaryService(prisma,{} as any,{} as any,{log:async()=>{}} as any,{enqueue:async(_tx:any,_id:any,_dedupe:any,email:any)=>emails.push(email)} as any);
+    return {service,emails,updates,get state(){return state;}};
+  }
+  async function blocked(name:string, state:any, input:any, fragment:string) {
+    await check(name,async()=>{try{await setup(state).service.updateRequest(base.id,input,{});throw new Error('Unexpectedly allowed');}catch(e:any){assert(e.getStatus?.()===400||e.getStatus?.()===409,'Expected validation or conflict');assert(e.message.includes(fragment),e.message);return e.message;}});
+  }
+  await check('DTO: inbound tracking URL omitted is allowed',async()=>{const errors=await validate(plainToInstance(dto.SubmitLapidaryInboundShipmentDto,{carrier:'DHL',trackingNumber:'FIXTURE123'}));assert(errors.length===0,'DTO rejected omitted optional URL');return 'Valid';});
+  await check('DEFECT: inbound tracking URL empty string is rejected',async()=>{const errors=await validate(plainToInstance(dto.SubmitLapidaryInboundShipmentDto,{carrier:'DHL',trackingNumber:'FIXTURE123',trackingUrl:''}));assert(errors.some((e:any)=>e.property==='trackingUrl'),'Expected exact optional-empty bug');return errors.map((e:any)=>e.property);});
+  await check('DTO: admin blank URL normalized to null is allowed',async()=>{const errors=await validate(plainToInstance(dto.UpdateLapidaryRequestDto,{returnTrackingUrl:null}));assert(errors.length===0,'DTO rejected null');return 'Valid';});
+  await check('DEFECT: whitespace-only progress passes DTO',async()=>{const errors=await validate(plainToInstance(dto.CreateLapidaryProgressUpdateDto,{title:'  ',body:'  '}));assert(errors.length===0,'Whitespace unexpectedly rejected');return 'Whitespace passes MinLength before service trims';});
+  await blocked('Guard: cannot skip New to Approved',{status:'New'},{status:'Approved'},'Cannot move');
+  await blocked('Guard: approval requires estimate',{serviceEstimateMin:null,serviceEstimateMax:null},{status:'Approved'},'service estimate range');
+  await blocked('Guard: approval requires studio shipping address',{materialShippingInstructions:null},{status:'Approved'},'studio address');
+  await check('Approval: secure claim and approval email are enqueued in memory',async()=>{const x=setup({customerId:null,estimateAcceptedAt:null});await x.service.updateRequest(base.id,{status:'Approved'},{});assert(x.emails.length===1,'Approval email missing');assert(x.state.claimTokenHash&&x.state.claimTokenExpiresAt,'Claim missing');const u=x.emails[0].html.match(/href="([^"]+)"/)[1];return {status:x.state.status,hasClaimHash:!!x.state.claimTokenHash,emailSubject:x.emails[0].subject,linkOrigin:new URL(u.replaceAll('&amp;','&')).origin};});
+  await blocked('Guard: no work before material received',{status:'MaterialReceived',materialReceivedAt:null},{status:'InProgress'},'receipt');
+  await blocked('Guard: no work before estimate acceptance',{status:'MaterialReceived',estimateAcceptedAt:null},{status:'InProgress'},'accept the current estimate');
+  await check('Estimate revision resets acceptance and queues notice',async()=>{const x=setup({status:'InProgress'});await x.service.updateRequest(base.id,{status:'EstimateSent',serviceEstimateMax:120},{});assert(x.state.estimateAcceptedAt===null,'Acceptance not reset');assert(x.emails.length===1,'Revised estimate email missing');return {status:x.state.status,acceptance:x.state.estimateAcceptedAt};});
+  await blocked('Guard: invoice requires completed work',{status:'InProgress'},{status:'AwaitingPayment',invoiceServiceAmount:90,invoiceReturnShippingAmount:20},'Cannot move');
+  await blocked('Guard: final fee cannot exceed accepted maximum',{status:'Completed'},{status:'AwaitingPayment',invoiceServiceAmount:101,invoiceReturnShippingAmount:20},'exceeds the accepted maximum');
+  await blocked('Guard: invoice requires complete return address',{status:'Completed',customer:{...base.customer,postalCode:null}},{status:'AwaitingPayment',invoiceServiceAmount:90,invoiceReturnShippingAmount:20},'delivery address');
+  await blocked('Guard: final invoice currency must match estimate',{status:'Completed'},{status:'AwaitingPayment',invoiceServiceAmount:90,invoiceReturnShippingAmount:20,invoiceCurrency:'IDR'},'same currency');
+  await check('Invoice: separate fees and frozen return address',async()=>{const x=setup({status:'Completed'});await x.service.updateRequest(base.id,{status:'AwaitingPayment',invoiceServiceAmount:90,invoiceReturnShippingAmount:20,invoiceCurrency:'USD'},{});assert(x.state.invoice.totalAmount===110,'Bad total');assert(x.state.invoice.returnAddressLine1===base.customer.addressLine1,'No address snapshot');return {service:x.state.invoice.serviceAmount,returnShipping:x.state.invoice.returnShippingAmount,total:x.state.invoice.totalAmount,emailCount:x.emails.length};});
+  await blocked('Guard: no return shipment before payment',{status:'AwaitingPayment',invoice:{status:'AwaitingPayment'}},{status:'ReturnShipped',returnCarrier:'DHL',returnTrackingNumber:'FIXTURE123'},'Confirm payment');
+  await blocked('Guard: paid return requires tracking',{status:'AwaitingPayment',invoice:{status:'Paid'}},{status:'ReturnShipped'},'carrier and tracking number');
+  await check('Paid return shipment stores dispatch time and queues email',async()=>{const x=setup({status:'AwaitingPayment',invoice:{status:'Paid'}});await x.service.updateRequest(base.id,{status:'ReturnShipped',returnCarrier:'DHL',returnTrackingNumber:'FIXTURE123'},{});assert(x.state.returnShippedAt&&x.emails.length===1,'Missing shipment side effects');return {status:x.state.status,hasDispatchTime:!!x.state.returnShippedAt};});
+  await blocked('Guard: cannot mark delivered before dispatch',{status:'AwaitingPayment',invoice:{status:'Paid'}},{status:'Delivered'},'Cannot move');
+  await check('DEFECT: shipped tracking can be cleared after guard uses old values',async()=>{const x=setup({status:'ReturnShipped',invoice:{status:'Paid'},returnCarrier:'DHL',returnTrackingNumber:'FIXTURE123'});await x.service.updateRequest(base.id,{status:'ReturnShipped',returnCarrier:'',returnTrackingNumber:''},{});assert(x.state.returnCarrier===null&&x.state.returnTrackingNumber===null,'Tracking unexpectedly preserved');return {status:x.state.status,carrier:x.state.returnCarrier,tracking:x.state.returnTrackingNumber};});
+  await check('GAP: cancellation after material receipt produces terminal Cancelled',async()=>{const x=setup({status:'MaterialReceived'});await x.service.updateRequest(base.id,{status:'Cancelled'},{});assert(x.state.status==='Cancelled','Expected cancellation');return 'No dedicated material-return state is created';});
+  await check('GAP: saving unchanged Approved cannot refresh claim or resend approval',async()=>{const x=setup({status:'Approved',customerId:null,claimTokenHash:'expired-fixture',claimTokenExpiresAt:new Date(0)});await x.service.updateRequest(base.id,{status:'Approved'},{});assert(x.emails.length===0,'Unexpected resend');assert(x.state.claimTokenExpiresAt.getTime()===0,'Unexpected refresh');return 'No email queued; claim expiry remains unchanged';});
+  await check('Guard: disabled email provider refuses enqueue',async()=>{const outbox=new LapidaryEmailOutboxService({} as any,{isEnabled:()=>false} as any,new ConfigService({SESSION_SECRET:'audit-only-fixture-secret'}));try{await outbox.enqueue({} as any,'fixture','fixture',{to:'audit@example.invalid',subject:'Audit',html:'Audit'});throw new Error('Unexpectedly allowed');}catch(e:any){assert(e.getStatus?.()===503,'Expected 503');return e.message;}});
+  await check('DEFECT: stale cancellation can void an invoice paid concurrently',async()=>{const x=setup({status:'AwaitingPayment',invoice:{id:'fixture-invoice',status:'AwaitingPayment',paidAt:null}},state=>{state.invoice={...state.invoice,status:'Paid',paidAt:now};});await x.service.updateRequest(base.id,{status:'Cancelled'},{});assert(x.state.status==='Cancelled'&&x.state.invoice.status==='Void'&&x.state.invoice.paidAt,'Expected stale payment overwrite');return {status:x.state.status,invoiceStatus:x.state.invoice.status,paidAtRecorded:!!x.state.invoice.paidAt};});
+  writeFileSync('/tmp/rv-lapidary-audit-results.json',JSON.stringify(results,null,2));
+  console.log(JSON.stringify({total:results.length,passed:results.filter(r=>r.result==='PASS').length,failed:results.filter(r=>r.result==='FAIL').length,results},null,2));
+  if(results.some(r=>r.result==='FAIL'))process.exitCode=1;
+}
+main().catch(e=>{console.error(e.message);process.exitCode=1;});

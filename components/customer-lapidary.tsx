@@ -2,9 +2,13 @@
 
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { ArrowUpRight, BadgeCheck, ChevronRight, FileText, Gem, LayoutDashboard, LogOut, PackageSearch, RefreshCw, UserRound } from "lucide-react";
+import { useCart, useCopy } from "@/components/providers";
+import { LocalizedLink as Link } from "@/components/localized-link";
+import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
 import "./customer-lapidary.css";
 
+type LapidaryCustomerProfile = { id: string; name: string; email: string; wholesaleAccess: boolean };
 type ProgressUpdate = { id: string; title: string; body: string; createdAt: string; media: Array<{ id: string; originalName: string; mimeType: string; size: number }> };
 type LapidaryInvoice = { id: string; revision: number; revisionReason: string | null; currency: string; serviceAmount: number | string; returnShippingAmount: number | string; totalAmount: number | string; returnRecipientName: string | null; returnPhone: string | null; returnAddressLine1: string | null; returnAddressLine2: string | null; returnCity: string | null; returnState: string | null; returnPostalCode: string | null; returnCountry: string | null; returnCountryCode: string | null; status: string; paymentProofUploadedAt: string | null; paidAt: string | null };
 type LapidaryProject = {
@@ -55,12 +59,65 @@ function formatMoney(currency: string, value: number | string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(Number(value));
 }
 
+export function CustomerLapidarySidebar({ profile }: { profile: LapidaryCustomerProfile | null }) {
+  const router = useRouter();
+  const { clearCart } = useCart();
+  const customerNavigation = useCopy().customerNavigation;
+  const wholesaleEnabled = canAccessWholesale(profile);
+  const initials = profile?.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word.charAt(0)).join("").toUpperCase() || "R";
+
+  async function logout() {
+    try {
+      await fetch("/api/customer-account/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+    } catch {
+      // The local account session may already have expired.
+    } finally {
+      clearCart("wholesale");
+      router.replace("/account/login");
+      router.refresh();
+    }
+  }
+
+  return <aside className="customer-dashboard__sidebar" aria-label={customerNavigation.menu}>
+    <div className="customer-dashboard__identity">
+      <span className="customer-dashboard__avatar" aria-hidden="true">{initials}</span>
+      <span className="customer-dashboard__identity-copy"><strong>{profile?.name || "Customer account"}</strong><small>{profile?.email || "Your private workspace"}</small></span>
+    </div>
+    <p className="customer-dashboard__nav-label">{customerNavigation.menu}</p>
+    <nav className="customer-dashboard__nav" aria-label={customerNavigation.menu}>
+      <Link href={storefrontRoutes.account} className="customer-dashboard__nav-link"><LayoutDashboard className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.overview}</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span></Link>
+      <Link href={storefrontRoutes.accountOrders} className="customer-dashboard__nav-link"><FileText className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.orders}</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span></Link>
+      <Link href="/account/lapidary" className="customer-dashboard__nav-link is-active" aria-current="page"><Gem className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>Lapidary projects</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span></Link>
+      <Link href={storefrontRoutes.wholesaleCatalog} className="customer-dashboard__nav-link"><PackageSearch className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span></Link>
+    </nav>
+    <div className={`customer-dashboard__account-status${wholesaleEnabled ? " is-wholesale" : ""}`}><span className="customer-dashboard__account-status-icon" aria-hidden="true">{wholesaleEnabled ? <BadgeCheck className="rv-icon" size={17} strokeWidth={1.7} /> : <UserRound className="rv-icon" size={17} strokeWidth={1.7} />}</span><span className="customer-dashboard__account-status-copy"><small>{customerNavigation.accountType}</small><strong>{wholesaleEnabled ? customerNavigation.wholesaleApproved : customerNavigation.retailCustomer}</strong></span></div>
+    <button className="customer-dashboard__signout" type="button" onClick={() => void logout()}><LogOut className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.signOut}</span></button>
+  </aside>;
+}
+
+export function CustomerLapidaryFallback() {
+  return <section className="customer-account customer-dashboard customer-lapidary" aria-busy="true">
+    <CustomerLapidarySidebar profile={null} />
+    <div className="customer-dashboard__content customer-lapidary__content">
+      <header className="customer-dashboard__topbar customer-lapidary__header"><div><p className="customer-dashboard__eyebrow">CUSTOMER DASHBOARD · LAPIDARY</p><h1>Your stone projects</h1><p>Follow your material, studio updates, invoice, and return shipment.</p></div></header>
+      <div className="customer-lapidary__workspace"><div className="customer-lapidary__workspace-copy"><span className="customer-lapidary__eyebrow">PROJECT WORKSPACE</span><p>Project updates refresh automatically while this page is open.</p></div><div className="customer-lapidary__refresh"><small>Loading your latest projects…</small></div></div>
+      <div className="customer-lapidary__loading" role="status"><span className="customer-lapidary__loading-mark"><Gem className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></span><span>Loading your lapidary projects…</span></div>
+    </div>
+  </section>;
+}
+
 export function CustomerLapidaryDashboard() {
   const router = useRouter();
   const search = useSearchParams();
   const claimToken = search.get("claim");
   const claimHandled = useRef(false);
   const [projects, setProjects] = useState<LapidaryProject[]>([]);
+  const [profile, setProfile] = useState<LapidaryCustomerProfile | null>(null);
   const [payments, setPayments] = useState<PaymentMethods>({});
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
@@ -71,13 +128,14 @@ export function CustomerLapidaryDashboard() {
   const [proofs, setProofs] = useState<Record<string, File | null>>({});
 
   const load = useCallback(async () => {
+    setError("");
     const me = await fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store" });
     if (me.status === 401 || me.status === 403) {
       const next = `/account/lapidary${claimToken ? `?claim=${encodeURIComponent(claimToken)}` : ""}`;
       router.replace(`/account/login?next=${encodeURIComponent(next)}`);
       return;
     }
-    await readJson(me);
+    setProfile(await readJson(me));
     if (claimToken && !claimHandled.current) {
       await readJson(await fetch("/api/customer-account/lapidary/claim", {
         method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: claimToken }),
@@ -154,14 +212,20 @@ export function CustomerLapidaryDashboard() {
     setProofs((current) => ({ ...current, [project.requestNumber]: event.target.files?.[0] ?? null }));
   }
 
-  if (loading) return <section className="customer-account customer-lapidary"><p>Loading your lapidary projects…</p></section>;
+  const wholesaleEnabled = canAccessWholesale(profile);
 
-  return <section className="customer-account customer-lapidary">
-    <header className="customer-lapidary__header"><div><p className="customer-account__eyebrow">CUSTOMER DASHBOARD · LAPIDARY</p><h1>Your stone projects</h1><p>Follow your material, studio updates, invoice, and return shipment.</p></div><Link href="/account">Back to account</Link></header>
-    <div className="customer-lapidary__refresh"><button type="button" className="button" disabled={Boolean(busyId)} onClick={() => void load().catch((caught) => setError(caught instanceof Error ? caught.message : "Refresh failed."))}>Refresh projects</button>{lastUpdated ? <small>Updated {lastUpdated}. Refreshes automatically while this page is visible.</small> : null}</div>
+  return <section className="customer-account customer-dashboard customer-lapidary" aria-busy={loading}>
+    <CustomerLapidarySidebar profile={profile} />
+
+    <div className="customer-dashboard__content customer-lapidary__content">
+      <header className="customer-dashboard__topbar customer-lapidary__header"><div><p className="customer-dashboard__eyebrow">CUSTOMER DASHBOARD · LAPIDARY</p><h1>Your stone projects</h1><p>Follow your material, studio updates, invoice, and return shipment.</p></div><span className={`customer-dashboard__member-badge${wholesaleEnabled ? " is-wholesale" : ""}`}>{wholesaleEnabled ? <BadgeCheck className="rv-icon" size={14} strokeWidth={1.7} aria-hidden="true" /> : <UserRound className="rv-icon" size={14} strokeWidth={1.7} aria-hidden="true" />}{wholesaleEnabled ? "WHOLESALE MEMBER" : "CUSTOMER ACCOUNT"}</span></header>
+      <div className="customer-lapidary__workspace">
+        <div className="customer-lapidary__workspace-copy"><span className="customer-lapidary__eyebrow">PROJECT WORKSPACE</span><p>Project updates refresh automatically while this page is open.</p></div>
+        <div className="customer-lapidary__refresh"><small>{loading ? "Loading your latest projects…" : lastUpdated ? `Updated at ${lastUpdated}` : "Your project activity"}</small><button type="button" className="button button--outline" disabled={loading || Boolean(busyId)} onClick={() => void load().catch((caught) => setError(caught instanceof Error ? caught.message : "Refresh failed."))}><RefreshCw className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" />Refresh projects</button></div>
+      </div>
     {error ? <p className="customer-account__error" role="alert">{error}</p> : null}
     {success ? <p className="customer-account__message" role="status">{success}</p> : null}
-    {projects.length ? <div className="customer-lapidary__projects">{projects.map((project) => <article className="customer-lapidary__project" key={project.id}>
+      {loading ? <div className="customer-lapidary__loading" role="status"><span className="customer-lapidary__loading-mark"><Gem className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></span><span>Loading your lapidary projects…</span></div> : projects.length ? <div className="customer-lapidary__projects">{projects.map((project) => <article className="customer-lapidary__project" key={project.id}>
       <div className="customer-lapidary__project-heading"><div><span className="customer-lapidary__eyebrow">PROJECT REFERENCE</span><h2>{project.requestNumber}</h2></div><strong className="customer-lapidary__status">{project.status.replace(/([a-z])([A-Z])/g, "$1 $2")}</strong></div>
       {project.workCancelledAt ? <p className="customer-lapidary__shipment"><strong>Studio work cancelled:</strong> {project.cancellationReason}. {project.status === "ReturnPending" ? "The studio is arranging the return of your material. Any return shipping fee will be listed separately." : "Follow the return shipment below."}</p> : null}
       <div className="customer-lapidary__summary"><div><span>Material</span><strong>{project.materialDescription}</strong>{project.materialWeightGram ? <small>{project.materialWeightGram} g estimated · {project.materialCondition || "Condition to be reviewed at arrival"}</small> : null}</div><div><span>Work requested</span><strong>{project.items.map((item) => `${item.serviceType.replace(/([a-z])([A-Z])/g, "$1 $2")} · ${item.desiredShape || item.shapeKey || project.desiredShape || "Shape to discuss"} · ${item.quantity} pc`).join(" / ")}</strong></div></div>
@@ -179,6 +243,7 @@ export function CustomerLapidaryDashboard() {
       {project.deliveredAt ? <p className="customer-lapidary__shipment"><strong>Delivered:</strong> {new Date(project.deliveredAt).toLocaleString()}</p> : null}
 
       <section className="customer-lapidary__timeline"><h3>Studio progress</h3>{project.progressUpdates.length ? <ol>{[...project.progressUpdates].reverse().map((update) => <li key={update.id}><time>{new Date(update.createdAt).toLocaleString()}</time><h4>{update.title}</h4><p>{update.body}</p>{update.media.length ? <div className="customer-lapidary__photos">{update.media.map((media) => <a href={`/api/customer-account/lapidary/${encodeURIComponent(project.requestNumber)}/updates/${update.id}/media/${media.id}`} target="_blank" rel="noreferrer" key={media.id}><img src={`/api/customer-account/lapidary/${encodeURIComponent(project.requestNumber)}/updates/${update.id}/media/${media.id}`} alt={media.originalName} loading="lazy" /></a>)}</div> : null}</li>)}</ol> : <p>The studio will post project steps and photos here as work progresses.</p>}</section>
-    </article>)}</div> : <div className="customer-lapidary__empty"><h2>No projects linked yet</h2><p>If the studio has approved your stone request, use the secure link in their email after signing in. If you need help, reply to the approval email with your project reference.</p><Link href="/lapidary/custom-order">Start a lapidary request</Link></div>}
+    </article>)}</div> : <div className="customer-lapidary__empty"><div className="customer-lapidary__empty-mark"><Gem className="rv-icon" size={25} strokeWidth={1.6} aria-hidden="true" /></div><span className="customer-lapidary__eyebrow">A PLACE FOR YOUR NEXT CUT</span><h2>No projects linked yet</h2><p>When the studio approves a stone request, open the secure link in the approval email while signed in. Your material, updates, invoice, and return tracking will appear here.</p><Link className="button button--primary" href="/lapidary/custom-order">Start a lapidary request<ArrowUpRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></Link><small>Already have an approved request? Check the email from our studio for your private project link.</small></div>}
+    </div>
   </section>;
 }

@@ -1,17 +1,21 @@
 import { siteUrl } from "@/lib/seo";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { getPublicSettings } from "@/lib/storefront";
 import "./globals.css";
 import { localizedPath, languageHeaderName, normalizeLanguage, originalPathHeaderName, stripLocalePrefix } from "@/lib/locale";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const language = normalizeLanguage(requestHeaders.get(languageHeaderName));
-  const title = language === "id" ? "RENDI VIRGO | Batu Alam Indonesia" : "RENDI VIRGO | Authentic Indonesian Stones";
-  const description = language === "id"
+  const path = stripLocalePrefix(requestHeaders.get(originalPathHeaderName) ?? "/");
+  const settings = path === "/admin" || path.startsWith("/admin/") ? null : await getPublicSettings();
+  const fallbackTitle = language === "id" ? "RENDI VIRGO | Batu Alam Indonesia" : "RENDI VIRGO | Authentic Indonesian Stones";
+  const fallbackDescription = language === "id"
     ? "Batu alam Indonesia pilihan RENDI VIRGO untuk kolektor dan perajin di seluruh dunia."
     : "Natural Indonesian stones selected by RENDI VIRGO for collectors and makers around the world.";
-  const path = stripLocalePrefix(requestHeaders.get(originalPathHeaderName) ?? "/");
+  const title = (language === "en" && settings?.seo.defaultTitle.trim()) || fallbackTitle;
+  const description = (language === "en" && settings?.seo.defaultDescription.trim()) || fallbackDescription;
 
   return {
     metadataBase: new URL(siteUrl()),
@@ -20,7 +24,6 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: { icon: "/favicon.svg" },
     alternates: {
       canonical: localizedPath(path, language),
-      languages: { en: path, id: localizedPath(path, "id") },
     },
     openGraph: {
       type: "website",

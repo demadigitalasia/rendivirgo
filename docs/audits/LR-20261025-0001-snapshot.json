@@ -1,0 +1,54 @@
+{
+  "capturedAtUTC": "2026-10-25T02:26:05.422Z",
+  "environment": "Local development: localhost:3000 / localhost:4000; database rendi_virgo_dev",
+  "timestampConvention": "Prisma DateTime values read as raw UTC timestamp strings to avoid pg local-time parser conversion",
+  "request": {
+    "id": "cmvn5qq1l0001c8vk0l29xbju",
+    "requestNumber": "LR-20261025-0001",
+    "status": "New",
+    "materialSource": "CustomerSupplied",
+    "serviceType": "CabochonPendant",
+    "desiredShape": "long-oval",
+    "quantity": 10,
+    "lengthMm": null,
+    "widthMm": null,
+    "depthMm": null,
+    "materialWeightGram": "3000.00",
+    "quoteCurrency": "USD",
+    "quoteAmount": null,
+    "serviceEstimateMin": null,
+    "serviceEstimateMax": null,
+    "estimateAcceptedAt": null,
+    "customerId": null,
+    "materialShippingInstructions": null,
+    "inboundCarrier": null,
+    "inboundTrackingNumber": null,
+    "materialReceivedAt": null,
+    "returnCarrier": null,
+    "returnTrackingNumber": null,
+    "returnShippedAt": null,
+    "deliveredAt": null,
+    "createdAt": "2026-10-25 01:37:09.465",
+    "updatedAt": "2026-10-25 02:21:31.879",
+    "targetDate": "2026-11-28 12:00:00"
+  },
+  "counts": {
+    "LapidaryRequestItem": 1,
+    "LapidaryRequestMedia": 1,
+    "LapidaryProgressUpdate": 0,
+    "LapidaryInvoice": 0,
+    "LapidaryEmailOutbox": 0
+  },
+  "audit": [
+    {
+      "action": "lapidary_request.update",
+      "summary": "Updated LR-20261025-0001 to New",
+      "createdAt": "2026-10-25 01:44:15.558"
+    },
+    {
+      "action": "lapidary_request.update",
+      "summary": "Updated LR-20261025-0001 to New",
+      "createdAt": "2026-10-25 02:21:31.887"
+    }
+  ]
+}

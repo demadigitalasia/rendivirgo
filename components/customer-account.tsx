@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, ChevronRight, Clock3, ContactRound, Gem, LayoutDashboard, LogOut, Package, PackageOpen, PackageSearch, ReceiptText, Store, Truck, UserRound } from "lucide-react";
 import { useCart, useCopy } from "@/components/providers";
 import { LocalizedLink as Link } from "@/components/localized-link";
 import { CountryDropdown } from "@/components/country-dropdown";
 import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
 import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
-import { ArrowIcon, ArrowLeftIcon, ArrowUpRightIcon, ChevronRightIcon, ClockIcon, Icon, SparkleIcon } from "@/components/icons";
+import { ArrowIcon, ArrowLeftIcon, ArrowUpRightIcon, ChevronRightIcon, Icon } from "@/components/icons";
 
 import { lapidaryRegistrationIntent, safeCustomerReturnPath, wholesaleRegistrationIntent } from "@/lib/customer-return-path";
 
@@ -419,24 +420,24 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
         <p className="customer-dashboard__nav-label">{customerNavigation.menu}</p>
         <nav className="customer-dashboard__nav" aria-label={customerNavigation.menu}>
           <Link href={storefrontRoutes.account} className={`customer-dashboard__nav-link${ordersOnly ? "" : " is-active"}`} aria-current={ordersOnly ? undefined : "page"}>
-            <Icon name="dashboard" size={19} /><span>{customerNavigation.overview}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
+            <LayoutDashboard className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.overview}</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span>
           </Link>
           <Link href={storefrontRoutes.accountOrders} className={`customer-dashboard__nav-link${ordersOnly ? " is-active" : ""}`} aria-current={ordersOnly ? "page" : undefined}>
-            <Icon name="fileText" size={19} /><span>{customerNavigation.orders}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
+            <ReceiptText className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.orders}</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span>
           </Link>
           <Link href="/account/lapidary" className="customer-dashboard__nav-link">
-            <Icon name="gem" size={19} /><span>Lapidary projects</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
+            <Gem className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>Lapidary projects</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span>
           </Link>
           <Link href={storefrontRoutes.wholesaleCatalog} className="customer-dashboard__nav-link">
-            <Icon name="gem" size={19} /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow"><ChevronRightIcon size={16} /></span>
+            <PackageSearch className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.wholesale}</span><span className="customer-dashboard__nav-arrow"><ChevronRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></span>
           </Link>
         </nav>
-        <div className="customer-dashboard__account-status">
-          <span className="customer-dashboard__status-mark" />
-          <span><small>{customerNavigation.accountType}</small><strong>{wholesaleEnabled ? customerNavigation.wholesaleApproved : customerNavigation.retailCustomer}</strong></span>
+        <div className={`customer-dashboard__account-status${wholesaleEnabled ? " is-wholesale" : ""}`}>
+          <span className="customer-dashboard__account-status-icon" aria-hidden="true">{wholesaleEnabled ? <BadgeCheck className="rv-icon" size={17} strokeWidth={1.7} /> : <UserRound className="rv-icon" size={17} strokeWidth={1.7} />}</span>
+          <span className="customer-dashboard__account-status-copy"><small>{customerNavigation.accountType}</small><strong>{wholesaleEnabled ? customerNavigation.wholesaleApproved : customerNavigation.retailCustomer}</strong></span>
         </div>
-        <button className="customer-dashboard__signout" onClick={() => void logout()}>
-          <Icon name="logOut" size={19} /><span>{customerNavigation.signOut}</span>
+        <button className="customer-dashboard__signout" type="button" onClick={() => void logout()}>
+          <LogOut className="rv-icon" size={19} strokeWidth={1.6} aria-hidden="true" /><span>{customerNavigation.signOut}</span>
         </button>
       </aside>
 
@@ -448,35 +449,36 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
             <p>{ordersOnly ? "Review your purchases, payment status, and delivery progress." : "Your orders, profile, and collection details in one place."}</p>
           </div>
           <span className={`customer-dashboard__member-badge${profile.wholesaleAccess ? " is-wholesale" : ""}`}>
-            <span />{profile.wholesaleAccess ? "WHOLESALE MEMBER" : "CUSTOMER ACCOUNT"}
+            {profile.wholesaleAccess ? <BadgeCheck className="rv-icon" size={14} strokeWidth={1.7} aria-hidden="true" /> : <UserRound className="rv-icon" size={14} strokeWidth={1.7} aria-hidden="true" />}
+            {profile.wholesaleAccess ? "WHOLESALE MEMBER" : "CUSTOMER ACCOUNT"}
           </span>
         </header>
 
         {!ordersOnly ? (
           <>
             <div className="customer-account__stats customer-dashboard__stats">
-              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon"><Icon name="fileText" size={18} /></span><strong>{summary.total}</strong><span>All orders</span><small>Orders linked to your account</small></div>
-              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-amber"><ClockIcon size={18} /></span><strong>{summary.pendingPayment}</strong><span>Awaiting payment</span><small>Orders that need your attention</small></div>
-              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-sage"><ArrowUpRightIcon size={18} /></span><strong>{summary.activeOrders}</strong><span>In progress</span><small>Being prepared or delivered</small></div>
+              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon"><ReceiptText className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span><strong>{summary.total}</strong><span>All orders</span><small>Orders linked to your account</small></div>
+              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-amber"><Clock3 className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span><strong>{summary.pendingPayment}</strong><span>Awaiting payment</span><small>Orders that need your attention</small></div>
+              <div className="customer-dashboard__stat-card"><span className="customer-dashboard__stat-icon is-sage"><Truck className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span><strong>{summary.activeOrders}</strong><span>In progress</span><small>Being prepared or delivered</small></div>
             </div>
 
             {profile.wholesaleAccess ? (
               <Link className="customer-dashboard__wholesale-banner" href="/wholesale/finished">
-                <span className="customer-dashboard__wholesale-icon"><Icon name="gem" /></span>
+                <span className="customer-dashboard__wholesale-icon"><Store className="rv-icon" size={21} strokeWidth={1.6} aria-hidden="true" /></span>
                 <span><small>WHOLESALE ACCESS</small><strong>Your private catalog is ready</strong><em>Browse approved wholesale products and pricing.</em></span>
-                <span className="customer-dashboard__wholesale-arrow"><ArrowIcon size={18} /></span>
+                <span className="customer-dashboard__wholesale-arrow"><ArrowUpRight className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
               </Link>
             ) : (
               <Link className="customer-dashboard__wholesale-banner" href={storefrontRoutes.wholesaleCatalog}>
-                <span className="customer-dashboard__wholesale-icon"><Icon name="gem" /></span>
+                <span className="customer-dashboard__wholesale-icon"><Store className="rv-icon" size={21} strokeWidth={1.6} aria-hidden="true" /></span>
                 <span><small>FINISHED PRODUCTS WHOLESALE</small><strong>{profile.wholesaleStatus === "Pending" ? "Your request is under review" : profile.wholesaleStatus === "Rejected" ? "Review your wholesale application" : "Apply for wholesale access"}</strong><em>{profile.wholesaleStatus === "Pending" ? "We will email you when a decision is ready." : profile.wholesaleStatus === "Rejected" ? profile.wholesaleReviewReason || "View the decision and update your business details." : "Tell us about your business to request private catalog access."}</em></span>
-                <span className="customer-dashboard__wholesale-arrow"><ArrowIcon size={18} /></span>
+                <span className="customer-dashboard__wholesale-arrow"><ArrowUpRight className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
               </Link>
             )}
 
             <div className="customer-dashboard__card customer-dashboard__profile-card" id="profile-details">
               <div className="customer-dashboard__card-heading">
-                <span className="customer-dashboard__section-icon"><SparkleIcon size={18} /></span>
+                <span className="customer-dashboard__section-icon"><ContactRound className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
                 <span><small>PERSONAL DETAILS</small><h2>Profile information</h2><p>Keep your contact and delivery details up to date.</p></span>
               </div>
               <form className="customer-account__form customer-dashboard__profile-form" onSubmit={(event) => void updateProfile(event)}>
@@ -510,7 +512,7 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
                 <label className="customer-account__checkbox customer-dashboard__marketing"><input name="acceptsMarketing" type="checkbox" defaultChecked={profile.acceptsMarketing} /> I agree to receive marketing emails</label>
                 {message ? <p className="customer-account__message" role="status">{message}</p> : null}
                 {error ? <p className="customer-account__error" role="alert">{error}</p> : null}
-                <button className="button button--primary customer-dashboard__save-button" disabled={saving}>{saving ? "Saving…" : "Save profile"}<ArrowIcon size={17} /></button>
+                <button className="button button--primary customer-dashboard__save-button" disabled={saving}>{saving ? "Saving…" : "Save profile"}<ArrowRight className="rv-icon" size={17} strokeWidth={1.6} aria-hidden="true" /></button>
               </form>
             </div>
           </>
@@ -518,27 +520,27 @@ export function CustomerDashboard({ ordersOnly = false }: { ordersOnly?: boolean
 
         <section className="customer-account__orders customer-dashboard__card customer-dashboard__orders">
           <div className="customer-dashboard__orders-heading">
-            <span className="customer-dashboard__section-icon"><Icon name="fileText" size={18} /></span>
+            <span className="customer-dashboard__section-icon"><ReceiptText className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
             <span><small>{ordersOnly ? "YOUR PURCHASES" : "ORDER ACTIVITY"}</small><h2>{ordersOnly ? "All orders" : "Recent orders"}</h2></span>
-            {!ordersOnly ? <Link href="/account/orders">View all <ArrowIcon size={16} /></Link> : null}
+            {!ordersOnly ? <Link href="/account/orders">View all <ArrowRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></Link> : null}
           </div>
           {orders.length ? orders.map((order) => (
             <Link className="customer-account__order customer-dashboard__order" key={order.id} href={`/account/orders/${encodeURIComponent(order.orderNumber)}`}>
-              <span className="customer-dashboard__order-identity"><span className="customer-dashboard__order-icon"><Icon name="package" size={18} /></span><span><strong>{order.orderNumber}</strong><small>Placed {new Date(order.placedAt).toLocaleDateString()}</small></span></span>
+              <span className="customer-dashboard__order-identity"><span className="customer-dashboard__order-icon"><Package className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span><span><strong>{order.orderNumber}</strong><small>Placed {new Date(order.placedAt).toLocaleDateString()}</small></span></span>
               <span className="customer-dashboard__order-total"><strong>{order.currency} {Number(order.total).toFixed(2)}</strong><small>{order.itemCount} items · {order.status} · {order.paymentStatus}</small></span>
-              <span className="customer-dashboard__order-arrow"><ArrowUpRightIcon size={17} /></span>
+              <span className="customer-dashboard__order-arrow"><ArrowUpRight className="rv-icon" size={17} strokeWidth={1.6} aria-hidden="true" /></span>
             </Link>
           )) : (
             <div className="customer-dashboard__empty">
-              <span className="customer-dashboard__empty-icon"><Icon name="package" size={18} /></span>
+              <span className="customer-dashboard__empty-icon"><PackageOpen className="rv-icon" size={18} strokeWidth={1.6} aria-hidden="true" /></span>
               <span><strong>No orders yet</strong><small>Orders placed with this email will appear here.</small></span>
-              <Link href="/shop">Explore the collection <ArrowIcon size={16} /></Link>
+              <Link href="/shop">Explore the collection <ArrowRight className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" /></Link>
             </div>
           )}
           {ordersOnly && pageCount > 1 ? <div className="customer-account__pagination customer-dashboard__pagination">
-            <button className="button button--outline button--compact" type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ArrowLeftIcon size={15} /> Previous</button>
+            <button className="button button--outline button--compact" type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ArrowLeft className="rv-icon" size={15} strokeWidth={1.6} aria-hidden="true" /> Previous</button>
             <span>Page {page} of {pageCount}</span>
-            <button className="button button--outline button--compact" type="button" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>Next <ChevronRightIcon size={15} /></button>
+            <button className="button button--outline button--compact" type="button" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>Next <ChevronRight className="rv-icon" size={15} strokeWidth={1.6} aria-hidden="true" /></button>
           </div> : null}
         </section>
       </div>
