@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { FilterDropdown } from "@/components/filter-dropdown";
 import { CloseIcon } from "@/components/icons";
 
@@ -552,7 +553,7 @@ export function Modal({
 
   if (!open) return null;
 
-  return (
+  return createPortal((
     <div className="rv-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onCloseRef.current();
     }}>
@@ -567,7 +568,7 @@ export function Modal({
         {footer ? <div className="rv-modal__footer">{footer}</div> : null}
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 export function ConfirmButton({

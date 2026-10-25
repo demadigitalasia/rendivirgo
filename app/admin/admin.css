@@ -2465,18 +2465,25 @@ a.rv-list__row:hover {
 }
 
 .rv-customer-detail__stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
 .rv-customer-detail__main {
+  min-width: 0;
   grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.9fr);
   gap: 24px;
 }
 
-/* A portal keeps dialogs centered in the viewport, outside sticky/blurred headers. */
+.rv-customer-detail__main > * {
+  min-width: 0;
+}
+
+/* Dialogs render in a portal so they are centered over the viewport, outside sticky headers. */
 .rv-modal {
   z-index: 100;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .rv-modal__panel--confirm {
@@ -2510,6 +2517,41 @@ a.rv-list__row:hover {
   font-size: 0.88rem;
   line-height: 1.65;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 1180px) {
+  .rv-customer-detail__main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .rv-customer-detail__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .rv-customer-detail__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rv-modal {
+    padding: 12px;
+  }
+
+  .rv-modal__panel {
+    max-height: calc(100dvh - 24px);
+  }
+
+  .rv-modal__body {
+    padding: 16px;
+  }
+
+  .rv-modal__footer {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
 }
 
 @media (max-width: 1080px) {
