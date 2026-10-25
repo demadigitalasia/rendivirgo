@@ -51,7 +51,7 @@ export function AiDraft({ kind, title = "Generate AI", context, sourceVersion, c
   }
   return <div className="rv-ai-draft">
     <div className="rv-inline"><Select value={mode} onChange={setMode} ariaLabel="AI apply mode" options={[{value:"replace",label:"Replace selected fields"},{value:"empty",label:"Fill empty fields only"}]} /><Select value={sourceMode} onChange={setSourceMode} ariaLabel="AI source content" options={[{value:"full",label:"Use existing content and facts"},{value:"brief",label:"Use title and brief only"}]} /></div>
-    <Field label="AI brief / verified facts" hint="Include confirmed facts and existing URLs. Only approved copy fields are sent to your configured OpenRouter model; product pricing and stock are excluded. Do not enter customer personal data. Generated text stays a draft."><TextArea rows={2} maxLength={4000} value={brief} onChange={setBrief} /></Field>
+    <Field label="AI brief / verified facts" hint="Include confirmed facts and existing URLs. Only approved copy fields are sent to your configured OpenRouter model; product pricing and stock are excluded. Do not enter customer personal data. The server blocks email addresses and phone numbers. Generated text stays a draft."><TextArea rows={2} maxLength={4000} value={brief} onChange={setBrief} /></Field>
     <Button size="sm" loading={busy} onClick={generate}>{title}</Button>
     {error ? <p role="alert" className="rv-error-text">{error}</p> : null}
     {undo ? <Button size="sm" onClick={() => {

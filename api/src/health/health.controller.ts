@@ -1,8 +1,9 @@
-import { Controller, Get, Logger } from "@nestjs/common";
+import { Controller, Get, Logger, Res } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Response } from "express";
 import { constants } from "node:fs";
 import { access, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { Public } from "../common/decorators/public.decorator";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -16,8 +17,28 @@ export class HealthController {
   ) {}
 
   @Public()
+  @Get("live")
+  live() {
+    return {
+      status: "ok",
+      uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Public()
   @Get()
-  async check() {
+  check(@Res({ passthrough: true }) response: Response) {
+    return this.readiness(response);
+  }
+
+  @Public()
+  @Get("ready")
+  ready(@Res({ passthrough: true }) response: Response) {
+    return this.readiness(response);
+  }
+
+  private async readiness(response: Response) {
     let database = "up";
     try {
       await this.prisma.$queryRaw`SELECT 1`;
@@ -25,22 +46,41 @@ export class HealthController {
       database = "down";
     }
 
-    let uploads = "up";
-    try {
-      const uploadDir = join(process.cwd(), this.config.get<string>("UPLOAD_DIR") ?? "uploads");
-      await mkdir(uploadDir, { recursive: true });
-      await access(uploadDir, constants.W_OK);
-    } catch (error) {
-      uploads = "down";
-      this.logger.warn(`Uploads directory is not writable: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    const configuredUploadDir = this.config.get<string>("UPLOAD_DIR") ?? "uploads";
+    const uploadDir = isAbsolute(configuredUploadDir)
+      ? configuredUploadDir
+      : resolve(process.cwd(), configuredUploadDir);
+    const privateUploadDir = resolve(
+      this.config.get<string>("LAPIDARY_PRIVATE_UPLOAD_DIR") ??
+        join(process.cwd(), "private-uploads", "lapidary"),
+    );
+    const uploads = await this.directoryStatus(uploadDir, "Uploads");
+    const privateUploads = await this.directoryStatus(privateUploadDir, "Private lapidary uploads");
+
+    const status = database === "up" && uploads === "up" && privateUploads === "up" ? "ok" : "degraded";
+    response.status(status === "ok" ? 200 : 503);
 
     return {
-      status: database === "up" && uploads === "up" ? "ok" : "degraded",
+      status,
       database,
       uploads,
+      privateUploads,
       uptimeSeconds: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private async directoryStatus(directory: string, label: string) {
+    try {
+      await mkdir(directory, { recursive: true, mode: 0o700 });
+      await access(directory, constants.W_OK);
+      return "up";
+    } catch (error) {
+      this.logger.warn(
+        label + " directory is not writable: " +
+          (error instanceof Error ? error.message : String(error)),
+      );
+      return "down";
+    }
   }
 }

@@ -84,6 +84,9 @@ Konfigurasi **Storages** (agar foto produk tidak hilang saat redeploy):
 | Name | Destination |
 |---|---|
 | `rv-uploads` | `/app/uploads` |
+| `rv-lapidary-private` | `/data/private` |
+
+Penyimpanan lapidary berisi referensi privat pelanggan dan lampiran progress. Jangan publikasikan volume ini melalui web server atau CDN.
 
 Klik **Deploy**. Saat start, container otomatis menjalankan `prisma migrate deploy` lalu menjalankan API. Cek log: harus muncul `No pending migrations to apply` (atau daftar migrasi yang diterapkan) dan `RENDI VIRGO API listening`.
 
@@ -138,7 +141,8 @@ Klik **Deploy**. Setelah selesai, Coolify otomatis menerbitkan SSL (Let's Encryp
 ## 5. Verifikasi
 
 ```bash
-curl -s https://rendivirgo.com/api/health          # {"status":"ok","database":"up"}
+curl -fsS https://rendivirgo.com/api/health/ready  # status, database, and both upload stores
+curl -fsS https://rendivirgo.com/api/health/live   # process liveness only
 curl -s -o /dev/null -w "%{http_code}\n" https://rendivirgo.com/          # 200
 curl -s -o /dev/null -w "%{http_code}\n" https://rendivirgo.com/shop      # 200
 curl -s -o /dev/null -w "%{http_code}\n" https://rendivirgo.com/admin     # 307 ke /admin/login
@@ -164,6 +168,7 @@ Seed demo **tidak** ikut ke image produksi (seed bergantung pada data katalog fr
 
 - **Database**: Coolify → database `rv-postgres` → **Backups** → jadwalkan harian ke S3-compatible (Cloudflare R2 / Backblaze B2).
 - **Uploads**: volume `rv-uploads` ada di disk VPS. Idealnya pindahkan foto produk ke Cloudflare R2/S3 + CDN; selama masih lokal, sertakan `/var/lib/docker/volumes/...` dalam snapshot VPS mingguan.
+- **Lampiran lapidary privat**: volume `rv-lapidary-private` di `/data/private` harus ikut backup terenkripsi minimal mingguan dan diuji pemulihannya berkala. Jangan menyimpan salinan lampiran privat di bucket publik.
 
 ## 8. Update aplikasi
 

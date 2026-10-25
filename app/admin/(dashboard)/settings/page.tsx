@@ -19,12 +19,17 @@ type OpenRouterModel = { id: string; name: string; contextLength: number | null 
 type OpenRouterUsage = {
   periodStart: string;
   totalRequests: number;
+  dailyRequestsUsed: number;
+  dailyRequestLimit: number;
   successfulRequests: number;
   failedRequests: number;
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
   reportedCostUsd: number | null;
+  estimatedSpendUsd: number;
+  monthlyBudgetUsd: number;
+  budgetRemainingUsd: number;
   successfulRequestsWithoutCost: number;
   recordsSampled: number;
   recordsTruncated: boolean;
@@ -667,7 +672,7 @@ export default function AdminSettingsPage() {
                         ? "A key is saved securely and will never be shown here. Enter a new key to replace it, or leave blank to keep it."
                         : aiState.data?.source === "environment"
                           ? "The API currently uses the server environment key. Enter a dashboard key to override it."
-                          : "The key is encrypted before it is stored. It is only sent to OpenRouter by the server."
+                          : "The key is encrypted before it is stored and only sent to OpenRouter by the server. Configure AI_ENCRYPTION_KEY on the API before saving a dashboard key."
                     }
                   >
                     <TextInput
@@ -682,7 +687,7 @@ export default function AdminSettingsPage() {
                   <div className="rv-stack">
                     <div className="rv-inline" style={{ justifyContent: "space-between" }}>
                       <span className="rv-hint">
-                        {modelsState.data ? `${availableModels.length} compatible models from OpenRouter` : "Load the OpenRouter model catalog"}
+                        {modelsState.data ? `${availableModels.length} approved compatible models from OpenRouter` : "Load approved models from OpenRouter"}
                       </span>
                       <Button
                         size="sm"
@@ -704,7 +709,7 @@ export default function AdminSettingsPage() {
                     </Field>
                     <Field
                       label="Available models"
-                      hint="The generator requires structured output, so only compatible text models are listed."
+                      hint="Only models approved in the API server's AI_ALLOWED_MODELS setting are listed."
                     >
                       <Select
                         value={selectedCatalogModel}
@@ -715,11 +720,11 @@ export default function AdminSettingsPage() {
                       />
                     </Field>
                   </div>
-                  <Field label="Model ID" hint="The saved model is checked against OpenRouter’s compatible structured-output catalog.">
+                  <Field label="Model ID" hint="The model must be in AI_ALLOWED_MODELS and support structured text output.">
                     <TextInput value={aiModel} onChange={setAiModel} placeholder="openai/gpt-4.1-mini" disabled={aiBusy || !aiState.data} />
                   </Field>
                   {aiState.data?.source === "dashboard" ? (
-                    <p className="rv-hint">The saved key is encrypted with SESSION_SECRET. Keep that secret stable so the server can decrypt it.</p>
+                    <p className="rv-hint">New and migrated keys use the separate AI_ENCRYPTION_KEY. For rotation, configure the new key and keep the old value in AI_ENCRYPTION_KEY_PREVIOUS until the server has re-encrypted the saved key.</p>
                   ) : null}
                   <div className="rv-inline" style={{ justifyContent: "flex-end" }}>
                     {aiState.data?.source === "dashboard" ? (
@@ -747,12 +752,14 @@ export default function AdminSettingsPage() {
                   <div className="rv-stack">
                     <div className="rv-form-grid">
                       <div><span className="rv-hint">Requests</span><p><strong>{aiUsageState.data.totalRequests.toLocaleString("en-US")}</strong> total · {aiUsageState.data.successfulRequests} successful · {aiUsageState.data.failedRequests} failed</p></div>
+                      <div><span className="rv-hint">App budget estimate</span><p><strong>${aiUsageState.data.estimatedSpendUsd.toFixed(2)} USD</strong> of ${aiUsageState.data.monthlyBudgetUsd.toFixed(2)} · ${aiUsageState.data.budgetRemainingUsd.toFixed(2)} remaining</p></div>
                       <div><span className="rv-hint">Tokens reported</span><p><strong>{aiUsageState.data.totalTokens.toLocaleString("en-US")}</strong> total</p></div>
                       <div><span className="rv-hint">Provider-reported cost</span><p><strong>{aiUsageState.data.reportedCostUsd === null ? "Not reported" : `$${aiUsageState.data.reportedCostUsd.toFixed(4)} USD`}</strong></p></div>
                     </div>
+                    <p className="rv-hint">Daily requests: {aiUsageState.data.dailyRequestsUsed} of {aiUsageState.data.dailyRequestLimit}. The app reserves an estimated amount for each request when enforcing its monthly budget.</p>
                     {aiUsageState.data.successfulRequestsWithoutCost > 0 ? <p className="rv-hint">OpenRouter did not return a cost for {aiUsageState.data.successfulRequestsWithoutCost} successful request(s), so the displayed cost may be incomplete.</p> : null}
                     {aiUsageState.data.recordsTruncated ? <p className="rv-hint">The month has more than {aiUsageState.data.recordsSampled.toLocaleString("en-US")} AI records; token and cost totals show the sampled records only.</p> : null}
-                    <p className="rv-hint">Set a hard spend limit for this API key in OpenRouter. This page reports provider usage; it does not cap concurrent requests.</p>
+                    <p className="rv-hint">The API enforces a monthly budget, daily per-admin and global request limits, and a concurrency limit from its AI_* environment settings. Set a hard spend limit in OpenRouter as an additional provider-side safeguard.</p>
                     {aiUsageState.data.recent.length ? (
                       <div className="rv-stack">
                         <strong>Recent generations</strong>

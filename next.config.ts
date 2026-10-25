@@ -7,12 +7,21 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
+const productionSecurityHeaders = [
+  { key: "Strict-Transport-Security", value: "max-age=31536000" },
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
+  },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Vercel packages its own server output; standalone is for the Docker image.
   output: process.env.VERCEL ? undefined : "standalone",
   images: {
     dangerouslyAllowLocalIP: true,
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "http",
@@ -28,7 +37,13 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [{
+      source: "/:path*",
+      headers: [
+        ...securityHeaders,
+        ...(process.env.NODE_ENV === "production" ? productionSecurityHeaders : []),
+      ],
+    }];
   },
 };
 

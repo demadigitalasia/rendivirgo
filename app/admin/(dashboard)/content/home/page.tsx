@@ -219,7 +219,14 @@ export default function ContentHomePage() {
           <div className="rv-home-layout">
             <div className="rv-stack rv-home-form">
               <Card title="AI content and SEO assistant" description="Draft homepage copy and metadata from your existing content and verified facts.">
-                <AiDraft kind="home" title="Draft homepage copy and SEO" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle, ownerName: form.ownerName, ownerRole: form.ownerRole, ownerBio: form.ownerBio }} onApply={draft => setForm(current => ({ ...current, ownerBio: draft.ownerBio, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))} />
+                <AiDraft kind="home" title="Draft homepage copy and SEO" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle, ownerName: form.ownerName, ownerRole: form.ownerRole, ownerBio: form.ownerBio }} onApply={draft => setForm(current => ({
+                  ...current,
+                  heroTitle: draft.heroTitle ?? current.heroTitle,
+                  heroSubtitle: draft.heroSubtitle ?? current.heroSubtitle,
+                  ownerBio: draft.ownerBio ?? current.ownerBio,
+                  metaTitle: draft.metaTitle ?? current.metaTitle,
+                  metaDescription: draft.metaDescription ?? current.metaDescription,
+                }))} />
               </Card>
               <Card title="Home SEO">
                 <div className="rv-stack">

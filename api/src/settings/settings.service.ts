@@ -101,12 +101,17 @@ export type OpenRouterModelOption = {
 export type OpenRouterUsage = {
   periodStart: string;
   totalRequests: number;
+  dailyRequestsUsed: number;
+  dailyRequestLimit: number;
   successfulRequests: number;
   failedRequests: number;
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
   reportedCostUsd: number | null;
+  estimatedSpendUsd: number;
+  monthlyBudgetUsd: number;
+  budgetRemainingUsd: number;
   successfulRequestsWithoutCost: number;
   recordsSampled: number;
   recordsTruncated: boolean;
@@ -123,7 +128,8 @@ export type OpenRouterUsage = {
 };
 
 type EncryptedSecret = {
-  version: 1;
+  version: 1 | 2;
+  keyId?: string;
   iv: string;
   authTag: string;
   ciphertext: string;
@@ -152,6 +158,15 @@ export class SettingsService {
     return Object.values(SETTINGS_GROUPS).some((prefixes) =>
       prefixes.some((prefix) => key.startsWith(prefix)),
     );
+  }
+
+  private allowedOpenRouterModels(): Set<string> {
+    const configured = this.config.get<string>("AI_ALLOWED_MODELS")
+      ?.split(",")
+      .map((model) => model.trim())
+      .filter(Boolean);
+    const fallback = this.config.get<string>("OPENROUTER_MODEL")?.trim() || DEFAULT_OPENROUTER_MODEL;
+    return new Set(configured?.length ? configured : [fallback]);
   }
 
   async getPublicSettings(): Promise<Record<string, unknown>> {
@@ -275,9 +290,11 @@ export class SettingsService {
   async getOpenRouterUsage(): Promise<OpenRouterUsage> {
     const now = new Date();
     const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const where = { action: "ai.generate", createdAt: { gte: periodStart } };
-    const [totalRequests, rows] = await Promise.all([
+    const [totalRequests, dailyRequestsUsed, rows] = await Promise.all([
       this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.count({ where: { action: "ai.generate", createdAt: { gte: dayStart } } }),
       this.prisma.auditLog.findMany({
         where,
         orderBy: { createdAt: "desc" },
@@ -305,18 +322,29 @@ export class SettingsService {
         completionTokens,
         totalTokens: numberValue("totalTokens") ?? (promptTokens !== null || completionTokens !== null ? (promptTokens ?? 0) + (completionTokens ?? 0) : null),
         providerCostUsd: numberValue("providerCostUsd"),
+        estimatedCostUsd: numberValue("estimatedCostUsd"),
       };
     });
     const costs = events.filter((event) => event.providerCostUsd !== null);
+    const estimatedSpendUsd = events.reduce((sum, event) => sum + (event.providerCostUsd ?? event.estimatedCostUsd ?? 0), 0);
+    const configuredMonthlyBudget = Number(this.config.get<string>("AI_MONTHLY_BUDGET_USD") ?? 25);
+    const monthlyBudgetUsd = Number.isFinite(configuredMonthlyBudget) && configuredMonthlyBudget > 0 ? configuredMonthlyBudget : 25;
+    const configuredDailyLimit = Number(this.config.get<string>("AI_DAILY_REQUEST_LIMIT") ?? 50);
+    const dailyRequestLimit = Number.isFinite(configuredDailyLimit) && configuredDailyLimit > 0 ? Math.floor(configuredDailyLimit) : 50;
     return {
       periodStart: periodStart.toISOString(),
       totalRequests,
+      dailyRequestsUsed,
+      dailyRequestLimit,
       successfulRequests: events.filter((event) => event.status === "success").length,
       failedRequests: events.filter((event) => event.status === "failure").length,
       promptTokens: events.reduce((sum, event) => sum + (event.promptTokens ?? 0), 0),
       completionTokens: events.reduce((sum, event) => sum + (event.completionTokens ?? 0), 0),
       totalTokens: events.reduce((sum, event) => sum + (event.totalTokens ?? 0), 0),
       reportedCostUsd: costs.length ? costs.reduce((sum, event) => sum + (event.providerCostUsd ?? 0), 0) : null,
+      estimatedSpendUsd,
+      monthlyBudgetUsd,
+      budgetRemainingUsd: Math.max(0, monthlyBudgetUsd - estimatedSpendUsd),
       successfulRequestsWithoutCost: events.filter((event) => event.status === "success" && event.providerCostUsd === null).length,
       recordsSampled: rows.length,
       recordsTruncated: totalRequests > rows.length,
@@ -332,7 +360,16 @@ export class SettingsService {
       this.getOpenRouterSettingsStatus(),
     ]);
 
-    if (storedKey) return { apiKey: this.decryptSecret(storedKey.value), model: status.model };
+    if (storedKey) {
+      const apiKey = this.decryptSecret(storedKey.value);
+      if (this.config.get<string>("AI_ENCRYPTION_KEY")?.trim() && this.needsSecretReencryption(storedKey.value)) {
+        await this.prisma.siteSetting.update({
+          where: { key: OPENROUTER_KEY_SETTING },
+          data: { value: this.encryptSecret(apiKey) },
+        });
+      }
+      return { apiKey, model: status.model };
+    }
 
     return {
       apiKey: this.config.get<string>("OPENROUTER_API_KEY")?.trim() || null,
@@ -399,7 +436,8 @@ export class SettingsService {
     if (!apiKey) {
       throw new ServiceUnavailableException("Add an OpenRouter API key in Admin Settings before loading the model catalog.");
     }
-    return { models: await this.fetchOpenRouterModels(apiKey) };
+    const approved = this.allowedOpenRouterModels();
+    return { models: (await this.fetchOpenRouterModels(apiKey)).filter((model) => approved.has(model.id)) };
   }
 
   async updateOpenRouterSettings(
@@ -417,6 +455,9 @@ export class SettingsService {
     }
     if (model && (model.length > 160 || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,159}$/.test(model))) {
       throw new BadRequestException("Enter a valid OpenRouter model ID, such as openai/gpt-4.1-mini.");
+    }
+    if (model && !this.allowedOpenRouterModels().has(model)) {
+      throw new BadRequestException("This model is not approved for the site. Ask an administrator to update AI_ALLOWED_MODELS.");
     }
     if (model) {
       const currentCredentials = apiKey ? null : await this.getOpenRouterCredentials();
@@ -480,7 +521,7 @@ export class SettingsService {
     return this.getOpenRouterSettingsStatus();
   }
 
-  private encryptionKey(): Buffer {
+  private legacyEncryptionKey(): Buffer {
     const sessionSecret = this.config.get<string>("SESSION_SECRET")?.trim();
     if (!sessionSecret || sessionSecret.length < 32) {
       throw new ServiceUnavailableException(
@@ -490,12 +531,35 @@ export class SettingsService {
     return createHmac("sha256", sessionSecret).update("rendi-virgo:site-setting-encryption:v1").digest();
   }
 
+  private configuredAiEncryptionKey(name: "AI_ENCRYPTION_KEY" | "AI_ENCRYPTION_KEY_PREVIOUS"):
+    { id: string; key: Buffer } | null {
+    const secret = this.config.get<string>(name)?.trim();
+    if (!secret) return null;
+    if (secret.length < 32) {
+      if (name === "AI_ENCRYPTION_KEY_PREVIOUS") return null;
+      throw new ServiceUnavailableException("AI_ENCRYPTION_KEY must contain at least 32 characters before storing provider API keys.");
+    }
+    const key = createHmac("sha256", secret).update("rendi-virgo:site-setting-encryption:v2").digest();
+    const id = createHmac("sha256", key).update("key-id").digest("hex").slice(0, 12);
+    return { id, key };
+  }
+
+  private currentAiEncryptionKey(): { id: string; key: Buffer } {
+    const current = this.configuredAiEncryptionKey("AI_ENCRYPTION_KEY");
+    if (!current) {
+      throw new ServiceUnavailableException("Set a separate AI_ENCRYPTION_KEY of at least 32 characters before saving an OpenRouter API key.");
+    }
+    return current;
+  }
+
   private encryptSecret(value: string): Prisma.InputJsonValue {
+    const { id: keyId, key } = this.currentAiEncryptionKey();
     const iv = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", this.encryptionKey(), iv);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
     const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
     const encrypted: EncryptedSecret = {
-      version: 1,
+      version: 2,
+      keyId,
       iv: iv.toString("base64url"),
       authTag: cipher.getAuthTag().toString("base64url"),
       ciphertext: ciphertext.toString("base64url"),
@@ -508,11 +572,23 @@ export class SettingsService {
       throw new ServiceUnavailableException("The saved OpenRouter API key is invalid. Re-enter it in Admin Settings.");
     }
     const secret = value as Partial<EncryptedSecret>;
-    if (secret.version !== 1 || !secret.iv || !secret.authTag || !secret.ciphertext) {
+    if ((secret.version !== 1 && secret.version !== 2) || !secret.iv || !secret.authTag || !secret.ciphertext) {
       throw new ServiceUnavailableException("The saved OpenRouter API key is invalid. Re-enter it in Admin Settings.");
     }
     try {
-      const decipher = createDecipheriv("aes-256-gcm", this.encryptionKey(), Buffer.from(secret.iv, "base64url"));
+      let key: Buffer;
+      if (secret.version === 1) {
+        key = this.legacyEncryptionKey();
+      } else {
+        const candidates = [
+          this.configuredAiEncryptionKey("AI_ENCRYPTION_KEY"),
+          this.configuredAiEncryptionKey("AI_ENCRYPTION_KEY_PREVIOUS"),
+        ].filter((candidate): candidate is { id: string; key: Buffer } => Boolean(candidate));
+        const selected = candidates.find((candidate) => candidate.id === secret.keyId);
+        if (!selected) throw new Error("No configured AI key matches the encrypted secret.");
+        key = selected.key;
+      }
+      const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(secret.iv, "base64url"));
       decipher.setAuthTag(Buffer.from(secret.authTag, "base64url"));
       return Buffer.concat([
         decipher.update(Buffer.from(secret.ciphertext, "base64url")),
@@ -523,6 +599,13 @@ export class SettingsService {
         "The saved OpenRouter API key could not be decrypted. Re-enter it in Admin Settings.",
       );
     }
+  }
+
+  private needsSecretReencryption(value: unknown): boolean {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const secret = value as Partial<EncryptedSecret>;
+    if (secret.version !== 2 || !secret.keyId) return true;
+    return secret.keyId !== this.currentAiEncryptionKey().id;
   }
 
   async getShippingSettings(): Promise<ShippingSettings> {
