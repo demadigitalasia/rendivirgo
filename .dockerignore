@@ -3,7 +3,12 @@ node_modules
 .git
 .github
 .refact
-api
+api/*
+!api/src/
+api/src/*
+!api/src/content/
+api/src/content/*
+!api/src/content/hero-defaults.json
 scripts
 public/social
 *.log
