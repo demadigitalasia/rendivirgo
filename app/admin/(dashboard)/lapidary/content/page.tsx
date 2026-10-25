@@ -90,7 +90,7 @@ export default function AdminLapidaryContentPage() {
 
   const studioReady = Boolean(state.data) && !state.loading && !state.error;
   const studioImageCountValid = studioImages.length >= 11 && studioImages.length <= 24;
-  const studioAltTextValid = studioImages.every((image) => image.altEn.trim().length >= 2 && image.altEn.length <= 180 && image.altId.trim().length >= 2 && image.altId.length <= 180);
+  const studioAltTextValid = studioImages.every((image) => image.altEn.trim().length >= 2 && image.altEn.length <= 180);
   const studioImagesUnique = new Set(studioImages.map((image) => image.url)).size === studioImages.length;
   const heroImageUnique = Boolean(studioHeroImage) && studioImages.every((image) => image.url !== studioHeroImage);
   const canSaveStudio = studioReady && !savingStudio && !galleryUploading && !heroUploading && studioImageCountValid && studioAltTextValid && studioImagesUnique && heroImageUnique;
@@ -174,7 +174,7 @@ export default function AdminLapidaryContentPage() {
     <div className="rv-content rv-lapidary-admin rv-lapidary-content">
       <section className="rv-lapidary-content__intro">
         <div><span className="rv-lapidary-content__eyebrow">THE STUDIO · CONTENT DESK</span><h2>Shape the story of your craft.</h2><p>Manage how customers discover the process, meet the artists, and prepare their custom order.</p></div>
-        <div className="rv-lapidary-content__note"><span>EN / ID</span><p>Keep both languages in step.<br />Save each section when your edits are ready.</p></div>
+        <div className="rv-lapidary-content__note"><span>ENGLISH</span><p>Public content is published in English.<br />Save each section when your edits are ready.</p></div>
       </section>
       <nav className="rv-lapidary-content__nav" aria-label="Content sections">
         {[{ id: "process", title: "The process", detail: "Phases, steps & page copy" }, { id: "studio", title: "Inside the studio", detail: "Photography & presentation" }, { id: "artists", title: "The artists", detail: "Page story & cutter profiles" }, { id: "custom", title: "Custom orders", detail: "Dome controls & fee estimates" }].map((section) => <button key={section.id} type="button" aria-pressed={activeSection === section.id} aria-controls={`lapidary-panel-${section.id}`} onClick={() => setActiveSection(section.id)}><span>{section.title}</span><small>{section.detail}</small></button>)}
@@ -185,7 +185,7 @@ export default function AdminLapidaryContentPage() {
         <LapidaryServicePricingSettings />
       </div>
       <div id="lapidary-panel-process" className="rv-lapidary-content__panel" hidden={activeSection !== "process"}>
-      <Card title="15-step process page" description="Edit all public copy in English and Bahasa Indonesia, manage the hero image, and choose the visual treatment for the three process phases." actions={<Button href="/lapidary/process">Preview process page ↗</Button>}>
+      <Card title="15-step process page" description="Edit the English copy, manage the hero image, and choose the visual treatment for the three process phases." actions={<Button href="/lapidary/process">Preview process page ↗</Button>}>
         <div className="rv-stack">
           {state.loading && !state.data ? <Loading /> : null}
           {state.error ? <p className="rv-error-text" role="alert">Process settings could not be loaded. {state.error} <Button onClick={state.refresh}>Try again</Button></p> : null}
@@ -285,7 +285,7 @@ export default function AdminLapidaryContentPage() {
       </Card>
       </div>
       <div id="lapidary-panel-studio" className="rv-lapidary-content__panel" hidden={activeSection !== "studio"}>
-      <Card title="Studio gallery & presentation" description="Manage the hero photograph, gallery, bilingual copy, image descriptions, search metadata, and visual treatment shown on the public Studio page.">
+      <Card title="Studio gallery & presentation" description="Manage the hero photograph, gallery, English copy, image descriptions, search metadata, and visual treatment shown on the public Studio page.">
         <div className="rv-stack">
           {state.loading && !state.data ? <Loading /> : null}
           {state.error ? <p className="rv-error-text" role="alert">Studio settings could not be loaded. {state.error} <Button onClick={state.refresh}>Try again</Button></p> : null}
@@ -300,7 +300,7 @@ export default function AdminLapidaryContentPage() {
               <p className={`rv-hint ${studioImageCountValid ? "" : "rv-error-text"}`} role={studioImageCountValid ? undefined : "alert"}>{studioImages.length} / 24 photographs selected · minimum 11</p>
               {!studioImagesUnique ? <p className="rv-error-text" role="alert">Each gallery photograph must be unique.</p> : null}
               {!heroImageUnique ? <p className="rv-error-text" role="alert">Choose a hero photograph that is different from the gallery photos.</p> : null}
-              {!studioAltTextValid ? <p className="rv-error-text" role="alert">Every gallery photo needs English and Bahasa Indonesia alt text between 2 and 180 characters.</p> : null}
+              {!studioAltTextValid ? <p className="rv-error-text" role="alert">Every gallery photo needs English alt text between 2 and 180 characters.</p> : null}
               <div className="rv-lapidary-admin__photo-details">
                 {studioImages.map((image, index) => <details key={`${image.url}-${index}`}>
                   <summary>Photo {String(index + 1).padStart(2, "0")} · {image.captionEn || image.altEn}</summary>

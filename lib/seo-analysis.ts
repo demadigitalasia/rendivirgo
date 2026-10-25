@@ -5,6 +5,8 @@ export type SeoKind = "product" | "blog" | "page" | "category" | "home";
 export type SeoInput = {
   kind: SeoKind;
   publicPath?: string;
+  publicTitleFallback?: string | null;
+  publicDescriptionFallback?: string | null;
   focusTopic?: string;
   title?: string | null;
   slug?: string | null;

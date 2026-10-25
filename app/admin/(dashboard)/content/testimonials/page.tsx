@@ -146,11 +146,6 @@ export default function TestimonialsPage() {
       render: (item) => <span className="rv-hint">{truncate(item.quote, 90)}</span>,
     },
     {
-      key: "translation",
-      header: "Bahasa Indonesia",
-      render: (item) => <StatusBadge status={item.idTranslationStatus ?? "Missing"} />,
-    },
-    {
       key: "rating",
       header: "Rating",
       render: (item) => (

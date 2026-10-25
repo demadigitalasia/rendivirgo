@@ -614,12 +614,12 @@ export function ProductForm({
 
       <Card
         title="Description & SEO"
-        description="Generate English product copy and SEO, with Indonesian name, description, and metadata drafts."
+        description="Generate English product copy and search metadata drafts."
         className="rv-product-edit-section rv-product-edit-section--copy"
 
       >
         <div className="rv-stack">
-          <AiDraft kind="product" sourceVersion={JSON.stringify(values)} currentValues={values} context={{ ...values, category: categoriesState.data?.find(category => category.id === values.categoryId)?.name }} onApply={draft => setValues(current => ({ ...current, ...draft, idTranslationStatus: "Review" }))} />
+          <AiDraft kind="product" title="Draft product copy and SEO" sourceVersion={JSON.stringify(values)} currentValues={values} context={{ ...values, category: categoriesState.data?.find(category => category.id === values.categoryId)?.name }} onApply={draft => setValues(current => ({ ...current, ...draft }))} />
           <Field label="Description">
             <TextArea value={values.description} onChange={(value) => update("description", value)} rows={6} />
           </Field>
@@ -633,9 +633,12 @@ export function ProductForm({
       </Card>
 
       <SeoPanel translationStatus={values.idTranslationStatus}
-        input={{ kind: "product", publicPath: `/shop/${categoriesState.data?.find(category => category.id === values.categoryId)?.slug || product?.category.slug || "category"}/${values.slug}`, title: values.name, slug: values.slug, body: values.description, metaTitle: values.metaTitle, metaDescription: values.metaDescription, images: imageUrls.map(url => ({ url, alt: imageAlts[url] || values.name, fallback: !imageAlts[url]?.trim() })) }}
+        input={{ kind: "product", publicPath: `/shop/${categoriesState.data?.find(category => category.id === values.categoryId)?.slug || product?.category.slug || "category"}/${values.slug}`, title: values.name, slug: values.slug, body: values.description, metaTitle: values.metaTitle, metaDescription: values.metaDescription,
+          publicTitleFallback: `${values.name} — ${categoriesState.data?.find(category => category.id === values.categoryId)?.name || product?.category.name || "Natural stones"} | RENDI VIRGO`,
+          publicDescriptionFallback: [values.description, values.stoneType, values.origin ? `from ${values.origin}` : "", `${values.weightGram || 0} g`, values.lengthMm && values.widthMm && values.heightMm ? `${values.lengthMm} × ${values.widthMm} × ${values.heightMm} mm` : ""].filter(Boolean).join(" ").slice(0, 160),
+          images: imageUrls.map(url => ({ url, alt: imageAlts[url] || values.name, fallback: !imageAlts[url]?.trim() })) }}
         translation={{ kind: "product", publicPath: `/shop/${categoriesState.data?.find(category => category.id === values.categoryId)?.slug || product?.category.slug || "category"}/${values.slug}`, title: values.nameId, slug: values.slug, body: values.descriptionId, metaTitle: values.metaTitleId, metaDescription: values.metaDescriptionId, images: imageUrls.map(url => ({ url, alt: imageAlts[url] || values.name, fallback: !imageAlts[url]?.trim() })) }}
-        onMetadata={draft => setValues(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))}
+        onMetadata={draft => setValues(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))}
       />
       <Card title="Bahasa Indonesia" description="The product appears in Indonesian after its translation is ready." className="rv-product-edit-section">
         <div className="rv-stack">

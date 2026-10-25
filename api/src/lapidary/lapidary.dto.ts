@@ -324,8 +324,8 @@ export class SaveLapidaryArtistImageDto {
   @IsString() @MinLength(2) @MaxLength(180)
   altEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(180)
-  altId: string;
+  @IsOptional() @IsString() @MaxLength(180)
+  altId?: string;
 
   @IsOptional() @IsString() @MaxLength(160)
   captionEn?: string;
@@ -338,49 +338,49 @@ export class SaveLapidaryArtistsPresentationDto {
   @IsString() @MinLength(2) @MaxLength(100)
   eyebrowEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(100)
+  @IsOptional() @IsString() @MaxLength(100)
   eyebrowId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   titleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   titleId: string;
 
   @IsString() @MinLength(2) @MaxLength(1200)
   introEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(1200)
+  @IsOptional() @IsString() @MaxLength(1200)
   introId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   capabilityTitleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   capabilityTitleId: string;
 
   @IsString() @MinLength(2) @MaxLength(1200)
   capabilityBodyEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(1200)
+  @IsOptional() @IsString() @MaxLength(1200)
   capabilityBodyId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   emptyTitleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   emptyTitleId: string;
 
   @IsString() @MinLength(2) @MaxLength(1200)
   emptyBodyEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(1200)
+  @IsOptional() @IsString() @MaxLength(1200)
   emptyBodyId: string;
 
   @IsString() @MinLength(2) @MaxLength(100)
   ctaLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(100)
+  @IsOptional() @IsString() @MaxLength(100)
   ctaLabelId: string;
 
   @IsOptional() @IsIn(["customOrder", "contact"])
@@ -395,7 +395,7 @@ export class SaveLapidaryArtistsPresentationDto {
   @IsString() @MaxLength(180)
   heroAltEn: string;
 
-  @IsString() @MaxLength(180)
+  @IsOptional() @IsString() @MaxLength(180)
   heroAltId: string;
 
   @IsOptional() @IsIn(["left", "center", "right"])
@@ -404,13 +404,13 @@ export class SaveLapidaryArtistsPresentationDto {
   @IsString() @MinLength(2) @MaxLength(160)
   metaTitleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   metaTitleId: string;
 
   @IsString() @MinLength(2) @MaxLength(320)
   metaDescriptionEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(320)
+  @IsOptional() @IsString() @MaxLength(320)
   metaDescriptionId: string;
 
   @IsOptional() @IsIn(["mineral", "forest", "quartz"])
@@ -427,8 +427,8 @@ export class SaveLapidaryStudioPhotoDto {
   @IsString() @MinLength(2) @MaxLength(180)
   altEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(180)
-  altId: string;
+  @IsOptional() @IsString() @MaxLength(180)
+  altId?: string;
 
   @IsOptional() @IsString() @MaxLength(160)
   captionEn?: string;
@@ -540,13 +540,13 @@ export class SaveLapidaryProcessStepDto {
   @IsString() @MinLength(2) @MaxLength(120)
   titleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(120)
+  @IsOptional() @IsString() @MaxLength(120)
   titleId: string;
 
   @IsString() @MinLength(2) @MaxLength(700)
   bodyEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(700)
+  @IsOptional() @IsString() @MaxLength(700)
   bodyId: string;
 }
 
@@ -554,13 +554,13 @@ export class SaveLapidaryProcessPhaseDto {
   @IsString() @MinLength(2) @MaxLength(120)
   titleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(120)
+  @IsOptional() @IsString() @MaxLength(120)
   titleId: string;
 
   @IsString() @MinLength(2) @MaxLength(500)
   introEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(500)
+  @IsOptional() @IsString() @MaxLength(500)
   introId: string;
 
   @IsArray() @ArrayMinSize(5) @ArrayMaxSize(5)
@@ -572,43 +572,43 @@ export class SaveLapidaryProcessDto {
   @IsString() @MinLength(2) @MaxLength(100)
   eyebrowEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(100)
+  @IsOptional() @IsString() @MaxLength(100)
   eyebrowId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   titleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   titleId: string;
 
   @IsString() @MinLength(2) @MaxLength(1200)
   introEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(1200)
+  @IsOptional() @IsString() @MaxLength(1200)
   introId: string;
 
   @IsString() @MinLength(2) @MaxLength(80)
   phaseLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(80)
+  @IsOptional() @IsString() @MaxLength(80)
   phaseLabelId: string;
 
   @IsString() @MinLength(2) @MaxLength(100)
   stepCountLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(100)
+  @IsOptional() @IsString() @MaxLength(100)
   stepCountLabelId: string;
 
   @IsString() @MinLength(2) @MaxLength(80)
   expandDetailsLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(80)
+  @IsOptional() @IsString() @MaxLength(80)
   expandDetailsLabelId: string;
 
   @IsString() @MinLength(2) @MaxLength(80)
   collapseDetailsLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(80)
+  @IsOptional() @IsString() @MaxLength(80)
   collapseDetailsLabelId: string;
 
   @IsString() @MinLength(1) @MaxLength(1000)
@@ -617,7 +617,7 @@ export class SaveLapidaryProcessDto {
   @IsString() @MinLength(2) @MaxLength(180)
   heroAltEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(180)
+  @IsOptional() @IsString() @MaxLength(180)
   heroAltId: string;
 
   @IsIn(["left", "center", "right"])
@@ -630,25 +630,25 @@ export class SaveLapidaryProcessDto {
   @IsString() @MinLength(2) @MaxLength(100)
   noteEyebrowEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(100)
+  @IsOptional() @IsString() @MaxLength(100)
   noteEyebrowId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   noteTitleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   noteTitleId: string;
 
   @IsString() @MinLength(2) @MaxLength(1200)
   noteBodyEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(1200)
+  @IsOptional() @IsString() @MaxLength(1200)
   noteBodyId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   ctaLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   ctaLabelId: string;
 
   @IsIn(["customOrder", "contact"])
@@ -657,31 +657,31 @@ export class SaveLapidaryProcessDto {
   @IsString() @MinLength(2) @MaxLength(100)
   backLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(100)
+  @IsOptional() @IsString() @MaxLength(100)
   backLabelId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   contactPromptEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   contactPromptId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   contactLabelEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   contactLabelId: string;
 
   @IsString() @MinLength(2) @MaxLength(160)
   metaTitleEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(160)
+  @IsOptional() @IsString() @MaxLength(160)
   metaTitleId: string;
 
   @IsString() @MinLength(2) @MaxLength(320)
   metaDescriptionEn: string;
 
-  @IsString() @MinLength(2) @MaxLength(320)
+  @IsOptional() @IsString() @MaxLength(320)
   metaDescriptionId: string;
 
   @IsIn(["mineral", "forest", "quartz"])

@@ -6,7 +6,7 @@ import { auditContextFrom } from "../common/utils/audit-context";
 import { CategoriesService } from "./categories.service";
 import { storefrontLanguage } from "../common/utils/storefront-language";
 import { CreateCategoryDto, GenerateCategoryCopyDto, UpdateCategoryDto } from "./dto/category.dto";
-import { CategoryCopyService } from "./category-copy.service";
+import { ContentCopyService } from "../content/content-copy.service";
 
 @Controller("categories")
 export class CategoriesController {
@@ -29,7 +29,7 @@ export class CategoriesController {
 export class AdminCategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,
-    private readonly categoryCopyService: CategoryCopyService,
+    private readonly contentCopyService: ContentCopyService,
   ) {}
 
   @Get()
@@ -39,8 +39,12 @@ export class AdminCategoriesController {
 
   @Post("generate-copy")
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  generateCopy(@Body() dto: GenerateCategoryCopyDto) {
-    return this.categoryCopyService.generate(dto);
+  generateCopy(@Body() dto: GenerateCategoryCopyDto, @Req() request: AuthenticatedRequest) {
+    return this.contentCopyService.generate({
+      kind: "category",
+      context: JSON.stringify({ name: dto.name, slug: dto.slug, description: dto.currentDescription }),
+      brief: dto.brief,
+    }, auditContextFrom(request));
   }
 
   @Post()

@@ -24,10 +24,8 @@ export class CustomerAuthController {
     private readonly rateLimit: AuthRateLimitService,
   ) {}
 
-  private emailLanguage(request: Request): "en" | "id" {
-    const header = request.headers["accept-language"];
-    const preferred = (Array.isArray(header) ? header[0] : header)?.split(",")[0]?.trim().toLowerCase();
-    return preferred?.startsWith("id") ? "id" : "en";
+  private emailLanguage(_request: Request): "en" {
+    return "en";
   }
 
   private cookieOptions(expires?: Date) {

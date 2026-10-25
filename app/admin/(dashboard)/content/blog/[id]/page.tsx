@@ -2,6 +2,7 @@
 
 import { AiDraft } from "@/components/admin/ai-draft";
 import { SeoPanel } from "@/components/admin/seo-panel";
+import { dictionaries } from "@/lib/i18n";
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -264,14 +265,14 @@ export default function BlogEditorPage() {
               <Card
                 className="rv-blog-editor-card rv-blog-editor-article"
                 title="Article"
-                description="Shape the story, then preview how it reads before publishing."
+                description="Draft article copy and SEO metadata, then review each field before saving."
 
               >
                 <div className="rv-stack">
                   <Field label="Title">
                     <TextInput value={form.title} onChange={(value) => update("title", value)} placeholder="Post title" />
                   </Field>
-                  <AiDraft kind="blog" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ title: form.title, body: form.body, titleId: form.titleId, bodyId: form.bodyId, excerpt: form.excerpt, tags: form.tags }} onApply={draft => setForm(current => ({ ...current, ...draft, idTranslationStatus: "Review" }))} />
+                  <AiDraft kind="blog" title="Draft article and SEO" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ title: form.title, body: form.body, excerpt: form.excerpt, tags: form.tags }} onApply={draft => setForm(current => ({ ...current, ...draft }))} />
                   <div className="rv-form-grid">
                     <Field label="Slug" hint="Leave blank to generate from the title">
                       <TextInput value={form.slug} onChange={(value) => update("slug", value)} placeholder="post-slug" />
@@ -375,9 +376,11 @@ export default function BlogEditorPage() {
                 </div>
               </Card>
               <SeoPanel compact translationStatus={form.idTranslationStatus}
-                input={contentSeoInput({ title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription, coverImage: form.coverImage, coverAlt: form.coverAlt }, "blog")}
+                input={{ ...contentSeoInput({ title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription, coverImage: form.coverImage, coverAlt: form.coverAlt }, "blog"),
+                  publicTitleFallback: `${form.title} | RENDI VIRGO ${dictionaries.en.journal.eyebrow}`,
+                  publicDescriptionFallback: form.excerpt }}
                 translation={contentSeoInput({ title: form.titleId, slug: form.slug, body: form.bodyId, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, coverImage: form.coverImage, coverAlt: form.coverAltId }, "blog")}
-                onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))}
+                onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))}
               />
             </aside>
 

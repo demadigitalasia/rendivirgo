@@ -41,6 +41,8 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
   const { language } = useLanguage();
   const [emailInput, setEmailInput] = useState("");
   const [subscribeState, setSubscribeState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const [careOpen, setCareOpen] = useState(false);
 
   const subscribe = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,18 +98,30 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
         </div>
         <nav className="footer-nav" aria-labelledby="footer-explore-heading">
           <h2 id="footer-explore-heading" className="footer-label">{t.footer.explore}</h2>
-          <Link href="/">{t.footer.home}</Link>
-          <Link href="/shop">{t.footer.shop}</Link>
-          <Link href="/about-us">{t.footer.about}</Link>
-          <Link href="/blog">{t.footer.journal}</Link>
+          <button type="button" className="footer-nav__toggle" aria-expanded={exploreOpen}
+            aria-controls="footer-explore-links" onClick={() => setExploreOpen((open) => !open)}>
+            {t.footer.explore}<span className={`footer-nav__chevron${exploreOpen ? " is-open" : ""}`} aria-hidden="true" />
+          </button>
+          <div id="footer-explore-links" className={`footer-nav__links${exploreOpen ? " is-open" : ""}`}>
+            <Link href="/">{t.footer.home}</Link>
+            <Link href="/shop">{t.footer.shop}</Link>
+            <Link href="/about-us">{t.footer.about}</Link>
+            <Link href="/blog">{t.footer.journal}</Link>
+          </div>
         </nav>
         <nav className="footer-nav" aria-labelledby="footer-care-heading">
           <h2 id="footer-care-heading" className="footer-label">{t.footer.help}</h2>
-          <Link href="/shipping-returns">{t.footer.shipping}</Link>
-          <Link href="/returns">{t.footer.requestReturn}</Link>
-          <Link href="/track">{t.footer.track}</Link>
-          <Link href="/orders">{t.footer.orders}</Link>
-          <Link href="/faq">{t.footer.faq}</Link>
+          <button type="button" className="footer-nav__toggle" aria-expanded={careOpen}
+            aria-controls="footer-care-links" onClick={() => setCareOpen((open) => !open)}>
+            {t.footer.help}<span className={`footer-nav__chevron${careOpen ? " is-open" : ""}`} aria-hidden="true" />
+          </button>
+          <div id="footer-care-links" className={`footer-nav__links${careOpen ? " is-open" : ""}`}>
+            <Link href="/shipping-returns">{t.footer.shipping}</Link>
+            <Link href="/returns">{t.footer.requestReturn}</Link>
+            <Link href="/track">{t.footer.track}</Link>
+            <Link href="/orders">{t.footer.orders}</Link>
+            <Link href="/faq">{t.footer.faq}</Link>
+          </div>
         </nav>
         <div className="footer-connect">
           <h2 className="footer-label">{t.footer.follow}</h2>

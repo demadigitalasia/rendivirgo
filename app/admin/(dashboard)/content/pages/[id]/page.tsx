@@ -2,6 +2,7 @@
 
 import { SeoPanel } from "@/components/admin/seo-panel";
 import { AiDraft } from "@/components/admin/ai-draft";
+import { dictionaries } from "@/lib/i18n";
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -36,6 +37,13 @@ type PageForm = {
   metaTitleId: string;
   metaDescriptionId: string;
   idTranslationStatus: TranslationStatus;
+};
+
+const pageDescriptionFallbacks: Record<string, string> = {
+  faq: dictionaries.en.metadata.faqDescription,
+  "shipping-returns": dictionaries.en.metadata.shippingDescription,
+  "privacy-policy": dictionaries.en.metadata.privacyDescription,
+  "terms-conditions": dictionaries.en.metadata.termsDescription,
 };
 
 const emptyForm: PageForm = {
@@ -182,12 +190,14 @@ export default function PageEditorPage() {
 
         {isNew || state.data ? (
           <>
-            <Card title="Generate page content" description="Use verified facts, especially for policies and legal pages.">
-              <AiDraft kind="page" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ title: form.title, body: form.body, titleId: form.titleId, bodyId: form.bodyId }} onApply={draft => setForm(current => ({ ...current, title: draft.title, body: draft.body, titleId: draft.titleId, bodyId: draft.bodyId, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+            <Card title="Draft page content and SEO" description="AI drafts the page copy, title, and meta description. Use verified facts, especially for policies and legal pages.">
+              <AiDraft kind="page" title="Draft page content and SEO" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ title: form.title, body: form.body }} onApply={draft => setForm(current => ({ ...current, title: draft.title, body: draft.body, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))} />
             </Card>
-            <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "page", title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription }}
+            <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "page", title: form.title, slug: form.slug, body: form.body, metaTitle: form.metaTitle, metaDescription: form.metaDescription,
+              publicTitleFallback: form.title,
+              publicDescriptionFallback: pageDescriptionFallbacks[form.slug] || form.title }}
               translation={{ kind: "page", title: form.titleId, slug: form.slug, body: form.bodyId, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId }}
-              onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+              onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))} />
             <Card title="Page">
               <div className="rv-stack">
                 <div className="rv-form-grid">

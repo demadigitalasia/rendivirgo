@@ -1,12 +1,11 @@
 import { HeroSlidesService } from "./hero-slides.service";
 import { HeroSlidesController, AdminHeroSlidesController } from "./hero-slides.controller";
-import { ContentCopyService } from "./content-copy.service";
 import { ContentCopyController } from "./content-copy.controller";
+import { ContentCopyModule } from "./content-copy.module";
 import { Module } from "@nestjs/common";
 import { BannersService } from "./banners.service";
 import { AdminBannersController, BannersController } from "./banners.controller";
 import { BlogService } from "./blog.service";
-import { BlogCopyService } from "./blog-copy.service";
 import { AdminBlogController, BlogController } from "./blog.controller";
 import { AdminNavigationController, StorefrontNavigationController } from "./navigation.controller";
 import { NavigationService } from "./navigation.service";
@@ -19,7 +18,7 @@ import { AdminTestimonialsController, TestimonialsController } from "./testimoni
 import { SettingsModule } from "../settings/settings.module";
 
 @Module({
-  imports: [SettingsModule],
+  imports: [SettingsModule, ContentCopyModule],
   controllers: [
     HeroSlidesController,
     AdminHeroSlidesController,
@@ -37,7 +36,7 @@ import { SettingsModule } from "../settings/settings.module";
     SiteContentController,
     AdminSiteContentController,
   ],
-  providers: [HeroSlidesService, ContentCopyService, BlogService, BlogCopyService, NavigationService, PagesService, TestimonialsService, BannersService, SiteContentService],
+  providers: [HeroSlidesService, BlogService, NavigationService, PagesService, TestimonialsService, BannersService, SiteContentService],
   exports: [BlogService, PagesService, TestimonialsService, BannersService, SiteContentService],
 })
 export class ContentModule {}

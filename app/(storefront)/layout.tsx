@@ -6,24 +6,21 @@ import { Toaster } from "@/components/toast";
 import { getCategories, getPublicSettings } from "@/lib/storefront";
 import { StorefrontMotion } from "@/components/storefront-motion";
 import "./storefront.css";
-import { getRequestLanguage, hasLanguagePreferenceCookie } from "@/lib/server-locale";
-import { supportedLanguages } from "@/lib/locale";
+import { getRequestLanguage } from "@/lib/server-locale";
 
 export default async function StorefrontLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [{ store }, language, hasLanguageCookie] = await Promise.all([
+  const [{ store }, language] = await Promise.all([
     getPublicSettings(),
     getRequestLanguage(),
-    hasLanguagePreferenceCookie(),
   ]);
   const categories = await getCategories(language);
-  const languages = supportedLanguages;
 
   return (
-    <Providers productWatermark={store.productWatermark} initialLanguage={language} hasLanguagePreferenceCookie={hasLanguageCookie}>
+    <Providers productWatermark={store.productWatermark}>
       <div className="storefront">
         <StorefrontMotion />
         <SkipLink />
-        <SiteHeader categories={(categories ?? []).map(({ slug, name }) => ({ slug, name }))} languages={languages} />
+        <SiteHeader categories={(categories ?? []).map(({ slug, name }) => ({ slug, name }))} />
         <main id="main">{children}</main>
         <SiteFooter socials={store.socials} email={store.email} />
         <Toaster />

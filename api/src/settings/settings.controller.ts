@@ -40,6 +40,11 @@ export class AdminSettingsController {
     return this.settingsService.listOpenRouterModels();
   }
 
+  @Get("ai/usage")
+  getOpenRouterUsage() {
+    return this.settingsService.getOpenRouterUsage();
+  }
+
   @Put("ai/openrouter")
   updateOpenRouterSettings(@Body() body: UpdateOpenRouterSettingsDto, @Req() request: AuthenticatedRequest) {
     return this.settingsService.updateOpenRouterSettings(body, auditContextFrom(request));

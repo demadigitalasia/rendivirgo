@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
   languageCookieName,
-  languageCookiePresentHeaderName,
   languageHeaderName,
   originalPathHeaderName,
 } from "@/lib/locale";
@@ -10,6 +9,16 @@ import {
 const SESSION_COOKIE = "rv_admin_session";
 const LOGIN_ROUTE = "/admin/login";
 const PUBLIC_ADMIN_ROUTES = new Set([LOGIN_ROUTE, "/admin/forgot-password", "/admin/reset-password"]);
+
+function saveEnglishPreference(response: NextResponse) {
+  response.cookies.set(languageCookieName, "en", {
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -45,48 +54,25 @@ export function proxy(request: NextRequest) {
 
   const explicitLanguage = pathname.match(/^\/(en|id)(?=\/|$)/)?.[1];
   const basePath = pathname.replace(/^\/(?:en|id)(?=\/|$)/, "") || "/";
-  const query = request.nextUrl.search;
 
-  if (explicitLanguage === "en") {
-    const response = NextResponse.redirect(new URL(`${basePath}${query}`, request.url));
-    response.cookies.set(languageCookieName, "en", {
-      httpOnly: true,
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
-    return response;
-  }
-
-  if (explicitLanguage === "id") {
+  if (explicitLanguage) {
     const destination = request.nextUrl.clone();
     destination.pathname = basePath;
-    const headers = new Headers(request.headers);
-    headers.set(languageHeaderName, "id");
-    headers.set(originalPathHeaderName, pathname);
-    headers.set(languageCookiePresentHeaderName, "1");
-    const response = NextResponse.rewrite(destination, { request: { headers } });
-    response.cookies.set(languageCookieName, "id", {
-      httpOnly: true,
-      maxAge: 60 * 60 * 24 * 365,
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
+    const response = NextResponse.redirect(destination, 308);
+    saveEnglishPreference(response);
     return response;
   }
 
-  // Public URLs determine their language. A preference cookie must not send
-  // the unprefixed destination of an /id rewrite back to /id, or make the
-  // English canonical URL depend on a previous visitor preference.
+  // The public storefront now serves English only; old preference cookies
+  // are migrated without changing the requested English URL.
   const language = "en";
 
   const headers = new Headers(request.headers);
   headers.set(languageHeaderName, language);
   headers.set(originalPathHeaderName, pathname);
-  headers.set(languageCookiePresentHeaderName, request.cookies.has(languageCookieName) ? "1" : "0");
-  return NextResponse.next({ request: { headers } });
+  const response = NextResponse.next({ request: { headers } });
+  if (request.cookies.get(languageCookieName)?.value === "id") saveEnglishPreference(response);
+  return response;
 }
 
 export const config = {

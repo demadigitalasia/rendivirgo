@@ -5,20 +5,20 @@ import { proxy } from "../proxy";
 
 const request = (path: string, cookie = "rv_language=id") => new NextRequest(`http://localhost:3000${path}`, { headers: { cookie } });
 
-describe("locale URLs stay stable regardless of the preference cookie", () => {
-  it("does not send the English root back to /id when it is a rewrite destination", () => {
-    const localized = proxy(request("/id"));
-    const destination = localized.headers.get("x-middleware-rewrite");
-    assert.equal(new URL(destination!).pathname, "/");
+describe("the storefront serves English-only locale URLs", () => {
+  it("permanently redirects the old Indonesian root to English", () => {
+    const response = proxy(request("/id"));
+    assert.equal(response.status, 308);
+    assert.equal(response.headers.get("location"), "http://localhost:3000/");
+    assert.match(response.headers.get("set-cookie") ?? "", /rv_language=en/);
     const root = proxy(request("/"));
-    assert.equal(root.headers.get("location"), null, "root-to-/id redirect can cycle with the /id-to-root rewrite");
+    assert.equal(root.headers.get("location"), null);
     assert.equal(root.headers.get("x-middleware-request-x-rv-language"), "en");
   });
-  it("keeps /id/shop in Indonesian and preserves its query string", () => {
+  it("permanently redirects legacy Indonesian paths and preserves their query strings", () => {
     const response = proxy(request("/id/shop?page=2", "rv_language=en"));
-    assert.equal(response.headers.get("location"), null);
-    assert.equal(response.headers.get("x-middleware-rewrite"), "http://localhost:3000/shop?page=2");
-    assert.equal(response.headers.get("x-middleware-request-x-rv-language"), "id");
+    assert.equal(response.status, 308);
+    assert.equal(response.headers.get("location"), "http://localhost:3000/shop?page=2");
   });
   it("keeps an English content URL stable with an Indonesian cookie", () => {
     assert.equal(proxy(request("/shop?sort=newest")).headers.get("location"), null);

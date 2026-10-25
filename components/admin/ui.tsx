@@ -46,6 +46,8 @@ export function Card({
   flush?: boolean;
   className?: string;
 }) {
+  // Locale-specific copy stays in the loaded form state so saves preserve archived translations.
+  if (title && /bahasa indonesia|indonesian translation/i.test(title)) return null;
   return (
     <section className={className ? `rv-card ${className}` : "rv-card"}>
       {title || actions ? (
@@ -167,6 +169,8 @@ export function Field({
   className?: string;
 }) {
   const generatedId = `rv-field-${useId().replace(/:/g, "")}`;
+  // Hide archived Indonesian controls without clearing their parent form values.
+  if (/bahasa indonesia|indonesian|id translation/i.test(label)) return null;
   const fallbackId = inputId ?? generatedId;
   let controlId = fallbackId;
   let control = children;

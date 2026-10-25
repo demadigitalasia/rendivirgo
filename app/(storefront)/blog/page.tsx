@@ -28,20 +28,10 @@ export async function generateMetadata({
   if (activeTag) params.set("tag", activeTag);
   if (page > 1) params.set("page", String(page));
   const queryString = params.toString();
-  const currentPath = `${localizedPath("/blog", language)}${queryString ? `?${queryString}` : ""}`;
-  const [pagePosts, translatedPagePosts] = await Promise.all([
-    getBlogPosts({ page, pageSize: PAGE_SIZE, tag: activeTag || undefined }, language),
-    language === "en" ? getBlogPosts({ page, pageSize: PAGE_SIZE, tag: activeTag || undefined }, "id") : Promise.resolve(null),
-  ]);
-  const hasIndonesianTranslation = language === "id"
-    ? pagePosts.posts.every(post => post.contentLocale === "id")
-    : Boolean(translatedPagePosts?.posts.length === pagePosts.posts.length && translatedPagePosts.posts.every(post => post.contentLocale === "id"));
   const pagePath = `/blog${queryString ? `?${queryString}` : ""}`;
-  const canonicalPath = !activeTag && !hasIndonesianTranslation && language === "id" ? localizedPath(pagePath, "en") : currentPath;
+  const canonicalPath = localizedPath(pagePath, language);
   const paginatedLanguages = page > 1 && !activeTag
-    ? hasIndonesianTranslation
-      ? { en: localizedPath(pagePath, "en"), id: localizedPath(pagePath, "id") }
-      : { en: localizedPath(pagePath, "en") }
+    ? { en: localizedPath(pagePath, "en") }
     : undefined;
 
   const title = page > 1
@@ -53,7 +43,7 @@ export async function generateMetadata({
     description: journal.intro,
     alternates: activeTag || page > 1
       ? { canonical: canonicalPath, ...(paginatedLanguages ? { languages: paginatedLanguages } : {}) }
-      : localizedAlternates("/blog", language, hasIndonesianTranslation),
+      : localizedAlternates("/blog", language),
   };
 }
 

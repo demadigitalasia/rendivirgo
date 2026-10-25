@@ -33,7 +33,7 @@ export default function HeroSlidesPage() {
   const state = useApi<HeroDocument>("/api/admin/hero-slides");
   const [document, setDocument] = useState<HeroDocument | null>(null);
   const [selected, setSelected] = useState("");
-  const [language, setLanguage] = useState<"en" | "id">("en");
+  const language = "en" as const;
   const [mobile, setMobile] = useState(false);
   const [simulate, setSimulate] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -63,8 +63,7 @@ export default function HeroSlidesPage() {
   const patch = (value: Partial<HeroSlide>) => setDocument(current => current && ({ ...current, slides: current.slides.map(item => item.id === slide?.id ? { ...item, ...value } : item) }));
   const patchCopy = (key: keyof HeroCopy, value: string) => {
     if (!slide) return;
-    const field = language === "en" ? "en" : "idCopy";
-    patch({ [field]: { ...slide[field], [key]: value }, translationStatus: "Review" });
+    patch({ en: { ...slide.en, [key]: value } });
   };
   const move = (from: string, to: string) => setDocument(current => {
     if (!current || from === to) return current;
@@ -112,7 +111,7 @@ export default function HeroSlidesPage() {
               <div className="rv-hero-list">{document.slides.map((item, index) => <div key={item.id} className={`rv-hero-list__item${item.id === slide?.id ? " is-selected" : ""}`} draggable={!busy}
                 onDragStart={() => { dragged.current = item.id; }} onDragEnd={() => { dragged.current = null; }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (dragged.current) move(dragged.current, item.id); dragged.current = null; }}>
                 <button type="button" className="rv-hero-list__select" onClick={() => { setSelected(item.id); setSimulate(false); }} aria-pressed={item.id === slide?.id}>
-                  <img src={item.imageUrl || "/images/rendi-virgo-hero-stones.webp"} alt="" /><span><strong>{String(index + 1).padStart(2, "0")} · {item.name}</strong><small>{item.isActive ? "Active" : "Draft"} · ID {item.translationStatus}</small></span>
+                  <img src={item.imageUrl || "/images/rendi-virgo-hero-stones.webp"} alt="" /><span><strong>{String(index + 1).padStart(2, "0")} · {item.name}</strong><small>{item.isActive ? "Active" : "Draft"}</small></span>
                 </button><div className="rv-hero-list__move"><button type="button" aria-label={`Move ${item.name} up`} disabled={index === 0 || busy} onClick={() => move(item.id, document.slides[index - 1].id)}>↑</button><button type="button" aria-label={`Move ${item.name} down`} disabled={index === document.slides.length - 1 || busy} onClick={() => move(item.id, document.slides[index + 1].id)}>↓</button></div>
               </div>)}</div>
             </Card>
@@ -130,10 +129,9 @@ export default function HeroSlidesPage() {
               <Card title={slide.name} actions={<div className="rv-inline"><Button size="sm" onClick={() => add(true)} disabled={busy || document.slides.length >= 100}>Duplicate</Button><ConfirmButton size="sm" title="Remove this slide?" description="The slide will be removed when you save and publish." onConfirm={async () => { setDocument({ ...document, slides: document.slides.filter(item => item.id !== slide.id) }); setSelected(document.slides.find(item => item.id !== slide.id)?.id ?? ""); }}>Delete</ConfirmButton></div>}>
                 <div className="rv-form-grid"><Field label="Internal name"><TextInput value={slide.name} maxLength={100} onChange={name => patch({ name })} /></Field><div className="rv-field"><span className="rv-label">Visibility</span><Switch label="Active on home page" checked={slide.isActive} disabled={!slide.isActive && activeCount >= 5} onChange={isActive => patch({ isActive })} /></div></div>
               </Card>
-              <Card title="Content & translation" actions={<div className="rv-inline"><Button size="sm" ariaPressed={language === "en"} onClick={() => setLanguage("en")}>English</Button><Button size="sm" ariaPressed={language === "id"} onClick={() => setLanguage("id")}>Bahasa Indonesia</Button></div>}><div className="rv-stack">
-                <Field label="Indonesian translation status" hint="Ready requires translations for every non-empty English field. Other statuses display the complete English slide."><Select value={slide.translationStatus} options={["Missing","Draft","Review","Ready"].map(value => ({ value, label: value }))} onChange={value => patch({ translationStatus: value as HeroSlide["translationStatus"] })} /></Field>
-                {copyFields.filter(field => slide.cardType === "info" || !field.key.startsWith("card")).map(field => <Field key={field.key} label={`${field.label} (${language.toUpperCase()})`}>
-                  {field.rows ? <TextArea rows={field.rows} value={(language === "en" ? slide.en : slide.idCopy)[field.key]} onChange={value => patchCopy(field.key, value.slice(0, field.limit))} /> : <TextInput maxLength={field.limit} value={(language === "en" ? slide.en : slide.idCopy)[field.key]} onChange={value => patchCopy(field.key, value)} />}
+              <Card title="Slide content"><div className="rv-stack">
+                {copyFields.filter(field => slide.cardType === "info" || !field.key.startsWith("card")).map(field => <Field key={field.key} label={field.label}>
+                  {field.rows ? <TextArea rows={field.rows} value={slide.en[field.key]} onChange={value => patchCopy(field.key, value.slice(0, field.limit))} /> : <TextInput maxLength={field.limit} value={slide.en[field.key]} onChange={value => patchCopy(field.key, value)} />}
                 </Field>)}
               </div></Card>
               <Card title="Photography & layout"><div className="rv-stack">
@@ -157,9 +155,8 @@ export default function HeroSlidesPage() {
           </div>
         </div>
         <Card title="Live preview" description="Preview changes before publishing. Links inside the slide are disabled." actions={<div className="rv-inline"><Button size="sm" ariaPressed={!mobile} onClick={() => setMobile(false)}>Desktop</Button><Button size="sm" ariaPressed={mobile} onClick={() => setMobile(true)}>Mobile</Button><Switch label="Simulate active slides" checked={simulate} onChange={setSimulate} /></div>}>
-          {slide && language === "id" && slide.translationStatus !== "Ready" ? <p className="rv-hint">English fallback is shown until the Indonesian translation is marked Ready.</p> : null}
           {previewSlides.length ? <HeroPreview document={{ ...document, slides: previewSlides }} language={language} mobile={mobile} /> : <p className="rv-hint">Activate a slide to preview the slideshow.</p>}
-          <p className="rv-hint">Preview language: {language.toUpperCase()} · {simulate ? "All active slides" : slide ? heroCopy(slide, language).label : "No slide selected"}</p>
+          <p className="rv-hint">Preview language: English · {simulate ? "All active slides" : slide ? heroCopy(slide, language).label : "No slide selected"}</p>
         </Card>
       </>}
     </div>

@@ -3,6 +3,7 @@
 import type { HeroDocument } from "@/lib/hero-slides";
 import { AiDraft } from "@/components/admin/ai-draft";
 import { SeoPanel } from "@/components/admin/seo-panel";
+import { dictionaries } from "@/lib/i18n";
 
 import { useEffect, useState } from "react";
 import { apiFetch, errorMessage, useApi, type ApiState } from "@/components/admin/api";
@@ -217,21 +218,24 @@ export default function ContentHomePage() {
         {data ? (
           <div className="rv-home-layout">
             <div className="rv-stack rv-home-form">
-              <Card title="AI content assistant" description="Draft homepage copy from your existing content and verified facts.">
-                <AiDraft kind="home" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle, ownerName: form.ownerName, ownerRole: form.ownerRole, ownerBio: form.ownerBio }} onApply={draft => setForm(current => ({ ...current, ownerBio: draft.ownerBio, ownerBioId: draft.ownerBioId, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+              <Card title="AI content and SEO assistant" description="Draft homepage copy and metadata from your existing content and verified facts.">
+                <AiDraft kind="home" title="Draft homepage copy and SEO" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ heroTitle: form.heroTitle, heroSubtitle: form.heroSubtitle, ownerName: form.ownerName, ownerRole: form.ownerRole, ownerBio: form.ownerBio }} onApply={draft => setForm(current => ({ ...current, ownerBio: draft.ownerBio, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))} />
               </Card>
               <Card title="Home SEO">
                 <div className="rv-stack">
-                  <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "home", title: hero?.en.title || form.heroTitle, slug: "", body: `${hero?.en.description || form.heroSubtitle}\n\n${form.ownerBio}`, metaTitle: form.metaTitle, metaDescription: form.metaDescription, images: [{ url: hero?.imageUrl || form.heroImage, alt: hero?.en.alt || form.heroTitle, fallback: true }] }}
+                  <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "home", title: hero?.en.title || form.heroTitle, slug: "", body: `${hero?.en.description || form.heroSubtitle}\n\n${form.ownerBio}`, metaTitle: form.metaTitle, metaDescription: form.metaDescription,
+                    publicTitleFallback: `RENDI VIRGO | ${dictionaries.en.metadata.homeTitle}`,
+                    publicDescriptionFallback: dictionaries.en.metadata.homeDescription,
+                    images: [{ url: hero?.imageUrl || form.heroImage, alt: hero?.en.alt || form.heroTitle, fallback: true }] }}
                     translation={{ kind: "home", title: hero?.idCopy.title || form.heroTitleId, slug: "", body: `${hero?.idCopy.description || form.heroSubtitleId}\n\n${form.ownerBioId}`, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, images: [{ url: hero?.imageUrl || form.heroImage, alt: hero?.idCopy.alt || form.heroTitleId, fallback: true }] }}
-                    onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+                    onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))} />
                   <Field label="SEO title (English)"><TextArea rows={2} value={form.metaTitle} onChange={value => update("metaTitle", value)} /></Field>
                   <Field label="Meta description (English)"><TextArea rows={2} value={form.metaDescription} onChange={value => update("metaDescription", value)} /></Field>
                   <Field label="SEO title (Bahasa Indonesia)"><TextArea rows={2} value={form.metaTitleId} onChange={value => update("metaTitleId", value)} /></Field>
                   <Field label="Meta description (Bahasa Indonesia)"><TextArea rows={2} value={form.metaDescriptionId} onChange={value => update("metaDescriptionId", value)} /></Field>
                 </div>
               </Card>
-              <Card title="Hero Slides" description="Images, bilingual copy, buttons, animation and slide order are managed together.">
+              <Card title="Hero Slides" description="Images, English copy, buttons, animation and slide order are managed together.">
                 <p>{heroState.loading ? "Loading hero slides…" : `${heroState.data?.slides.filter(slide => slide.isActive).length ?? 0} active slides`}</p>
                 <Button variant="primary" href="/admin/content/home/hero-slides">Manage Hero Slides</Button>
               </Card>

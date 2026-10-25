@@ -418,9 +418,9 @@ export default function AdminCategoriesPage() {
                   ariaDescribedBy="rv-category-description-hint"
                 />
                 <span id="rv-category-description-hint" className="rv-hint">
-                  Generates English and Indonesian descriptions and SEO drafts. Review before saving. Category details and the brief are sent to OpenRouter.
+                  Generates English descriptions and SEO drafts. Review before saving. Category details and the brief are sent to OpenRouter.
                 </span>
-                <AiDraft kind="category" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ ...form }} onApply={draft => setForm(current => ({ ...current, ...draft, idTranslationStatus: "Review" }))} />
+                <AiDraft kind="category" title="Draft category and SEO" sourceVersion={JSON.stringify(form)} currentValues={form} context={{ ...form }} onApply={draft => setForm(current => ({ ...current, ...draft }))} />
               </div>
             </div>
           </section>
@@ -442,9 +442,12 @@ export default function AdminCategoriesPage() {
             />
           </section>
 
-          <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "category", title: form.name, slug: form.slug, body: form.description, metaTitle: form.metaTitle, metaDescription: form.metaDescription, images: [{ url: imageUrl, alt: form.name, fallback: true }] }}
+          <SeoPanel translationStatus={form.idTranslationStatus} input={{ kind: "category", title: form.name, slug: form.slug, body: form.description, metaTitle: form.metaTitle, metaDescription: form.metaDescription,
+            publicTitleFallback: `${form.name} | RENDI VIRGO`,
+            publicDescriptionFallback: `${form.name} from RENDI VIRGO. ${form.description || "Indonesian natural stones"}`.slice(0, 160),
+            images: [{ url: imageUrl, alt: form.name, fallback: true }] }}
             translation={{ kind: "category", title: form.nameId, slug: form.slug, body: form.descriptionId, metaTitle: form.metaTitleId, metaDescription: form.metaDescriptionId, images: [{ url: imageUrl, alt: form.nameId, fallback: true }] }}
-            onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, metaTitleId: draft.metaTitleId, metaDescriptionId: draft.metaDescriptionId, idTranslationStatus: "Review" }))} />
+            onMetadata={draft => setForm(current => ({ ...current, metaTitle: draft.metaTitle, metaDescription: draft.metaDescription }))} />
           <section className="rv-category-form__section" aria-labelledby="category-seo-heading">
             <div className="rv-category-form__section-heading">
               <span className="rv-category-form__step">03</span>
@@ -463,35 +466,6 @@ export default function AdminCategoriesPage() {
             </div>
           </section>
 
-          <section className="rv-category-form__section" aria-labelledby="category-indonesian-heading">
-            <div className="rv-category-form__section-heading rv-category-form__section-heading--translation">
-              <span className="rv-category-form__step">04</span>
-              <div>
-                <h3 id="category-indonesian-heading">Bahasa Indonesia</h3>
-                <p>Review the translated name and copy before marking it ready.</p>
-              </div>
-              <Field label="Translation status" className="rv-category-form__translation-status">
-                <Select value={form.idTranslationStatus} onChange={(value) => setField("idTranslationStatus", value as CategoryFormValues["idTranslationStatus"])} options={[
-                  { value: "Missing", label: "Missing" }, { value: "Draft", label: "Draft" },
-                  { value: "Review", label: "Ready for review" }, { value: "Ready", label: "Ready to publish" },
-                ]} />
-              </Field>
-            </div>
-            <div className="rv-category-form__grid">
-              <Field label="Name (Indonesian)">
-                <TextInput value={form.nameId} onChange={(value) => setField("nameId", value)} />
-              </Field>
-              <Field label="Meta title (Indonesian)">
-                <TextInput value={form.metaTitleId} onChange={(value) => setField("metaTitleId", value)} />
-              </Field>
-              <Field label="Description (Indonesian)" className="rv-category-form__field-full">
-                <TextArea value={form.descriptionId} onChange={(value) => setField("descriptionId", value)} rows={3} />
-              </Field>
-              <Field label="Meta description (Indonesian)" className="rv-category-form__field-full">
-                <TextArea value={form.metaDescriptionId} onChange={(value) => setField("metaDescriptionId", value)} rows={3} />
-              </Field>
-            </div>
-          </section>
         </div>
       </Modal>
 

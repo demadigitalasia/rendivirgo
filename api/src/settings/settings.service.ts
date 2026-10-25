@@ -14,7 +14,7 @@ export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "store.whatsapp": "",
   "store.whatsappSecondary": "",
   "store.currency": "USD",
-  "store.languages": ["en", "id"],
+  "store.languages": ["en"],
   "store.address": "",
   "store.socials": { instagram: "", facebook: "", youtube: "", tiktok: "" },
   "store.productWatermarkEnabled": true,
@@ -96,6 +96,30 @@ export type OpenRouterModelOption = {
   id: string;
   name: string;
   contextLength: number | null;
+};
+
+export type OpenRouterUsage = {
+  periodStart: string;
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  reportedCostUsd: number | null;
+  successfulRequestsWithoutCost: number;
+  recordsSampled: number;
+  recordsTruncated: boolean;
+  recent: Array<{
+    id: string;
+    createdAt: string;
+    kind: string;
+    model: string;
+    status: string;
+    durationMs: number | null;
+    totalTokens: number | null;
+    providerCostUsd: number | null;
+  }>;
 };
 
 type EncryptedSecret = {
@@ -248,6 +272,60 @@ export class SettingsService {
     return { configured: source !== "missing", source, model };
   }
 
+  async getOpenRouterUsage(): Promise<OpenRouterUsage> {
+    const now = new Date();
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const where = { action: "ai.generate", createdAt: { gte: periodStart } };
+    const [totalRequests, rows] = await Promise.all([
+      this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 5000,
+        select: { id: true, createdAt: true, metadata: true },
+      }),
+    ]);
+    const events = rows.map((row) => {
+      const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? row.metadata as Record<string, unknown>
+        : {};
+      const numberValue = (key: string) => typeof metadata[key] === "number" && Number.isFinite(metadata[key])
+        ? metadata[key] as number
+        : null;
+      const promptTokens = numberValue("promptTokens");
+      const completionTokens = numberValue("completionTokens");
+      return {
+        id: row.id,
+        createdAt: row.createdAt.toISOString(),
+        kind: typeof metadata.kind === "string" ? metadata.kind : "unknown",
+        model: typeof metadata.model === "string" ? metadata.model : "unknown",
+        status: typeof metadata.status === "string" ? metadata.status : "unknown",
+        durationMs: numberValue("durationMs"),
+        promptTokens,
+        completionTokens,
+        totalTokens: numberValue("totalTokens") ?? (promptTokens !== null || completionTokens !== null ? (promptTokens ?? 0) + (completionTokens ?? 0) : null),
+        providerCostUsd: numberValue("providerCostUsd"),
+      };
+    });
+    const costs = events.filter((event) => event.providerCostUsd !== null);
+    return {
+      periodStart: periodStart.toISOString(),
+      totalRequests,
+      successfulRequests: events.filter((event) => event.status === "success").length,
+      failedRequests: events.filter((event) => event.status === "failure").length,
+      promptTokens: events.reduce((sum, event) => sum + (event.promptTokens ?? 0), 0),
+      completionTokens: events.reduce((sum, event) => sum + (event.completionTokens ?? 0), 0),
+      totalTokens: events.reduce((sum, event) => sum + (event.totalTokens ?? 0), 0),
+      reportedCostUsd: costs.length ? costs.reduce((sum, event) => sum + (event.providerCostUsd ?? 0), 0) : null,
+      successfulRequestsWithoutCost: events.filter((event) => event.status === "success" && event.providerCostUsd === null).length,
+      recordsSampled: rows.length,
+      recordsTruncated: totalRequests > rows.length,
+      recent: events.slice(0, 20).map(({ id, createdAt, kind, model, status, durationMs, totalTokens, providerCostUsd }) => ({
+        id, createdAt, kind, model, status, durationMs, totalTokens, providerCostUsd,
+      })),
+    };
+  }
+
   async getOpenRouterCredentials(): Promise<{ apiKey: string | null; model: string }> {
     const [storedKey, status] = await Promise.all([
       this.prisma.siteSetting.findUnique({ where: { key: OPENROUTER_KEY_SETTING }, select: { value: true } }),
@@ -262,12 +340,7 @@ export class SettingsService {
     };
   }
 
-  async listOpenRouterModels(): Promise<{ models: OpenRouterModelOption[] }> {
-    const { apiKey } = await this.getOpenRouterCredentials();
-    if (!apiKey) {
-      throw new ServiceUnavailableException("Add an OpenRouter API key in Admin Settings before loading the model catalog.");
-    }
-
+  private async fetchOpenRouterModels(apiKey: string): Promise<OpenRouterModelOption[]> {
     let response: Response;
     try {
       response = await fetch(
@@ -318,7 +391,15 @@ export class SettingsService {
       })
       .sort((left, right) => left.name.localeCompare(right.name));
 
-    return { models };
+    return models;
+  }
+
+  async listOpenRouterModels(): Promise<{ models: OpenRouterModelOption[] }> {
+    const { apiKey } = await this.getOpenRouterCredentials();
+    if (!apiKey) {
+      throw new ServiceUnavailableException("Add an OpenRouter API key in Admin Settings before loading the model catalog.");
+    }
+    return { models: await this.fetchOpenRouterModels(apiKey) };
   }
 
   async updateOpenRouterSettings(
@@ -336,6 +417,17 @@ export class SettingsService {
     }
     if (model && (model.length > 160 || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,159}$/.test(model))) {
       throw new BadRequestException("Enter a valid OpenRouter model ID, such as openai/gpt-4.1-mini.");
+    }
+    if (model) {
+      const currentCredentials = apiKey ? null : await this.getOpenRouterCredentials();
+      const modelCatalogKey = apiKey ?? currentCredentials?.apiKey;
+      if (!modelCatalogKey) {
+        throw new ServiceUnavailableException("Save an OpenRouter API key before choosing a model.");
+      }
+      const availableModels = await this.fetchOpenRouterModels(modelCatalogKey);
+      if (!availableModels.some((option) => option.id === model)) {
+        throw new BadRequestException("Choose a model from the compatible catalog. The generator requires structured text output.");
+      }
     }
 
     const updates = [];

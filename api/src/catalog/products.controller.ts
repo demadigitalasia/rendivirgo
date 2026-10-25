@@ -5,7 +5,7 @@ import { Public } from "../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
 import { BulkProductActionDto, CatalogPdfQueryDto, CreateProductDto, GenerateProductCopyDto, ProductQueryDto, UpdateProductDto } from "./dto/product.dto";
-import { ProductCopyService } from "./product-copy.service";
+import { ContentCopyService } from "../content/content-copy.service";
 import { ProductsService } from "./products.service";
 import { storefrontLanguage } from "../common/utils/storefront-language";
 
@@ -42,7 +42,7 @@ export class ProductsController {
 export class AdminProductsController {
   constructor(
     private readonly productsService: ProductsService,
-    private readonly productCopyService: ProductCopyService,
+    private readonly contentCopyService: ContentCopyService,
   ) {}
 
   @Get()
@@ -73,8 +73,19 @@ export class AdminProductsController {
 
   @Post("generate-copy")
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  generateCopy(@Body() dto: GenerateProductCopyDto) {
-    return this.productCopyService.generate(dto);
+  generateCopy(@Body() dto: GenerateProductCopyDto, @Req() request: AuthenticatedRequest) {
+    return this.contentCopyService.generate({
+      kind: "product",
+      context: JSON.stringify({
+        name: dto.name,
+        description: dto.shortDescription,
+        category: dto.category,
+        stoneType: dto.stoneType,
+        origin: dto.origin,
+        condition: dto.condition,
+        unit: dto.unit,
+      }),
+    }, auditContextFrom(request));
   }
 
   @Post()

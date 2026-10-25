@@ -31,7 +31,7 @@ export async function generateMetadata({ searchParams }: {
       : page > 1
         ? {
             canonical: localizedPath(path, language),
-            languages: { en: path, id: localizedPath(path, "id") },
+            languages: { en: path },
           }
         : localizedAlternates("/shop", language),
     ...(hasFilters ? { robots: { index: false, follow: true } } : {}),

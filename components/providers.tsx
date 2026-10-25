@@ -6,7 +6,6 @@ import type { Copy, Language } from "@/lib/i18n";
 import { dictionaries } from "@/lib/i18n";
 import { maxQuantityFor } from "@/lib/catalog";
 import type { ProductWatermarkSettings } from "@/lib/product-watermark";
-import { localizedPath } from "@/lib/locale";
 
 export type CartLine = Product & {
   quantity: number;
@@ -32,7 +31,7 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-type LanguageContextValue = { language: Language; setLanguage: (language: Language) => void };
+type LanguageContextValue = { language: Language };
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 const ProductWatermarkContext = createContext<ProductWatermarkSettings | null>(null);
 
@@ -51,18 +50,14 @@ const readJson = <T,>(key: string): T | null => {
 export function Providers({
   children,
   productWatermark,
-  initialLanguage,
-  hasLanguagePreferenceCookie,
 }: {
   children: React.ReactNode;
   productWatermark: ProductWatermarkSettings;
-  initialLanguage: Language;
-  hasLanguagePreferenceCookie: boolean;
 }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [storageReady, setStorageReady] = useState(false);
   const [activeProductWatermark, setActiveProductWatermark] = useState(productWatermark);
-  const [language, setLanguage] = useState<Language>(initialLanguage);
+  const language: Language = "en";
   const [cartAnnouncement, setCartAnnouncement] = useState("");
   const previousItemCount = useRef<number | null>(null);
 
@@ -79,19 +74,8 @@ export function Providers({
         }),
       );
     }
-    const savedLanguage = window.localStorage.getItem(languageStorageKey);
-    const hasExplicitLanguagePath = window.location.pathname === "/id" || window.location.pathname.startsWith("/id/");
-    if (!hasLanguagePreferenceCookie && (savedLanguage === "en" || savedLanguage === "id") && savedLanguage !== initialLanguage && !hasExplicitLanguagePath) {
-      void fetch("/api/language", {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ language: savedLanguage }),
-      }).then((response) => {
-        if (response.ok) window.location.replace(`${localizedPath(window.location.pathname, savedLanguage)}${window.location.search}`);
-      });
-    }
     setStorageReady(true);
-  }, [hasLanguagePreferenceCookie, initialLanguage]);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,9 +116,9 @@ export function Providers({
 
   useEffect(() => {
     if (!storageReady) return;
-    window.localStorage.setItem(languageStorageKey, language);
-    document.documentElement.lang = language === "id" ? "id-ID" : "en-GB";
-  }, [language, storageReady]);
+    window.localStorage.setItem(languageStorageKey, "en");
+    document.documentElement.lang = "en-GB";
+  }, [storageReady]);
 
   const clearCart = useCallback((channel?: "retail" | "wholesale") => {
     setLines((current) => {
@@ -221,7 +205,7 @@ export function Providers({
 
   return (
     <ProductWatermarkContext.Provider value={activeProductWatermark}>
-      <LanguageContext.Provider value={{ language, setLanguage }}>
+      <LanguageContext.Provider value={{ language }}>
         <CartContext.Provider value={cartValue}>
           {children}
           <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">

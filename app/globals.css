@@ -52,11 +52,7 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
 
 .announcement-bar { min-height: 30px; padding: 5px 32px; display: flex; align-items: center; justify-content: center; gap: 18px; background: var(--forest); color: var(--ivory); font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; }
 .announcement-bar i { width: 28px; height: 1px; background: var(--bronze); display: inline-block; }
-.announcement-language { margin-left: auto; display: flex; align-items: center; gap: 8px; letter-spacing: 0.02em; text-transform: none; }
 .rv-icon { display: block; flex: 0 0 auto; overflow: visible; }
-.announcement-language > .rv-icon { width: 16px; height: 16px; }
-.announcement-language button { border: 0; background: transparent; color: inherit; min-height: 24px; padding: 2px 3px; opacity: .7; }
-.announcement-language button.is-active { opacity: 1; }
 .site-header { min-height: 88px; padding: 12px 32px; display: flex; align-items: center; justify-content: space-between; gap: 32px; background: var(--paper); border-bottom: 1px solid var(--line); position: relative; z-index: 5; }
 .brand-lockup { width: 260px; }
 .brand-lockup img { width: 100%; height: auto; }
@@ -609,7 +605,6 @@ h1, h2, h3, h4, .brand-lockup, .main-nav, .button, .text-button, .eyebrow, .stat
   .page-container { width: min(100% - 30px, 620px); }
   .announcement-bar { padding: 6px 15px; gap: 7px; font-size: .68rem; letter-spacing: .08em; }
   .announcement-bar > span:first-child, .announcement-bar > i { display: none; }
-  .announcement-language { margin-left: 10px; }
   .site-header { min-height: 72px; padding: 10px 15px; }
   .site-header { gap: 10px; }
   .brand-lockup { width: 155px; }

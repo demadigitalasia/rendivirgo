@@ -330,7 +330,9 @@ function trimJsonStrings(value: unknown): unknown {
 function hasValidProcessText(value: unknown, parentKey = ""): boolean {
   if (typeof value === "string") return value.length >= (parentKey === "heroImage" ? 1 : 2);
   if (Array.isArray(value)) return value.every((item) => hasValidProcessText(item));
-  if (value && typeof value === "object") return Object.entries(value).every(([key, item]) => hasValidProcessText(item, key));
+  if (value && typeof value === "object") return Object.entries(value)
+    .filter(([key]) => !key.endsWith("Id"))
+    .every(([key, item]) => hasValidProcessText(item, key));
   return true;
 }
 
@@ -1493,7 +1495,9 @@ export class LapidaryService {
 
   async saveArtistsPresentation(input: SaveLapidaryArtistsPresentationDto, context: AuditContext) {
     const cleaned = trimJsonStrings(input) as SaveLapidaryArtistsPresentationDto;
-    const textFields = Object.entries(cleaned).filter(([key]) => !["motionEnabled", "heroImagePosition", "visualStyle", "ctaTarget", "detailCtaTarget"].includes(key)).map(([, value]) => value);
+    const textFields = Object.entries(cleaned)
+      .filter(([key]) => !key.endsWith("Id") && !["motionEnabled", "heroImagePosition", "visualStyle", "ctaTarget", "detailCtaTarget"].includes(key))
+      .map(([, value]) => value);
     if (textFields.some((value) => typeof value !== "string" || value.trim().length < 2)) {
       throw new BadRequestException("All Artists page text fields must contain at least two non-space characters");
     }
@@ -1527,7 +1531,7 @@ export class LapidaryService {
     const images = input.images.map((image) => ({
       url: image.url.trim(),
       altEn: image.altEn.trim(),
-      altId: image.altId.trim(),
+      altId: image.altId?.trim() ?? "",
       captionEn: image.captionEn?.trim() ?? "",
       captionId: image.captionId?.trim() ?? "",
     }));
@@ -1537,8 +1541,8 @@ export class LapidaryService {
     if (images.some((image) => image.url === input.heroImage.trim())) {
       throw new BadRequestException("Choose a hero photograph that is different from the gallery photos");
     }
-    if (images.some((image) => image.altEn.length < 2 || image.altId.length < 2)) {
-      throw new BadRequestException("Every gallery photograph needs English and Bahasa Indonesia alt text");
+    if (images.some((image) => image.altEn.length < 2)) {
+      throw new BadRequestException("Every gallery photograph needs English alt text");
     }
     const presentation = studioPresentation({
       titleEn: input.titleEn?.trim(), titleId: input.titleId?.trim(), introEn: input.introEn?.trim(), introId: input.introId?.trim(),

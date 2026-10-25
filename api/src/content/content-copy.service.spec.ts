@@ -6,7 +6,7 @@ import type { SettingsService } from "../settings/settings.service";
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const input = { kind: "seo" as const, context: JSON.stringify({ title: "Indonesian agate", body: "Agate from Indonesia" }) };
-const copy = { metaTitle: "Indonesian Agate | RENDI VIRGO", metaDescription: "Explore Indonesian agate.", metaTitleId: "Batu Akik Indonesia | RENDI VIRGO", metaDescriptionId: "Jelajahi batu akik Indonesia." };
+const copy = { metaTitle: "Indonesian Agate | RENDI VIRGO", metaDescription: "Explore Indonesian agate." };
 function service(apiKey = "test-key") {
   const settings = { getOpenRouterCredentials: async () => ({ apiKey, model: "test-model" }) };
   return new ContentCopyService(settings as SettingsService);

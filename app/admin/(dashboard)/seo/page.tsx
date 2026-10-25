@@ -9,10 +9,10 @@ import { needsSeoReview, seoRating } from "@/lib/seo-analysis";
 import "@/components/admin/seo.css";
 import "./seo-audit.css";
 import { siteUrl } from "@/lib/seo";
+import { SEO_AUDIT_HISTORY_KEY } from "@/lib/seo-audit-history";
 
 type ScanRow = { path: string; result?: HtmlAudit; error?: string };
 type AuditRun = { at: string; total: number; successful: number; failed: number; average: number | null; results?: ScanRow[] };
-const AUDIT_HISTORY_KEY = "rv-seo-audit-history-v1";
 const AUDIT_HISTORY_LIMIT = 10;
 const AUDIT_DETAILS_LIMIT = 500;
 
@@ -90,7 +90,7 @@ export default function SeoAuditPage() {
   const [historyError, setHistoryError] = useState("");
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(AUDIT_HISTORY_KEY) || "[]");
+      const saved = JSON.parse(localStorage.getItem(SEO_AUDIT_HISTORY_KEY) || "[]");
       if (!Array.isArray(saved)) return;
       const runs = saved.flatMap((value) => {
         const run = readSavedAuditRun(value);
@@ -233,7 +233,7 @@ export default function SeoAuditPage() {
         const run: AuditRun = {at: new Date().toISOString(), total:found.length, successful:audited.length, failed:found.filter(row=>row.error).length, average:audited.length ? Math.round(audited.reduce((sum,row)=>sum+row.score,0)/audited.length) : null, results:detailedRows.slice(0,AUDIT_DETAILS_LIMIT)};
         const updated = [run,...history].slice(0,AUDIT_HISTORY_LIMIT);
         setHistory(updated);
-        try { localStorage.setItem(AUDIT_HISTORY_KEY,JSON.stringify(updated)); } catch { setHistoryError("This scan completed, but browser storage could not save its history."); }
+        try { localStorage.setItem(SEO_AUDIT_HISTORY_KEY,JSON.stringify(updated)); } catch { setHistoryError("This scan completed, but browser storage could not save its history."); }
       }
     } catch (caught) { if (!abort.signal.aborted) setError(errorMessage(caught)); }
     finally { if (controller.current === abort) setBusy(false); }
@@ -262,7 +262,7 @@ export default function SeoAuditPage() {
     <div className="rv-content rv-audit">
       <section className="rv-audit-overview" aria-label="Audit overview">
         <div className="rv-audit-cover">
-          <div className="rv-audit-kicker"><span className="rv-audit-seal" aria-hidden="true">RV</span><span>SEARCH VISIBILITY REPORT</span><span className="rv-audit-edition">EN / ID</span></div>
+          <div className="rv-audit-kicker"><span className="rv-audit-seal" aria-hidden="true">RV</span><span>SEARCH VISIBILITY REPORT</span><span className="rv-audit-edition">ENGLISH ONLY</span></div>
           <div className="rv-audit-cover__body"><div><span className="rv-audit-overline">{busy ? "Technical audit in progress" : average !== null ? "Technical checks · average" : history.length ? "Last completed technical audit" : "Your next improvement starts here"}</span><div className="rv-audit-score">{displayScore ?? "—"}<span>/100</span></div><h2>{busy ? "Reading your storefront." : displayScore === null ? "Make every page discoverable." : displayScore >= 80 ? "A strong technical foundation." : "Review the technical findings."}</h2><p>Metadata, canonical declarations, page structure, images, links, robots.txt access, language alternates, and basic structured data. Indexing and rankings need separate verification.</p></div><div className="rv-audit-scale" aria-hidden="true"><span>GOOD</span>{Array.from({length:10},(_,index)=><i key={index} className={displayScore !== null && index < Math.round(displayScore/10) ? "is-filled" : ""}/>)}<span>NEEDS WORK</span></div></div>
           <div className="rv-audit-cover__foot"><span className={busy ? "rv-audit-live is-busy" : "rv-audit-live"}>{busy ? "Scanning public URLs" : scannedAt ? "Audit complete" : history[0] ? `Last run · ${dateLabel(history[0].at)}` : "Ready for the first scan"}</span><span>RENDI VIRGO · DIGITAL CATALOG</span></div>
         </div>
@@ -273,8 +273,8 @@ export default function SeoAuditPage() {
         <section className="rv-audit-register" aria-labelledby="audit-results-title">
           <div className="rv-audit-register__heading"><div><div className="rv-audit-section-label">02 / PAGE REGISTER</div><h2 id="audit-results-title">Where discovery begins.</h2><p>Inspect the pages behind your storefront.</p></div><span className="rv-audit-count">{shown.length}<small>URLs shown</small></span></div>
           <div className="rv-audit-filters"><label><span>Find a page</span><TextInput value={query} onChange={setQuery} placeholder="Search by URL or page title…" /></label><label><span>Content type</span><Select value={kind} onChange={setKind} ariaLabel="Content type" placeholder="All content" options={["Page", "Product", "Category", "Blog"].map(value => ({value,label:value}))}/></label><label><span>Show</span><Select value={issuesOnly} onChange={setIssuesOnly} ariaLabel="Score filter" placeholder="All results" options={[{value:"yes",label:"Needs improvement / failed"}]}/></label></div>
-          <div className="rv-audit-register__table"><table aria-label="Public page technical audit results"><thead><tr><th>Page / destination</th><th>Content</th><th>Technical score</th><th>Findings</th></tr></thead><tbody>{shown.map((row,index) => { const issues=row.result?.checks.filter(needsSeoReview) ?? []; return <tr key={row.path}><td><div className="rv-audit-page"><span className="rv-audit-row-number">{String(index+1).padStart(2,"0")}</span><div><a href={row.path} target="_blank" rel="noreferrer">{row.result?.title || row.path}<ArrowUpRightIcon size={13} /></a><small>{row.path}</small></div></div></td><td><span className="rv-audit-type">{routeKind(row.path)}</span><small className="rv-audit-language">{row.path === "/id" || row.path.startsWith("/id/") ? "ID" : "EN"}</small></td><td>{row.result ? <div className={`rv-audit-row-score is-${row.result.tone}`}><strong>{row.result.score}<span>/100</span></strong><div><i style={{width:`${row.result.score}%`}}/></div><small>{row.result.applicableChecks} applicable checks</small></div> : <span className="rv-hint">{row.error ? "Unavailable" : busy ? "Scanning…" : "Not scanned"}</span>}</td><td>{row.error ? <span role="status" className="rv-audit-failure">{row.error}</span> : row.result ? issues.length ? <details className="rv-audit-findings"><summary><span>{issues.length}</span> improvements</summary><ul>{issues.map(check=><li key={check.id}><strong>{check.label}</strong><p>{check.advice}</p></li>)}</ul></details> : <span className="rv-audit-clear"><CheckIcon size={13} /> All checks passed</span> : <span className="rv-hint">—</span>}</td></tr>})}</tbody></table></div>
-          {!shown.length ? <div className="rv-audit-empty"><SearchIcon size={32} /><h3>{rows.length ? "No pages match these filters." : "A clearer view of your storefront."}</h3><p>{rows.length ? "Try another title, URL, or content type." : "Run an audit to inspect English and Indonesian pages. Each result includes a score and practical next steps."}</p>{rows.length ? <Button size="sm" onClick={()=>{setQuery("");setKind("");setIssuesOnly("");}}>Clear filters</Button> : <Button size="sm" onClick={scan} loading={busy}>Run storefront check</Button>}</div> : null}
+          <div className="rv-audit-register__table"><table aria-label="Public page technical audit results"><thead><tr><th>Page / destination</th><th>Content</th><th>Technical score</th><th>Findings</th></tr></thead><tbody>{shown.map((row,index) => { const issues=row.result?.checks.filter(needsSeoReview) ?? []; return <tr key={row.path}><td><div className="rv-audit-page"><span className="rv-audit-row-number">{String(index+1).padStart(2,"0")}</span><div><a href={row.path} target="_blank" rel="noreferrer">{row.result?.title || row.path}<ArrowUpRightIcon size={13} /></a><small>{row.path}</small></div></div></td><td><span className="rv-audit-type">{routeKind(row.path)}</span></td><td>{row.result ? <div className={`rv-audit-row-score is-${row.result.tone}`}><strong>{row.result.score}<span>/100</span></strong><div><i style={{width:`${row.result.score}%`}}/></div><small>{row.result.applicableChecks} applicable checks</small></div> : <span className="rv-hint">{row.error ? "Unavailable" : busy ? "Scanning…" : "Not scanned"}</span>}</td><td>{row.error ? <span role="status" className="rv-audit-failure">{row.error}</span> : row.result ? issues.length ? <details className="rv-audit-findings"><summary><span>{issues.length}</span> improvements</summary><ul>{issues.map(check=><li key={check.id}><strong>{check.label}</strong><p>{check.advice}</p></li>)}</ul></details> : <span className="rv-audit-clear"><CheckIcon size={13} /> All checks passed</span> : <span className="rv-hint">—</span>}</td></tr>})}</tbody></table></div>
+          {!shown.length ? <div className="rv-audit-empty"><SearchIcon size={32} /><h3>{rows.length ? "No pages match these filters." : "A clearer view of your storefront."}</h3><p>{rows.length ? "Try another title, URL, or content type." : "Run an audit to inspect English storefront pages. Each result includes a score and practical next steps."}</p>{rows.length ? <Button size="sm" onClick={()=>{setQuery("");setKind("");setIssuesOnly("");}}>Clear filters</Button> : <Button size="sm" onClick={scan} loading={busy}>Run storefront check</Button>}</div> : null}
           <div className="rv-audit-register__foot"><span>{busy ? `Checking ${completed} of ${rows.length} URLs…` : scannedAt ? `Completed ${scannedAt}` : "Results appear after a scan."}</span><span>GOOD 80–100 · REVIEW 50–79 · ATTENTION 0–49</span></div>
         </section>
         <aside className="rv-audit-sidebar">

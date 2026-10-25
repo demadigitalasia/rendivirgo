@@ -212,7 +212,7 @@ function NavigationItemEditor({
           <span className="rv-navigation-item__summary">
             <strong>{item.labelEn || "Untitled link"}</strong>
             <span>
-              {item.labelId || "No Indonesian label"} <i aria-hidden="true">·</i> {targetSummary(item, data)}
+              {targetSummary(item, data)}
               {item.children.length ? <i aria-hidden="true"> · {visibleChildren} of {item.children.length} submenu links visible</i> : null}
             </span>
           </span>
@@ -274,7 +274,6 @@ export default function NavigationSettingsPage() {
   const [items, setItems] = useState<AdminNavigationItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
-  const [previewLanguage, setPreviewLanguage] = useState<"en" | "id">("en");
   const [previewOpenItemId, setPreviewOpenItemId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -306,13 +305,13 @@ export default function NavigationSettingsPage() {
   const firstPreviewSubmenu = visiblePreviewItems.find((item) => item.children.some((child) => child.enabled));
   const openPreviewItemId = previewOpenItemId === undefined ? firstPreviewSubmenu?.id : previewOpenItemId;
   const openPreviewItem = visiblePreviewItems.find((item) => item.id === openPreviewItemId && item.children.some((child) => child.enabled));
-  const previewLabel = (item: AdminNavigationItem) => (previewLanguage === "id" ? item.labelId : item.labelEn) || item.labelEn;
+  const previewLabel = (item: AdminNavigationItem) => item.labelEn;
 
   return (
     <>
       <PageHeader
         title="Navigation"
-        subtitle="Manage the storefront menu, submenu links, and English and Indonesian labels."
+        subtitle="Manage the English storefront menu, submenu links, and destinations."
         actions={
           <div className="rv-inline">
             <Button onClick={state.refresh} disabled={state.loading}>Refresh</Button>
@@ -333,8 +332,6 @@ export default function NavigationSettingsPage() {
                   <Button size="sm" ariaPressed={previewDevice === "desktop"} onClick={() => setPreviewDevice("desktop")}>Desktop</Button>
                   <Button size="sm" ariaPressed={previewDevice === "mobile"} onClick={() => setPreviewDevice("mobile")}>Mobile</Button>
                 </div>
-                <Select value={previewLanguage} onChange={(value) => setPreviewLanguage(value as "en" | "id")}
-                  options={[{ value: "en", label: "English" }, { value: "id", label: "Bahasa Indonesia" }]} />
               </div>
               <div className={`rv-navigation-preview rv-navigation-preview--${previewDevice}`}>
                 <div className="rv-navigation-preview__brand">

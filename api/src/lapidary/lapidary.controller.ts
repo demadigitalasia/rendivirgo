@@ -34,8 +34,8 @@ export class LapidaryPublicController {
 
   @Public()
   @Get("content")
-  content(@Headers("x-rv-language") language?: string) {
-    return this.lapidary.publicContent(language === "id" ? "id" : "en");
+  content() {
+    return this.lapidary.publicContent("en");
   }
 
   @Public()

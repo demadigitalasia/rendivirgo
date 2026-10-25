@@ -5,16 +5,15 @@ import { ProductsService } from "./products.service";
 import { AdminProductsController, ProductsController } from "./products.controller";
 import { CatalogPdfService } from "./catalog-pdf.service";
 import { ConditionsService } from "./conditions.service";
-import { ProductCopyService } from "./product-copy.service";
-import { CategoryCopyService } from "./category-copy.service";
+import { ContentCopyModule } from "../content/content-copy.module";
 import { AdminConditionsController, ConditionsController } from "./conditions.controller";
 import { SettingsModule } from "../settings/settings.module";
 import { EtsyIntegrationModule } from "../etsy/etsy-integration.module";
 
 @Module({
-  imports: [SettingsModule, EtsyIntegrationModule],
+  imports: [SettingsModule, ContentCopyModule, EtsyIntegrationModule],
   controllers: [CategoriesController, AdminCategoriesController, ConditionsController, AdminConditionsController, ProductsController, AdminProductsController],
-  providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService, ProductCopyService, CategoryCopyService],
+  providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService],
   exports: [CategoriesService, ProductsService],
 })
 export class CatalogModule {}

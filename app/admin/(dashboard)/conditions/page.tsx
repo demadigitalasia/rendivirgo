@@ -5,7 +5,7 @@ import { apiFetch, errorMessage, formatNumber, useApi } from "@/components/admin
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { toast } from "@/components/admin/toast";
 import { Badge, Button, Card, ConfirmButton, Field, Modal, PageHeader, Select, Stat, Switch, TextArea, TextInput } from "@/components/admin/ui";
-import { translationStatusOptions, type TranslationStatus } from "../content/types";
+import type { TranslationStatus } from "../content/types";
 import "./conditions.css";
 
 type ConditionOption = {
@@ -242,23 +242,6 @@ export default function AdminConditionsPage() {
             <div className="rv-condition-form__grid">
               <Field label="Note (English)" className="rv-condition-form__field-full">
                 <TextArea value={form.note} onChange={(value) => setField("note", value)} rows={3} placeholder="Shown on the product page" />
-              </Field>
-            </div>
-          </section>
-          <section className="rv-condition-form__section" aria-labelledby="condition-translation-heading">
-            <div className="rv-condition-form__section-heading rv-condition-form__section-heading--translation">
-              <span className="rv-condition-form__step">03</span>
-              <div>
-                <h3 id="condition-translation-heading">Bahasa Indonesia</h3>
-                <p>Review the translated note before marking it ready.</p>
-              </div>
-              <Field label="Translation status" className="rv-condition-form__translation-status">
-                <Select value={form.idTranslationStatus} onChange={(value) => setField("idTranslationStatus", value as TranslationStatus)} options={translationStatusOptions} />
-              </Field>
-            </div>
-            <div className="rv-condition-form__grid">
-              <Field label="Note (Indonesian)" className="rv-condition-form__field-full" hint="Leave empty until the translation has been reviewed.">
-                <TextArea value={form.noteId} onChange={(value) => setField("noteId", value)} rows={3} />
               </Field>
             </div>
           </section>

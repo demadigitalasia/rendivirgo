@@ -16,6 +16,29 @@ type OpenRouterSettings = {
   model: string;
 };
 type OpenRouterModel = { id: string; name: string; contextLength: number | null };
+type OpenRouterUsage = {
+  periodStart: string;
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  reportedCostUsd: number | null;
+  successfulRequestsWithoutCost: number;
+  recordsSampled: number;
+  recordsTruncated: boolean;
+  recent: Array<{
+    id: string;
+    createdAt: string;
+    kind: string;
+    model: string;
+    status: string;
+    durationMs: number | null;
+    totalTokens: number | null;
+    providerCostUsd: number | null;
+  }>;
+};
 
 type SettingsForm = {
   storeName: string;
@@ -147,6 +170,10 @@ export default function AdminSettingsPage() {
   const [tab, setTab] = useState("general");
   const modelsState: ApiState<{ models: OpenRouterModel[] }> = useApi(
     tab === "ai" ? "/api/admin/settings/ai/openrouter/models" : null,
+    { enabled: tab === "ai" },
+  );
+  const aiUsageState: ApiState<OpenRouterUsage> = useApi(
+    tab === "ai" ? "/api/admin/settings/ai/usage" : null,
     { enabled: tab === "ai" },
   );
   const [form, setForm] = useState<SettingsForm>(emptyForm);
@@ -427,7 +454,7 @@ export default function AdminSettingsPage() {
                       <TextInput value={form.currency} onChange={(value) => update("currency", value)} />
                     </Field>
                     <Field label="Storefront languages" hint="Supported languages are managed by the storefront release.">
-                      <TextInput value="English (default), Bahasa Indonesia" readOnly />
+                      <TextInput value="English" readOnly />
                     </Field>
                     <Field label="Opening hours">
                       <TextInput
@@ -617,7 +644,7 @@ export default function AdminSettingsPage() {
             {tab === "ai" ? (
               <Card
                 title="OpenRouter AI"
-                description="Configure API access and choose a model for Generate with AI on product, category, and blog forms."
+                description="Configure the model used by English copy and SEO draft tools across the admin editors."
                 actions={
                   aiState.data ? (
                     <Badge tone={aiState.data.configured ? "green" : "gray"}>
@@ -688,7 +715,7 @@ export default function AdminSettingsPage() {
                       />
                     </Field>
                   </div>
-                  <Field label="Model ID" hint="Selected catalog models fill this value. You can also enter an ID manually.">
+                  <Field label="Model ID" hint="The saved model is checked against OpenRouter’s compatible structured-output catalog.">
                     <TextInput value={aiModel} onChange={setAiModel} placeholder="openai/gpt-4.1-mini" disabled={aiBusy || !aiState.data} />
                   </Field>
                   {aiState.data?.source === "dashboard" ? (
@@ -705,6 +732,40 @@ export default function AdminSettingsPage() {
                     </Button>
                   </div>
                 </div>
+              </Card>
+            ) : null}
+
+            {tab === "ai" ? (
+              <Card
+                title="AI usage this month"
+                description={aiUsageState.data ? `Since ${new Date(aiUsageState.data.periodStart).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" })}. Prompts and generated text are not stored in these records.` : "Provider usage reported by completed AI requests."}
+                actions={<Button size="sm" onClick={aiUsageState.refresh} loading={aiUsageState.loading}>Refresh usage</Button>}
+              >
+                {aiUsageState.loading && !aiUsageState.data ? <Loading label="Loading AI usage…" /> : null}
+                {aiUsageState.error ? <p className="rv-error-text">{aiUsageState.error}</p> : null}
+                {aiUsageState.data ? (
+                  <div className="rv-stack">
+                    <div className="rv-form-grid">
+                      <div><span className="rv-hint">Requests</span><p><strong>{aiUsageState.data.totalRequests.toLocaleString("en-US")}</strong> total · {aiUsageState.data.successfulRequests} successful · {aiUsageState.data.failedRequests} failed</p></div>
+                      <div><span className="rv-hint">Tokens reported</span><p><strong>{aiUsageState.data.totalTokens.toLocaleString("en-US")}</strong> total</p></div>
+                      <div><span className="rv-hint">Provider-reported cost</span><p><strong>{aiUsageState.data.reportedCostUsd === null ? "Not reported" : `$${aiUsageState.data.reportedCostUsd.toFixed(4)} USD`}</strong></p></div>
+                    </div>
+                    {aiUsageState.data.successfulRequestsWithoutCost > 0 ? <p className="rv-hint">OpenRouter did not return a cost for {aiUsageState.data.successfulRequestsWithoutCost} successful request(s), so the displayed cost may be incomplete.</p> : null}
+                    {aiUsageState.data.recordsTruncated ? <p className="rv-hint">The month has more than {aiUsageState.data.recordsSampled.toLocaleString("en-US")} AI records; token and cost totals show the sampled records only.</p> : null}
+                    <p className="rv-hint">Set a hard spend limit for this API key in OpenRouter. This page reports provider usage; it does not cap concurrent requests.</p>
+                    {aiUsageState.data.recent.length ? (
+                      <div className="rv-stack">
+                        <strong>Recent generations</strong>
+                        {aiUsageState.data.recent.map((event) => (
+                          <div className="rv-inline" key={event.id} style={{ justifyContent: "space-between", borderTop: "1px solid var(--rv-border, #dedfd2)", paddingTop: 8 }}>
+                            <span>{event.kind} · {event.status} · {new Date(event.createdAt).toLocaleString("en-US", { timeZone: "Asia/Jakarta" })}</span>
+                            <span className="rv-hint">{event.totalTokens === null ? "Tokens unavailable" : `${event.totalTokens.toLocaleString("en-US")} tokens`}{event.providerCostUsd === null ? "" : ` · $${event.providerCostUsd.toFixed(4)}`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="rv-hint">No AI generations recorded this month.</p>}
+                  </div>
+                ) : null}
               </Card>
             ) : null}
 
