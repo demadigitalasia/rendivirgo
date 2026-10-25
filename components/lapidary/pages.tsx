@@ -137,7 +137,7 @@ export function LapidaryLanding({ language }: { language: Language }) {
 export function LapidaryCustomOrder({ language }: { language: Language }) {
   const en = language === "en";
   return (
-    <div className="lapidary-page page-container">
+    <div className="lapidary-page lapidary-page--custom-order page-container">
       <SubpageHeader language={language} eyebrow={en ? "CUSTOM LAPIDARY" : "LAPIDARY CUSTOM"} title={en ? "Tell us what you have in mind." : "Ceritakan rencana pengerjaan Anda."} body={en ? "Share the stone, the shape, and the finish you are looking for. Our studio will review the brief and send a quote before any work begins." : "Ceritakan tentang batu, bentuk, dan hasil akhir yang Anda inginkan. Studio kami akan meninjau brief dan mengirimkan penawaran sebelum pengerjaan dimulai."} />
       <div className="lapidary-order-layout">
         <CustomOrderForm language={language} />

@@ -851,3 +851,69 @@
   .storefront .lapidary-dome-controls__profiles button { transition: none; }
   .storefront .lapidary-shape-picker button:hover { transform: none; }
 }
+
+/* Mobile custom-order flow: reduce scrolling and keep the active controls reachable. */
+.lapidary-wizard__mobile-progress { display: none; }
+.lapidary-shape-summary { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 9px 11px; border: 1px solid #dce2d8; border-radius: 8px; background: #f7f8f3; }
+.lapidary-shape-summary > img { width: 48px; height: 48px; object-fit: contain; }
+.lapidary-shape-summary > div { display: grid; gap: 3px; min-width: 0; }
+.lapidary-shape-summary small { color: var(--muted); font-size: .6rem; }
+.lapidary-shape-summary strong { color: var(--forest); font-size: .76rem; }
+.lapidary-shape-summary button, .lapidary-shape-preview-trigger { min-height: 44px; padding: 8px 12px; border: 1px solid #b8c6b4; border-radius: 6px; background: #fffefa; color: var(--forest); font: 600 .68rem/1.35 var(--font-ui); cursor: pointer; }
+.lapidary-shape-preview-trigger { margin-top: 10px; }
+.lapidary-media-picker__required { display: block; margin-top: 7px; color: #8a5632; font-size: .67rem; font-weight: 600; line-height: 1.5; }
+.lapidary-media-picker__included { margin: 8px 0 0; padding: 12px 14px; border-left: 3px solid #788e70; border-radius: 0 6px 6px 0; background: #f0f4ec; color: #435747; font: 500 .72rem/1.6 var(--font-ui); }
+.lapidary-dimensions-hint { grid-column: 1 / -1; color: var(--muted); font: 400 .63rem/1.5 var(--font-ui); }
+.lapidary-review__edit-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; padding: 13px 0 2px; }
+.lapidary-review__edit-nav button { min-width: 0; min-height: 42px; padding: 7px 9px; border: 1px solid #dbe2d7; border-radius: 5px; background: #f8f8f3; color: var(--forest); font: 600 .64rem/1.3 var(--font-ui); cursor: pointer; }
+.lapidary-review__edit-nav button:hover, .lapidary-review__edit-nav button:focus-visible { border-color: #8fa38b; background: #edf2e9; }
+@media (max-width: 620px) {
+  .storefront .lapidary-page--custom-order > .lapidary-subhead { margin-bottom: 19px; padding-top: 12px; }
+  .storefront .lapidary-page--custom-order > .lapidary-subhead .lapidary-eyebrow { margin: 8px 0 7px; }
+  .storefront .lapidary-page--custom-order > .lapidary-subhead h1 { max-width: 18ch; margin-bottom: 8px; font-size: clamp(2rem, 8.5vw, 2.8rem); line-height: 1.03; }
+  .storefront .lapidary-page--custom-order > .lapidary-subhead .lapidary-lede { font-size: .76rem; line-height: 1.55; }
+  .storefront .lapidary-form { padding-bottom: 28px; }
+  .storefront .lapidary-wizard__top { gap: 10px; padding-bottom: 15px; }
+  .storefront .lapidary-wizard__top h2 { font-size: clamp(1.5rem, 7vw, 2rem); }
+  .storefront .lapidary-wizard__top p:not(.lapidary-eyebrow) { margin-top: 7px; font-size: .7rem; line-height: 1.55; }
+  .storefront .lapidary-wizard__counter { display: none; }
+  .storefront .lapidary-wizard__progress { margin: 12px 0 5px; padding: 6px 4px 3px; }
+  .storefront .lapidary-wizard__progress-step { grid-template-rows: 24px; min-height: 30px; padding: 0 3px; }
+  .storefront .lapidary-wizard__progress-step small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; }
+  .storefront .lapidary-wizard__mobile-progress { display: grid; gap: 8px; margin: 0 0 17px; padding: 0 1px; }
+  .storefront .lapidary-wizard__mobile-progress > div:first-child { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 3px 10px; }
+  .storefront .lapidary-wizard__mobile-progress > div:first-child > span { grid-column: 1 / -1; color: #927548; font: 600 .54rem/1.3 var(--font-ui); letter-spacing: .12em; }
+  .storefront .lapidary-wizard__mobile-progress strong { color: var(--forest); font: 600 .72rem/1.35 var(--font-ui); }
+  .storefront .lapidary-wizard__mobile-progress b { color: #647267; font: 600 .65rem var(--font-ui); }
+  .storefront .lapidary-wizard__mobile-progress-track { height: 4px; overflow: hidden; border-radius: 99px; background: #e4e8df; }
+  .storefront .lapidary-wizard__mobile-progress-track span { display: block; height: 100%; border-radius: inherit; background: var(--forest); transition: width .2s ease; }
+  .storefront .lapidary-wizard__intro { margin-bottom: 17px; }
+  .storefront .lapidary-shape-summary { grid-template-columns: 42px minmax(0, 1fr) auto; gap: 8px; padding: 8px; }
+  .storefront .lapidary-shape-summary > img { width: 42px; height: 42px; }
+  .storefront .lapidary-shape-summary button { max-width: 105px; padding-inline: 9px; }
+  .storefront .lapidary-oval-preview__stage { height: clamp(190px, 27vh, 230px); }
+  .storefront .lapidary-oval-preview__controls { gap: 6px; }
+  .storefront .lapidary-oval-preview__controls button { min-height: 44px; padding-inline: 8px; }
+  .storefront .lapidary-dome-controls__profiles button { min-height: 44px; padding-inline: 4px; font-size: .62rem; }
+  .storefront .lapidary-dome-controls input[type="range"] { min-height: 44px; touch-action: pan-x; }
+  .storefront .lapidary-dome-controls input[type="number"] { min-height: 44px; }
+  .storefront .lapidary-review__edit-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .storefront .lapidary-review__edit-nav button { min-height: 44px; }
+  .storefront .lapidary-review__edit-nav button:last-child { grid-column: 1 / -1; }
+  .storefront .lapidary-wizard__actions { position: sticky; z-index: 30; bottom: 0; margin: 18px -17px -28px; padding: 11px 17px calc(11px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid #dfe3d9; background: #fffefa; background: color-mix(in srgb, #fffefa 94%, transparent); box-shadow: 0 -8px 20px #17281c10; backdrop-filter: blur(10px); }
+  .storefront .lapidary-form:has(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):focus, textarea:focus) .lapidary-wizard__actions { position: static; margin: 18px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); background: transparent; box-shadow: none; backdrop-filter: none; }
+  .storefront .lapidary-wizard__back { min-height: 48px; }
+  .storefront .lapidary-wizard__next { min-height: 48px; }
+}
+@media (max-width: 380px) {
+  .storefront .lapidary-form__dimensions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .storefront .lapidary-form__dimensions > label:last-of-type { grid-column: 1 / -1; }
+  .storefront .lapidary-dome-controls__profiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .storefront .lapidary-dome-controls__profiles button { white-space: nowrap; }
+  .storefront .lapidary-shape-summary { grid-template-columns: 36px minmax(0, 1fr); }
+  .storefront .lapidary-shape-summary > img { width: 36px; height: 36px; }
+  .storefront .lapidary-shape-summary button { grid-column: 2; justify-self: start; min-height: 40px; }
+}
+@media (max-height: 520px) and (max-width: 620px) {
+  .storefront .lapidary-wizard__actions { position: static; margin: 18px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); background: transparent; box-shadow: none; backdrop-filter: none; }
+}
