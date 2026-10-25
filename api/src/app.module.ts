@@ -13,6 +13,7 @@ import { CustomersModule } from "./customers/customers.module";
 import { DiscountsModule } from "./discounts/discounts.module";
 import { EmailModule } from "./email/email.module";
 import { HealthModule } from "./health/health.module";
+import { GoogleSearchConsoleModule } from "./search-console/google-search-console.module";
 import { InboxModule } from "./inbox/inbox.module";
 import { LapidaryModule } from "./lapidary/lapidary.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
@@ -41,6 +42,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     CustomersModule,
     DiscountsModule,
     HealthModule,
+    GoogleSearchConsoleModule,
     InboxModule,
     LapidaryModule,
     MaintenanceModule,

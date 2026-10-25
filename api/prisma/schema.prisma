@@ -474,6 +474,28 @@ model EtsyOAuthState {
   @@index([adminSessionId, expiresAt])
 }
 
+model GoogleSearchConsoleConnection {
+  id                    String   @id @default("primary")
+  siteUrl               String?
+  refreshTokenEncrypted String   @db.Text
+  lastReport            Json?
+  lastSyncedAt          DateTime?
+  connectedAt           DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model GoogleSearchConsoleOAuthState {
+  id                    String   @id @default(cuid())
+  stateHash             String   @unique
+  codeVerifierEncrypted String   @db.Text
+  adminSessionId        String
+  expiresAt             DateTime
+  createdAt             DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([adminSessionId, expiresAt])
+}
+
 model EtsyListingMapping {
   id              String   @id @default(cuid())
   productId       String   @unique
