@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Language } from "@/lib/i18n";
 
@@ -121,7 +121,7 @@ export function LapidaryDatePicker({ id, value, minDate, language, onChange }: D
     setFocusedDate(dateKey(next));
   }
 
-  function handleDayKeyDown(event: KeyboardEvent<HTMLButtonElement>, date: Date) {
+  function handleDayKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, date: Date) {
     let next: Date | null = null;
     if (event.key === "ArrowLeft") next = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 12);
     if (event.key === "ArrowRight") next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 12);
