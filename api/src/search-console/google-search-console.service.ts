@@ -291,10 +291,11 @@ export class GoogleSearchConsoleService {
     const connection = await this.requireConnection();
     if (!connection.siteUrl) throw new BadRequestException("Choose a Search Console property before refreshing its report");
     const accessToken = await this.accessToken(connection);
-    const endDate = dateOffset(-3);
-    const startDate = dateOffset(-30);
-    const previousEndDate = dateOffset(-31);
-    const previousStartDate = dateOffset(-58);
+    const reportDate = new Date();
+    const endDate = dateOffset(-3, reportDate);
+    const startDate = dateOffset(-30, reportDate);
+    const previousEndDate = dateOffset(-31, reportDate);
+    const previousStartDate = dateOffset(-58, reportDate);
     const [current, previous] = await Promise.all([
       this.readPeriod(accessToken, connection.siteUrl, startDate, endDate),
       this.readPeriod(accessToken, connection.siteUrl, previousStartDate, previousEndDate),
@@ -306,7 +307,7 @@ export class GoogleSearchConsoleService {
       current,
       previous,
       generatedAt: new Date().toISOString(),
-      note: "Search Console can omit low-volume or anonymized queries. The most recent three days are excluded because Google data may still be incomplete.",
+      note: "Search Console can omit low-volume or anonymized queries. The most recent three days are excluded because Google data may still be incomplete. Page and property totals use different aggregation; the page table sorts impressions within the API's top 25 click-ranked URLs.",
     };
     await this.prisma.googleSearchConsoleConnection.update({
       where: { id: CONNECTION_ID },
@@ -463,7 +464,7 @@ export class GoogleSearchConsoleService {
     const topPages = pageRows.flatMap((row) => {
       const page = safePageUrlForProperty(siteUrl, row.keys?.[0]);
       return page ? [normalizeAnalyticsRow(row, page)] : [];
-    });
+    }).sort((a, b) => b.impressions - a.impressions || b.clicks - a.clicks);
     return {
       clicks: total.clicks,
       impressions: total.impressions,
@@ -475,10 +476,15 @@ export class GoogleSearchConsoleService {
   }
 }
 
-function dateOffset(days: number): string {
-  const date = new Date();
-  date.setUTCHours(0, 0, 0, 0);
-  date.setUTCDate(date.getUTCDate() + days);
+function dateOffset(days: number, reference: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(reference);
+  const part = (type: "year" | "month" | "day") => parts.find(item => item.type === type)?.value ?? "0";
+  const date = new Date(Date.UTC(Number(part("year")), Number(part("month")) - 1, Number(part("day")) + days));
   return date.toISOString().slice(0, 10);
 }
 

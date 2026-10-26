@@ -67,13 +67,29 @@ export function SeoPanel({ input, translation, translationStatus, onMetadata, co
   const publicDescription = input.metaDescription?.trim() || selected.publicDescriptionFallback?.trim() || "No page-specific description is set.";
   const duplicates = auditSnapshot ? findSeoMetadataDuplicates(publicTitle, publicDescription, path, "en", auditSnapshot.entries) : null;
   const hasDuplicates = Boolean(duplicates && (duplicates.titles.length || duplicates.descriptions.length));
-  const aiContext = { title: input.title, body: input.body, metaTitle: input.metaTitle, metaDescription: input.metaDescription, contentType: input.kind, focusTopic };
+  const aiContext = {
+    title: input.title,
+    body: input.body,
+    metaTitle: input.metaTitle,
+    metaDescription: input.metaDescription,
+    contentType: input.kind,
+    focusTopic,
+    editorialScore: result.score,
+    editorialFindings: JSON.stringify(result.checks.filter(needsSeoReview).map(check => ({
+      id: check.id,
+      label: check.label,
+      status: check.status,
+      points: check.points,
+      max: check.max,
+      advice: check.advice,
+    }))),
+  };
   const aiDraft = onMetadata ? <AiDraft kind="seo" currentValues={{metaTitle: input.metaTitle, metaDescription: input.metaDescription}} sourceVersion={JSON.stringify([input, focusTopic])} title="Draft metadata with AI" context={aiContext} onApply={onMetadata} /> : null;
   const incompleteChecks = result.checks.filter(needsSeoReview).length;
   return <section className={`rv-seo-panel${compact ? " rv-seo-panel--blog-editor" : ""}`} aria-label="SEO analysis">
     <div className="rv-seo-heading"><div><strong>Editorial readiness · EN</strong><p className="rv-hint">{result.words} words · {result.applicableChecks} scored checks · {result.label}</p></div><SeoBadge input={scored} /></div>
     <div className="rv-inline rv-seo-panel__status"><Badge tone={input.metaTitle?.trim() && input.metaDescription?.trim() ? "green" : "amber"}>English metadata: {input.metaTitle?.trim() && input.metaDescription?.trim() ? "complete" : "needs review"}</Badge><Button size="sm" href="/admin/seo">Check technical SEO</Button></div>
-    <label className="rv-field"><span className="rv-label">Focus topic or search query</span><input className="rv-input" value={focusTopic} onChange={event => setFocusTopic(event.target.value)} placeholder="A relevant phrase supported by this page" /><small className="rv-hint">Used in the editorial check and AI draft. Keep it specific to the page; the AI will avoid forcing it into the copy.</small></label>
+    <label className="rv-field"><span className="rv-label">Focus topic or search query</span><input className="rv-input" value={focusTopic} onChange={event => setFocusTopic(event.target.value)} placeholder="A relevant phrase supported by this page" /><small className="rv-hint">Used in the editorial check and AI draft. Keep it specific to the page; the AI will avoid forcing it into the copy. This topic is temporary: list scores use the page title until you enter a topic here.</small></label>
     <div className="rv-seo-preview"><small>Effective search preview · rendivirgo.com{previewPath}</small><strong>{publicTitle}</strong><p>{publicDescription}</p></div>
     <details className="rv-seo-panel__checks">
       <summary><span>Site-wide metadata uniqueness</span><span className="rv-seo-panel__count">{!auditSnapshot ? "Run a scan" : hasDuplicates ? "Potential match" : "Last scan"}</span></summary>

@@ -1,6 +1,6 @@
 import { Body, Controller, Post, Req } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { IsIn, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import { ContentCopyService, type CopyKind } from "./content-copy.service";
 import type { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { auditContextFrom } from "../common/utils/audit-context";
@@ -19,6 +19,13 @@ export class GenerateContentCopyDto {
   brief?: string;
 }
 
+export class GenerateSeoAuditInsightsDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(40_000)
+  snapshot: string;
+}
+
 @Controller("admin/content")
 export class ContentCopyController {
   constructor(private readonly copy: ContentCopyService) {}
@@ -27,5 +34,14 @@ export class ContentCopyController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   generate(@Body() input: GenerateContentCopyDto, @Req() request: AuthenticatedRequest) {
     return this.copy.generate(input, auditContextFrom(request));
+  }
+
+  @Post("seo-audit-insights")
+  @Throttle({ default: { limit: 4, ttl: 60_000 } })
+  generateSeoAuditInsights(@Body() input: GenerateSeoAuditInsightsDto, @Req() request: AuthenticatedRequest) {
+    return this.copy.generateSeoAuditInsights(input.snapshot, auditContextFrom(request)).then(insights => ({
+      generatedAt: new Date().toISOString(),
+      insights,
+    }));
   }
 }

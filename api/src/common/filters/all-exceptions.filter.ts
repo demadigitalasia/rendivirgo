@@ -10,6 +10,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const context = host.switchToHttp();
     const response = context.getResponse<Response>();
     const request = context.getRequest<Request>();
+    const requestId = (request as Request & { id?: string }).id;
 
     let status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     let errorName = exception instanceof HttpException ? exception.name : "InternalServerError";
@@ -61,6 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error: errorName,
       message,
       path: request.path,
+      requestId,
       timestamp: new Date().toISOString(),
     });
   }

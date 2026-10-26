@@ -6,16 +6,19 @@ export type ApiErrorPayload = {
   statusCode?: number;
   message?: string | string[];
   error?: string;
+  requestId?: string;
 };
 
 export class ApiError extends Error {
   status: number;
+  requestId: string | null;
   payload?: ApiErrorPayload;
 
-  constructor(message: string, status: number, payload?: ApiErrorPayload) {
+  constructor(message: string, status: number, requestId: string | null, payload?: ApiErrorPayload) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.requestId = requestId;
     this.payload = payload;
   }
 }
@@ -71,14 +74,17 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     if (response.status === 401 && typeof window !== "undefined" && !path.startsWith("/api/auth/login")) {
       window.location.assign("/admin/login?expired=1");
     }
-    throw new ApiError(message, response.status, errorPayload);
+    const requestId = response.headers.get("x-request-id") ?? (typeof errorPayload?.requestId === "string" ? errorPayload.requestId : null);
+    throw new ApiError(message, response.status, requestId, errorPayload);
   }
 
   return payload as T;
 }
 
 export function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
+  if (error instanceof ApiError) {
+    return error.status >= 500 && error.requestId ? `${error.message} (reference ${error.requestId})` : error.message;
+  }
   if (error instanceof Error) return error.message;
   return "Unexpected error";
 }

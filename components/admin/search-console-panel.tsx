@@ -35,10 +35,18 @@ type SearchConsoleSite = { siteUrl: string; permissionLevel: string };
 type SearchConsoleInsight = {
   title: string;
   observation: string;
-  evidence: string;
   action: string;
   priority: "high" | "medium" | "low";
   pageUrl: string | null;
+  evidenceRows: Array<{
+    period: "current" | "previous";
+    dimension: "overview" | "query" | "page";
+    key: string | null;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>;
 };
 
 const integrationPath = "/api/admin/integrations/search-console";
@@ -59,16 +67,35 @@ function dateRange(range: SearchConsoleReport["currentRange"]) {
   return `${range.startDate} – ${range.endDate}`;
 }
 
-function Metric({ label, current, previous, format }: {
+function evidenceRange(report: SearchConsoleReport, period: "current" | "previous") {
+  return dateRange(period === "current" ? report.currentRange : report.previousRange);
+}
+
+function Metric({ label, current, previous, format, direction }: {
   label: string;
   current: number;
   previous: number;
   format: (value: number) => string;
+  direction: "higher" | "lower";
+  deltaUnit?: string;
 }) {
   const change = current - previous;
   const ratio = previous > 0 ? change / previous : null;
-  const changeText = ratio === null ? (change > 0 ? `+${format(change)}` : "No previous data") : `${change > 0 ? "+" : ""}${format(change)} (${ratio > 0 ? "+" : ""}${formatPercent(ratio)})`;
-  return <div className="rv-gsc-metric"><span>{label}</span><strong>{format(current)}</strong><small className={change > 0 ? "is-up" : change < 0 ? "is-down" : ""}>{changeText} vs previous period</small></div>;
+  const hasPreviousBaseline = previous > 0;
+  const favorable = direction === "higher" ? change > 0 : change < 0;
+  const unfavorable = direction === "higher" ? change < 0 : change > 0;
+  const tone = favorable ? "is-up" : unfavorable ? "is-down" : "";
+  const delta = label === "Average position"
+    ? `${Math.abs(change).toFixed(1)} positions`
+    : label === "Average CTR"
+      ? `${(Math.abs(change) * 100).toFixed(2)} percentage points`
+      : format(Math.abs(change));
+  const directionLabel = favorable ? "improved" : unfavorable ? "declined" : "unchanged";
+  const relativeChange = label === "Average position" || ratio === null ? "" : ` (${formatPercent(Math.abs(ratio))} relative change)`;
+  const changeText = hasPreviousBaseline
+    ? `${delta} ${directionLabel}${relativeChange} vs previous period`
+    : "No previous-period baseline";
+  return <div className="rv-gsc-metric"><span>{label}</span><strong>{format(current)}</strong><small className={tone}>{changeText}</small></div>;
 }
 
 export function SearchConsolePanel() {
@@ -178,21 +205,27 @@ export function SearchConsolePanel() {
       {state.data.siteUrl ? <div className="rv-gsc-report-actions"><div><strong>{state.data.siteUrl}</strong><small>{state.data.lastSyncedAt ? `Last refreshed ${new Date(state.data.lastSyncedAt).toLocaleString("en-US")}` : "No performance report has been loaded yet."}</small></div><Button variant="primary" onClick={refreshReport} loading={action === "sync"} disabled={Boolean(action)}>{report ? "Refresh performance" : "Load performance"}</Button></div> : null}
       {report ? <>
         <div className="rv-gsc-periods"><span>Current: {dateRange(report.currentRange)}</span><span>Previous: {dateRange(report.previousRange)}</span></div>
+        {report.current.impressions < 100 || report.current.clicks < 20 ? <p className="rv-gsc-low-sample" role="status">Low sample in the current period ({formatInteger(report.current.impressions)} impressions, {formatInteger(report.current.clicks)} clicks). AI suggestions are marked low priority and should be treated as exploratory.</p> : null}
         <div className="rv-gsc-metrics">
-          <Metric label="Clicks" current={report.current.clicks} previous={report.previous.clicks} format={formatInteger} />
-          <Metric label="Impressions" current={report.current.impressions} previous={report.previous.impressions} format={formatInteger} />
-          <Metric label="Average CTR" current={report.current.ctr} previous={report.previous.ctr} format={formatPercent} />
-          <Metric label="Average position" current={report.current.position} previous={report.previous.position} format={formatPosition} />
+          <Metric label="Clicks" current={report.current.clicks} previous={report.previous.clicks} format={formatInteger} direction="higher" />
+          <Metric label="Impressions" current={report.current.impressions} previous={report.previous.impressions} format={formatInteger} direction="higher" />
+          <Metric label="Average CTR" current={report.current.ctr} previous={report.previous.ctr} format={formatPercent} direction="higher" />
+          <Metric label="Average position" current={report.current.position} previous={report.previous.position} format={formatPosition} direction="lower" />
         </div>
         <p className="rv-gsc-note">{report.note}</p>
         <div className="rv-gsc-tables">
-          <div><h3>Pages with the most impressions</h3><MetricTable rows={report.current.topPages.slice(0, 8)} empty="No page data for this period." /></div>
+          <div><h3>Highest impressions in the top 25 click-ranked pages</h3><MetricTable rows={report.current.topPages.slice(0, 8)} empty="No page data for this period." /></div>
           <div><h3>Top search queries</h3><MetricTable rows={report.current.topQueries.slice(0, 8)} empty="No query data for this period." /></div>
         </div>
         <div className="rv-gsc-ai-actions"><div><strong>AI recommendations</strong><p>Uses the saved metrics only. Recommendations stay in this dashboard; the AI does not edit or publish pages.</p></div><Button onClick={generateInsights} loading={action === "insights"} disabled={Boolean(action)}>Generate recommendations</Button></div>
         {insights.length ? <ol className="rv-gsc-insights">{insights.map((insight, index) => <li key={`${insight.title}-${index}`}>
           <div className="rv-gsc-insight-heading"><h3>{insight.title}</h3><Badge tone={insight.priority === "high" ? "red" : insight.priority === "medium" ? "amber" : "gray"}>{insight.priority} priority</Badge></div>
-          <p>{insight.observation}</p><small><strong>Evidence:</strong> {insight.evidence}</small><p><strong>Suggested action:</strong> {insight.action}</p>
+          <p>{insight.observation}</p>
+          <div className="rv-gsc-insight-evidence"><strong>Verified report rows</strong><ul>{insight.evidenceRows.map((row, rowIndex) => <li key={`${row.period}-${row.dimension}-${row.key ?? "overview"}-${rowIndex}`}>
+            <span><b>{row.dimension === "overview" ? "Site overview" : row.key}</b><small>{evidenceRange(report, row.period)} · {row.period} period</small></span>
+            <span>{formatInteger(row.clicks)} clicks · {formatInteger(row.impressions)} impressions · {formatPercent(row.ctr)} CTR · position {formatPosition(row.position)}</span>
+          </li>)}</ul></div>
+          <p><strong>Suggested action:</strong> {insight.action}</p>
           {insight.pageUrl ? <a href={insight.pageUrl} target="_blank" rel="noreferrer">Open related page</a> : null}
         </li>)}</ol> : null}
       </> : null}
