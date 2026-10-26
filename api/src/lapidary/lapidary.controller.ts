@@ -17,6 +17,7 @@ import {
   CreateLapidaryProgressUpdateDto,
   CreateLapidaryRequestDto,
   LapidaryRequestQueryDto,
+  RequestLapidaryAccessLinkDto,
   SaveLapidaryArtistsPresentationDto,
   SaveLapidaryArtistDto,
   SaveLapidaryProcessDto,
@@ -87,6 +88,13 @@ export class LapidaryPublicController {
       ? session.customer.id
       : null;
     return this.lapidary.createRequest(dto, files ?? [], customerId);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 15 * 60_000 } })
+  @Post("requests/access-link")
+  requestAccessLink(@Body() dto: RequestLapidaryAccessLinkDto) {
+    return this.lapidary.requestAccessLink(dto.requestNumber, dto.email);
   }
 }
 

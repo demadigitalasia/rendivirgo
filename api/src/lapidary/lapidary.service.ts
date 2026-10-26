@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma";
 import { publicAppOrigin } from "../common/utils/public-app-origin";
-import { chmod, mkdir, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, unlink, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { AuditService } from "../audit/audit.service";
@@ -344,6 +345,54 @@ function statusLabel(status: string): string {
   return status.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
+const LAPIDARY_REQUEST_TERMS_VERSION = "lapidary-request-v1";
+
+const LAPIDARY_STATUS_TRANSITIONS: Record<string, Record<string, string[]>> = {
+  CustomerSupplied: {
+    New: ["Reviewing", "Declined", "Cancelled"],
+    Reviewing: ["Approved", "Declined", "Cancelled"],
+    QuoteSent: ["Approved", "Declined", "Cancelled"],
+    Approved: ["Cancelled", "Declined"],
+    MaterialInTransit: ["MaterialReceived", "ReturnPending", "Cancelled"],
+    MaterialReceived: ["ReturnPending", "EstimateSent", "InProgress", "Cancelled"],
+    EstimateSent: ["ReturnPending", "InProgress", "Cancelled"],
+    InProgress: ["ReturnPending", "Completed", "EstimateSent", "Cancelled"],
+    Completed: ["ReturnPending", "AwaitingPayment", "Cancelled"],
+    AwaitingPayment: ["ReturnPending", "ReturnShipped", "Cancelled"],
+    ReturnPending: ["AwaitingPayment"],
+    ReturnShipped: ["Delivered"],
+    Delivered: [],
+    Declined: [],
+    Cancelled: [],
+  },
+  RendiVirgoStock: {
+    New: ["Reviewing", "Declined", "Cancelled"],
+    Reviewing: ["QuoteSent", "Declined", "Cancelled"],
+    QuoteSent: ["Approved", "Declined", "Cancelled"],
+    Approved: ["InProgress", "Declined", "Cancelled"],
+    InProgress: ["Completed", "Cancelled"],
+    Completed: [],
+    AwaitingPayment: [],
+    ReturnShipped: [],
+    Delivered: [],
+    Declined: [],
+    Cancelled: [],
+  },
+  Undecided: {
+    New: ["Reviewing", "Declined", "Cancelled"],
+    Reviewing: ["QuoteSent", "Declined", "Cancelled"],
+    QuoteSent: ["Approved", "Declined", "Cancelled"],
+    Approved: ["InProgress", "Declined", "Cancelled"],
+    InProgress: ["Completed", "Cancelled"],
+    Completed: [],
+    AwaitingPayment: [],
+    ReturnShipped: [],
+    Delivered: [],
+    Declined: [],
+    Cancelled: [],
+  },
+};
+
 function renderLapidaryEmail(title: string, content: string): string {
   return `<!doctype html><html><body style="margin:0;padding:32px 12px;background:#f5f2eb;color:#26392e;font-family:Arial,Helvetica,sans-serif"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fffdf8;border:1px solid #dedfd2"><tr><td style="padding:25px 32px;background:#102b23;color:#f7f4ee;font-family:Georgia,serif;font-size:18px;letter-spacing:1px">RENDI VIRGO <span style="color:#d8c49b;font-family:Arial,sans-serif;font-size:11px;letter-spacing:2px">· LAPIDARY</span></td></tr><tr><td style="padding:34px 32px 18px"><p style="margin:0 0 12px;color:#896d41;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase">LAPIDARY STUDIO</p><h1 style="margin:0 0 20px;color:#183e30;font-family:Georgia,serif;font-size:30px;font-weight:normal;line-height:1.2">${escapeHtml(title)}</h1><div style="font-size:15px;line-height:1.8">${content}</div></td></tr><tr><td style="padding:18px 32px 25px;border-top:1px solid #e6e3da;color:#74786f;font-size:11px;line-height:1.6">RENDI VIRGO · Indonesia to the world<br>Reply to this email if you need help with your project.</td></tr></table></td></tr></table></body></html>`;
 }
@@ -454,6 +503,17 @@ export class LapidaryService {
     // A filled honeypot is reported as received, but never stored or emailed.
     if (input.website?.trim()) return { ok: true, requestNumber: "LR-RECEIVED" };
     if (input.country.trim().length < 2) throw new BadRequestException("Add your country");
+
+    if (input.submissionKey) {
+      const previous = await this.prisma.lapidaryRequest.findUnique({
+        where: { submissionKey: input.submissionKey },
+        select: { requestNumber: true, email: true, customerId: true },
+      });
+      if (previous) {
+        if (previous.email !== input.email.trim().toLowerCase()) throw new ConflictException("This submission key belongs to a different request");
+        return { ok: true, requestNumber: previous.requestNumber, accountLinked: Boolean(previous.customerId) };
+      }
+    }
 
     if (input.materialSource === "CustomerSupplied") {
       if (!input.materialDescription?.trim() || input.materialDescription.trim().length < 2) throw new BadRequestException("Describe the stone you will provide");
@@ -583,6 +643,8 @@ export class LapidaryService {
         const created = await tx.lapidaryRequest.create({
           data: {
             requestNumber,
+            submissionKey: input.submissionKey ?? null,
+            termsVersion: LAPIDARY_REQUEST_TERMS_VERSION,
             customerId,
             claimTokenHash,
             claimTokenExpiresAt: claimTokenHash ? new Date(Date.now() + 30 * 24 * 60 * 60_000) : null,
@@ -659,9 +721,22 @@ export class LapidaryService {
         return created;
       }).catch(async (error) => {
         await Promise.all(stagedMedia.map((media) => unlink(media.absolutePath).catch(() => undefined)));
+        const uniqueConflict = typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "P2002";
+        if (uniqueConflict && input.submissionKey) {
+          const previous = await this.prisma.lapidaryRequest.findUnique({
+            where: { submissionKey: input.submissionKey },
+            select: { requestNumber: true, email: true, customerId: true },
+          });
+          if (previous) {
+            if (previous.email !== input.email.trim().toLowerCase()) {
+              throw new ConflictException("This submission key belongs to a different request");
+            }
+            return previous;
+          }
+        }
         throw error;
       });
-    return { ok: true, requestNumber: request.requestNumber, accountLinked: Boolean(customerId) };
+    return { ok: true, requestNumber: request.requestNumber, accountLinked: Boolean(request.customerId) };
   }
 
   private async enqueueIntakeEmails(
@@ -682,7 +757,7 @@ export class LapidaryService {
     }).join("");
     const adminHtml = renderLapidaryEmail("A new service request is ready for review.", `<p><strong>${safeNumber}</strong></p><p>${safeName} submitted these shape specifications:</p><ul>${workSummary}</ul><p>Email: ${escapeHtml(request.email)}<br>Phone: ${escapeHtml(request.phone)}</p><p><a href="${escapeHtml(adminUrl)}" style="display:inline-block;margin-top:8px;padding:12px 18px;background:#183e30;color:#fffdf8;text-decoration:none">Review request</a></p>`);
     const accountUrl = claimToken
-      ? `${publicAppOrigin()}/account/login?next=${encodeURIComponent(`/account/lapidary?claim=${claimToken}`)}`
+      ? `${publicAppOrigin()}/account/login?next=${encodeURIComponent(`/account/lapidary?claim=${encodeURIComponent(claimToken)}&request=${encodeURIComponent(request.requestNumber)}`)}`
       : `${publicAppOrigin()}/account/lapidary`;
     const accountInstructions = claimToken
       ? `<p>To follow this project in your account, create an account or sign in using the same email address as this request. Your secure project link expires in 30 days.</p>`
@@ -1089,10 +1164,21 @@ export class LapidaryService {
       this.prisma.lapidaryEmailOutbox.count({ where: { status: "Pending" } }),
       this.prisma.lapidaryEmailOutbox.count({ where: { status: "Failed", encryptedPayload: { not: "" } } }),
     ]);
-    return { email: this.email.readiness(), origin, originError, pendingEmails, failedEmails };
+    let privateUploadStorageWritable = false;
+    try {
+      await mkdir(this.privateUploadDir, { recursive: true, mode: 0o700 });
+      await access(this.privateUploadDir, fsConstants.W_OK);
+      privateUploadStorageWritable = true;
+    } catch {
+      // Keep the admin readiness endpoint available when private media storage is unavailable.
+    }
+    return {
+      email: this.email.readiness(), origin, originError, pendingEmails, failedEmails, privateUploadStorageWritable,
+      privateUploadStorageNote: "Writable access does not confirm that Coolify uses a persistent volume or that backups can be restored.",
+    };
   }
 
-  async reissueInvitation(requestId: string, context: AuditContext) {
+  private async issueCustomerInvitation(requestId: string) {
     if (!this.email.isEnabled() || !this.email.readiness().senderConfigured) throw new ServiceUnavailableException("Configure the email provider and sender before sending a project invitation");
     const origin = publicAppOrigin();
     const result = await this.withRequestLock(requestId, async (tx) => {
@@ -1104,13 +1190,33 @@ export class LapidaryService {
       const token = randomBytes(32).toString("base64url");
       const hash = createHash("sha256").update(token).digest("hex");
       await tx.lapidaryRequest.update({ where: { id: requestId }, data: { claimTokenHash: hash, claimTokenExpiresAt: new Date(Date.now() + lifetime) } });
-      const accountUrl = `${origin}/account/login?next=${encodeURIComponent(`/account/lapidary?claim=${token}`)}`;
+      const accountUrl = `${origin}/account/login?next=${encodeURIComponent(`/account/lapidary?claim=${encodeURIComponent(token)}&request=${encodeURIComponent(request.requestNumber)}`)}`;
       await this.emailOutbox.enqueue(tx, requestId, `lapidary:${requestId}:invitation:${hash.slice(0, 16)}`, {
         to: request.email, claimTokenHash: hash, subject: `Your project account invitation — ${request.requestNumber}`,
         html: renderLapidaryEmail("Your secure project link is ready.", `<p>Hello ${escapeHtml(request.name)},</p><p>Create or sign in to a verified account using the same email as project <strong>${escapeHtml(request.requestNumber)}</strong>. This new link replaces earlier invitations and expires in 30 days.</p><p><a href="${escapeHtml(accountUrl)}">Create account or sign in</a></p>`),
       });
       return { requestNumber: request.requestNumber };
     });
+    return result;
+  }
+
+  async requestAccessLink(requestNumber: string, email: string) {
+    const request = await this.prisma.lapidaryRequest.findUnique({
+      where: { requestNumber: requestNumber.trim().toUpperCase() },
+      select: { id: true, email: true, customerId: true },
+    });
+    if (!request || request.email !== email.trim().toLowerCase() || request.customerId) return { ok: true };
+    try {
+      await this.issueCustomerInvitation(request.id);
+    } catch (error) {
+      // The response is intentionally identical for mismatches, linked requests, cooldowns, and email failures.
+      this.logger.warn(`A lapidary access-link request could not be queued (${error instanceof Error ? error.name : "unknown error"})`);
+    }
+    return { ok: true };
+  }
+
+  async reissueInvitation(requestId: string, context: AuditContext) {
+    const result = await this.issueCustomerInvitation(requestId);
     await this.audit.log({ adminId: context.adminId, action: "lapidary_invitation.reissue", entityType: "LapidaryRequest", entityId: requestId, summary: `Reissued account invitation for ${result.requestNumber}`, ip: context.ip, userAgent: context.userAgent });
     return { ok: true };
   }
@@ -1143,6 +1249,44 @@ export class LapidaryService {
     }, { timeout: 15_000 });
   }
 
+  private async assertSelectedStockAvailable(
+    tx: Prisma.TransactionClient,
+    items: Array<{ productId: string | null; materialQuantity: Prisma.Decimal | null }>,
+  ) {
+    const requestedByProduct = new Map<string, number>();
+    for (const item of items) {
+      if (!item.productId) throw new ConflictException("This stock project no longer has a complete material selection");
+      requestedByProduct.set(item.productId, (requestedByProduct.get(item.productId) ?? 0) + Number(item.materialQuantity ?? 0));
+    }
+    const productIds = [...requestedByProduct.keys()];
+    const products = await tx.product.findMany({
+      where: {
+        id: { in: productIds },
+        status: "Published",
+        sellOnWeb: true,
+        category: { slug: { in: ["rough", "slab"] }, isActive: true },
+      },
+      select: {
+        id: true,
+        name: true,
+        stockModel: true,
+        stockQuantity: true,
+        variants: { select: { stockQuantity: true } },
+      },
+    });
+    const productById = new Map(products.map((product) => [product.id, product]));
+    for (const [productId, requested] of requestedByProduct) {
+      const product = productById.get(productId);
+      if (!product) throw new ConflictException("A selected catalog stone is no longer available. Review the material choice before quoting");
+      const available = product.variants.length
+        ? product.variants.reduce((sum, variant) => sum + variant.stockQuantity, 0)
+        : product.stockModel === "Unique" ? 1 : (product.stockQuantity ?? 0);
+      if (available <= 0 || requested > available) {
+        throw new ConflictException(`The selected stone “${product.name}” no longer has enough available material. Review the request before quoting`);
+      }
+    }
+  }
+
   async updateRequest(id: string, input: UpdateLapidaryRequestDto, context: AuditContext) {
     const outcome = await this.withRequestLock(id, async (tx) => {
       const previousProof = input.reviseInvoice ? await tx.lapidaryInvoice.findUnique({ where: { requestId: id }, select: { paymentProofPath: true } }) : null;
@@ -1158,6 +1302,7 @@ export class LapidaryService {
       where: { id },
       include: {
         invoice: true,
+        items: true,
         customer: { select: { name: true, email: true, phone: true, addressLine1: true, addressLine2: true, city: true, state: true, postalCode: true, country: true, countryCode: true } },
       },
     });
@@ -1228,27 +1373,18 @@ export class LapidaryService {
 
     if (customerMaterial && nextStatus === "ReturnPending" && !returnRequired && existing.status !== "ReturnPending") throw new BadRequestException("Use Cancelled with a reason to arrange material return");
 
-    if (customerMaterial) {
-      const allowed: Record<string, string[]> = {
-        New: ["Reviewing", "Declined", "Cancelled"],
-        Reviewing: ["QuoteSent", "Approved", "Declined", "Cancelled"],
-        QuoteSent: ["Approved", "Declined", "Cancelled"],
-        Approved: ["Cancelled", "Declined"],
-        MaterialInTransit: ["MaterialReceived", "ReturnPending", "Cancelled"],
-        MaterialReceived: ["ReturnPending", "EstimateSent", "InProgress", "Cancelled"],
-        EstimateSent: ["ReturnPending", "InProgress", "Cancelled"],
-        InProgress: ["ReturnPending", "Completed", "EstimateSent", "Cancelled"],
-        Completed: ["ReturnPending", "AwaitingPayment", "Cancelled"],
-        AwaitingPayment: ["ReturnPending", "ReturnShipped", "Cancelled"],
-        ReturnPending: ["AwaitingPayment"],
-        ReturnShipped: ["Delivered"],
-        Delivered: [],
-        Declined: [],
-        Cancelled: ["ReturnPending"],
-      };
-      if (nextStatus !== existing.status && !allowed[existing.status]?.includes(nextStatus)) {
-        throw new ConflictException(`Cannot move a customer supplied project from ${statusLabel(existing.status)} to ${statusLabel(nextStatus)}`);
-      }
+    const allowed = LAPIDARY_STATUS_TRANSITIONS[existing.materialSource]?.[existing.status] ?? [];
+    if (nextStatus !== existing.status && !allowed.includes(nextStatus)) {
+      throw new ConflictException(`Cannot move this ${statusLabel(existing.materialSource)} project from ${statusLabel(existing.status)} to ${statusLabel(nextStatus)}`);
+    }
+    if (!customerMaterial && nextStatus === "Approved" && (existing.status !== "QuoteSent" || quoteAmount === null)) {
+      throw new ConflictException("Send a written quote and record the customer's approval before approving this project");
+    }
+    if (nextStatus !== existing.status && (input.statusReason?.trim().length ?? 0) < 5) {
+      throw new BadRequestException("Add an internal reason of at least 5 characters when changing the project status");
+    }
+    if (existing.materialSource === "RendiVirgoStock" && nextStatus !== existing.status && ["QuoteSent", "Approved"].includes(nextStatus)) {
+      await this.assertSelectedStockAvailable(tx, existing.items);
     }
 
     if (customerMaterial && nextStatus === "Approved") {
@@ -1407,11 +1543,11 @@ export class LapidaryService {
       if (customerMaterial && approvalNoticeChanged) {
         const baseUrl = publicAppOrigin();
         const nextPath = claimToken
-          ? `/account/lapidary?claim=${encodeURIComponent(claimToken)}`
+          ? `/account/lapidary?claim=${encodeURIComponent(claimToken)}&request=${encodeURIComponent(updated.requestNumber)}`
           : "/account/lapidary";
         const accountUrl = `${baseUrl}/account/login?next=${encodeURIComponent(nextPath)}`;
         const accountAccessInstructions = !claimToken && !existing.customerId
-          ? `<p>Use the secure project link in our request confirmation email to link this project to your account. Sign in or create an account using the same email address as this request. If that link has expired, contact the studio and we can send a new one.</p>`
+          ? `<p>Use the secure project link in our request confirmation email to link this project to your account. Sign in or create an account using the same email address as this request. If that link expires, request another from the account sign-in page using your project reference.</p>`
           : "";
         const accountLinkLabel = claimToken ? "Create account or sign in" : existing.customerId ? "Open your project account" : "Sign in to your account";
         const emailInstructions = (shippingInstructions || "").split("\n").map(escapeHtml).join("<br>");
@@ -1465,7 +1601,12 @@ export class LapidaryService {
       entityType: "LapidaryRequest",
       entityId: id,
       summary: `Updated ${request.requestNumber} to ${statusLabel(request.status)}`,
-      metadata: { status: request.status, quoteAmount: request.quoteAmount ? Number(request.quoteAmount) : null },
+      metadata: {
+        previousStatus: existing.status,
+        status: request.status,
+        statusReason: input.statusReason?.trim() || null,
+        quoteAmount: request.quoteAmount ? Number(request.quoteAmount) : null,
+      },
       ip: context.ip,
       userAgent: context.userAgent,
     });

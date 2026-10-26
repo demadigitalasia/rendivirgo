@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUpRight, BadgeCheck, ChevronRight, FileText, Gem, LayoutDashboard, LogOut, PackageSearch, RefreshCw, UserRound } from "lucide-react";
 import { useCart, useCopy } from "@/components/providers";
 import { LocalizedLink as Link } from "@/components/localized-link";
+import { LapidaryProjectAccessRecovery } from "@/components/lapidary/project-access-recovery";
 import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
 import "./customer-lapidary.css";
 
@@ -115,6 +116,7 @@ export function CustomerLapidaryDashboard() {
   const router = useRouter();
   const search = useSearchParams();
   const claimToken = search.get("claim");
+  const claimRequestNumber = search.get("request") ?? "";
   const claimHandled = useRef(false);
   const [projects, setProjects] = useState<LapidaryProject[]>([]);
   const [profile, setProfile] = useState<LapidaryCustomerProfile | null>(null);
@@ -131,7 +133,8 @@ export function CustomerLapidaryDashboard() {
     setError("");
     const me = await fetch("/api/customer-account/me", { credentials: "same-origin", cache: "no-store" });
     if (me.status === 401 || me.status === 403) {
-      const next = `/account/lapidary${claimToken ? `?claim=${encodeURIComponent(claimToken)}` : ""}`;
+      const claimQuery = claimToken ? `?claim=${encodeURIComponent(claimToken)}${claimRequestNumber ? `&request=${encodeURIComponent(claimRequestNumber)}` : ""}` : "";
+      const next = `/account/lapidary${claimQuery}`;
       router.replace(`/account/login?next=${encodeURIComponent(next)}`);
       return;
     }
@@ -153,7 +156,7 @@ export function CustomerLapidaryDashboard() {
     setProjects(Array.isArray(projectList) ? projectList : []);
     setPayments(methodPayload);
     setLastUpdated(new Date().toLocaleTimeString());
-  }, [claimToken, router]);
+  }, [claimToken, claimRequestNumber, router]);
 
   useEffect(() => {
     void load().catch((caught) => setError(caught instanceof Error ? caught.message : "Projects could not be loaded."))
@@ -224,6 +227,7 @@ export function CustomerLapidaryDashboard() {
         <div className="customer-lapidary__refresh"><small>{loading ? "Loading your latest projects…" : lastUpdated ? `Updated at ${lastUpdated}` : "Your project activity"}</small><button type="button" className="button button--outline" disabled={loading || Boolean(busyId)} onClick={() => void load().catch((caught) => setError(caught instanceof Error ? caught.message : "Refresh failed."))}><RefreshCw className="rv-icon" size={16} strokeWidth={1.6} aria-hidden="true" />Refresh projects</button></div>
       </div>
     {error ? <p className="customer-account__error" role="alert">{error}</p> : null}
+    {claimToken && error ? <LapidaryProjectAccessRecovery initialRequestNumber={claimRequestNumber} initialEmail={profile?.email ?? ""} compact /> : null}
     {success ? <p className="customer-account__message" role="status">{success}</p> : null}
       {loading ? <div className="customer-lapidary__loading" role="status"><span className="customer-lapidary__loading-mark"><Gem className="rv-icon" size={20} strokeWidth={1.6} aria-hidden="true" /></span><span>Loading your lapidary projects…</span></div> : projects.length ? <div className="customer-lapidary__projects">{projects.map((project) => <article className="customer-lapidary__project" key={project.id}>
       <div className="customer-lapidary__project-heading"><div><span className="customer-lapidary__eyebrow">PROJECT REFERENCE</span><h2>{project.requestNumber}</h2></div><strong className="customer-lapidary__status">{project.status.replace(/([a-z])([A-Z])/g, "$1 $2")}</strong></div>

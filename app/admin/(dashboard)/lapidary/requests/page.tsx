@@ -32,24 +32,37 @@ type LapidaryRequestComponent = NonNullable<LapidaryRequestItem["components"]>[n
 
 function displayStatus(status: string) { return status.replace(/([a-z])([A-Z])/g, "$1 $2"); }
 function availableStatuses(request: LapidaryRequest) {
-  if (request.materialSource !== "CustomerSupplied") return statuses;
-  const next: Record<string, string[]> = {
+  const customerSupplied: Record<string, string[]> = {
     New: ["Reviewing", "Declined", "Cancelled"],
     Reviewing: ["Approved", "Declined", "Cancelled"],
     QuoteSent: ["Approved", "Declined", "Cancelled"],
-    Approved: ["Declined", "Cancelled"],
-    MaterialInTransit: ["MaterialReceived", "Cancelled"],
-    MaterialReceived: ["EstimateSent", "InProgress", "Cancelled"],
-    EstimateSent: ["InProgress", "Cancelled"],
-    InProgress: ["Completed", "EstimateSent", "Cancelled"],
-    Completed: ["AwaitingPayment", "Cancelled"],
-    AwaitingPayment: ["ReturnShipped", "Cancelled"],
+    Approved: ["Cancelled", "Declined"],
+    MaterialInTransit: ["MaterialReceived", "ReturnPending", "Cancelled"],
+    MaterialReceived: ["ReturnPending", "EstimateSent", "InProgress", "Cancelled"],
+    EstimateSent: ["ReturnPending", "InProgress", "Cancelled"],
+    InProgress: ["ReturnPending", "Completed", "EstimateSent", "Cancelled"],
+    Completed: ["ReturnPending", "AwaitingPayment", "Cancelled"],
+    AwaitingPayment: ["ReturnPending", "ReturnShipped", "Cancelled"],
     ReturnPending: ["AwaitingPayment"],
     ReturnShipped: ["Delivered"],
     Delivered: [],
     Declined: [],
     Cancelled: [],
   };
+  const stock: Record<string, string[]> = {
+    New: ["Reviewing", "Declined", "Cancelled"],
+    Reviewing: ["QuoteSent", "Declined", "Cancelled"],
+    QuoteSent: ["Approved", "Declined", "Cancelled"],
+    Approved: ["InProgress", "Declined", "Cancelled"],
+    InProgress: ["Completed", "Cancelled"],
+    Completed: [],
+    AwaitingPayment: [],
+    ReturnShipped: [],
+    Delivered: [],
+    Declined: [],
+    Cancelled: [],
+  };
+  const next = request.materialSource === "CustomerSupplied" ? customerSupplied : stock;
   return [...new Set([request.status, ...(next[request.status] ?? [])])];
 }
 function displayValue(value: string | null | undefined) { return value ? value.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/-/g, " ") : "—"; }
@@ -75,7 +88,7 @@ function componentBrief(component: LapidaryRequestComponent) {
 
 export default function AdminLapidaryRequestsPage() {
   const state = useList<LapidaryRequest>("/api/admin/lapidary/requests", { pageSize: 15 });
-  const readiness = useApi<{ email: { enabled: boolean; senderConfigured: boolean }; origin: string | null; originError: string | null; pendingEmails: number; failedEmails: number }>("/api/admin/lapidary/requests/readiness");
+  const readiness = useApi<{ email: { enabled: boolean; senderConfigured: boolean }; origin: string | null; originError: string | null; pendingEmails: number; failedEmails: number; privateUploadStorageWritable: boolean; privateUploadStorageNote: string }>("/api/admin/lapidary/requests/readiness");
   const [reviseInvoice, setReviseInvoice] = useState(false);
   const [invoiceRevisionReason, setInvoiceRevisionReason] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
@@ -90,7 +103,7 @@ export default function AdminLapidaryRequestsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ status: "Reviewing", quoteAmount: "", quoteCurrency: "USD", estimatedDays: "", adminNotes: "", serviceEstimateMin: "", serviceEstimateMax: "", materialShippingInstructions: "", invoiceServiceAmount: "", invoiceReturnShippingAmount: "", invoiceCurrency: "USD", returnCarrier: "", returnTrackingNumber: "", returnTrackingUrl: "" });
+  const [form, setForm] = useState({ status: "Reviewing", statusReason: "", quoteAmount: "", quoteCurrency: "USD", estimatedDays: "", adminNotes: "", serviceEstimateMin: "", serviceEstimateMax: "", materialShippingInstructions: "", invoiceServiceAmount: "", invoiceReturnShippingAmount: "", invoiceCurrency: "USD", returnCarrier: "", returnTrackingNumber: "", returnTrackingUrl: "" });
   const [progressTitle, setProgressTitle] = useState("");
   const [progressBody, setProgressBody] = useState("");
   const [progressPhotos, setProgressPhotos] = useState<File[]>([]);
@@ -98,7 +111,7 @@ export default function AdminLapidaryRequestsPage() {
 
   const setRequestForm = useCallback((detail: LapidaryRequest) => {
     setSelected(detail);
-    setForm({ status: detail.status, quoteAmount: detail.quoteAmount === null ? "" : String(detail.quoteAmount), quoteCurrency: detail.quoteCurrency || "USD", estimatedDays: detail.estimatedDays === null ? "" : String(detail.estimatedDays), adminNotes: detail.adminNotes ?? "", serviceEstimateMin: detail.serviceEstimateMin === null ? "" : String(detail.serviceEstimateMin), serviceEstimateMax: detail.serviceEstimateMax === null ? "" : String(detail.serviceEstimateMax), materialShippingInstructions: detail.materialShippingInstructions ?? "", invoiceServiceAmount: detail.workCancelledAt ? "0" : detail.invoice ? String(detail.invoice.serviceAmount) : "", invoiceReturnShippingAmount: detail.invoice ? String(detail.invoice.returnShippingAmount) : "", invoiceCurrency: detail.quoteCurrency || "USD", returnCarrier: detail.returnCarrier ?? "", returnTrackingNumber: detail.returnTrackingNumber ?? "", returnTrackingUrl: detail.returnTrackingUrl ?? "" });
+    setForm({ status: detail.status, statusReason: "", quoteAmount: detail.quoteAmount === null ? "" : String(detail.quoteAmount), quoteCurrency: detail.quoteCurrency || "USD", estimatedDays: detail.estimatedDays === null ? "" : String(detail.estimatedDays), adminNotes: detail.adminNotes ?? "", serviceEstimateMin: detail.serviceEstimateMin === null ? "" : String(detail.serviceEstimateMin), serviceEstimateMax: detail.serviceEstimateMax === null ? "" : String(detail.serviceEstimateMax), materialShippingInstructions: detail.materialShippingInstructions ?? "", invoiceServiceAmount: detail.workCancelledAt ? "0" : detail.invoice ? String(detail.invoice.serviceAmount) : "", invoiceReturnShippingAmount: detail.invoice ? String(detail.invoice.returnShippingAmount) : "", invoiceCurrency: detail.quoteCurrency || "USD", returnCarrier: detail.returnCarrier ?? "", returnTrackingNumber: detail.returnTrackingNumber ?? "", returnTrackingUrl: detail.returnTrackingUrl ?? "" });
     setProgressTitle(""); setProgressBody(""); setProgressPhotos([]); setProgressVisible(true); setReviseInvoice(false); setInvoiceRevisionReason(""); setCancellationReason(""); setConfirmMaterialReceived(false);
   }, []);
 
@@ -123,6 +136,7 @@ export default function AdminLapidaryRequestsPage() {
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!selected || saving) return;
     if (form.status === "QuoteSent" && !form.quoteAmount.trim()) { setError("Add the quote amount before sending a quote."); return; }
+    if (form.status !== selected.status && form.statusReason.trim().length < 5) { setError("Add an internal status change reason of at least 5 characters."); return; }
     if (selected.materialSource === "CustomerSupplied" && form.status === "Approved" && (!form.serviceEstimateMin.trim() || !form.serviceEstimateMax.trim() || !form.materialShippingInstructions.trim())) { setError("Add an estimate range and the studio shipping address/instructions before approving customer supplied material."); return; }
     if (selected.materialSource === "CustomerSupplied" && form.status === "AwaitingPayment" && (selected.status !== "AwaitingPayment" || reviseInvoice) && (!form.invoiceServiceAmount.trim() || !form.invoiceReturnShippingAmount.trim())) { setError("Add the final service and return shipping fees to issue the invoice."); return; }
     if (reviseInvoice && invoiceRevisionReason.trim().length < 5) { setError("Add a revision reason of at least 5 characters."); return; }
@@ -131,6 +145,7 @@ export default function AdminLapidaryRequestsPage() {
     try {
       await apiFetch(`/api/admin/lapidary/requests/${selected.id}`, { method: "PATCH", json: {
         status: form.status,
+        statusReason: form.status === selected.status ? undefined : form.statusReason.trim(),
         reviseInvoice,
         invoiceRevisionReason: reviseInvoice ? invoiceRevisionReason.trim() : undefined,
         cancellationReason: cancellationReason.trim() || undefined,
@@ -205,8 +220,8 @@ export default function AdminLapidaryRequestsPage() {
   return <>
     <PageHeader title="Lapidary requests" subtitle="Review service inquiries, prepare quotes, and follow each project through the studio." actions={<Button href="/admin/lapidary/content">Manage studio content</Button>} />
     <div className="rv-content rv-lapidary-admin">
-      {readiness.error ? <p className="rv-error-text" role="alert">Email readiness could not be checked. <Button onClick={readiness.refresh}>Retry readiness check</Button></p> : null}
-      {readiness.data ? <Card title="Project notification readiness"><div className="rv-stack"><p className="rv-hint">Project links: {readiness.data.origin || readiness.data.originError}. Pending messages: {readiness.data.pendingEmails}. Failed messages: {readiness.data.failedEmails}.</p>{!readiness.data.email.enabled || !readiness.data.email.senderConfigured ? <p className="rv-error-text" role="status">Email delivery needs configuration. Requests can be reviewed and notifications remain queued. Configure the email provider and sender before approving a project or sending an invitation.</p> : <p className="rv-hint">Email provider and sender are configured. Provider acceptance does not confirm inbox delivery.</p>}<Button onClick={readiness.refresh}>Refresh readiness</Button></div></Card> : null}
+      {readiness.error ? <p className="rv-error-text" role="alert">Project readiness could not be checked. <Button onClick={readiness.refresh}>Retry readiness check</Button></p> : null}
+      {readiness.data ? <Card title="Project readiness"><div className="rv-stack"><p className="rv-hint">Project links: {readiness.data.origin || readiness.data.originError}. Pending messages: {readiness.data.pendingEmails}. Failed messages: {readiness.data.failedEmails}.</p>{!readiness.data.privateUploadStorageWritable ? <p className="rv-error-text" role="status">Private upload storage is not writable. Check the API container path and permissions before accepting customer reference files.</p> : <p className="rv-hint">Private upload directory is writable. This does not verify persistent storage or backups; confirm the Coolify volume and restore process separately.</p>}{!readiness.data.email.enabled || !readiness.data.email.senderConfigured ? <p className="rv-error-text" role="status">Email delivery needs configuration. Requests can be reviewed and notifications remain queued. Configure the email provider and sender before approving a project or sending an invitation.</p> : <p className="rv-hint">Email provider and sender are configured. Provider acceptance does not confirm inbox delivery.</p>}<Button onClick={readiness.refresh}>Refresh readiness</Button></div></Card> : null}
       <div className="rv-lapidary-admin__summary"><div><span>Requests</span><strong>{state.data?.total ?? "—"}</strong></div><p>For customer supplied stones, the customer accepts the estimate and the studio confirms receipt before work starts.</p></div>
       <Card title="Request inbox" description="New customer inquiries are recorded here and sent to the store notification email.">
         <div className="rv-stack">
@@ -248,6 +263,7 @@ export default function AdminLapidaryRequestsPage() {
             <Field label="Currency"><TextInput maxLength={3} value={form.quoteCurrency} onChange={(quoteCurrency) => setForm({ ...form, quoteCurrency })} /></Field>
             <Field label="Estimated studio days"><TextInput type="number" min={1} max={3650} step="1" value={form.estimatedDays} onChange={(estimatedDays) => setForm({ ...form, estimatedDays })} /></Field>
           </div>
+          {form.status !== selected.status ? <Field label="Internal status change reason" hint="Required for the audit log. This note is not sent to the customer."><TextArea required maxLength={1000} value={form.statusReason} onChange={(statusReason) => setForm({ ...form, statusReason })} /></Field> : null}
           {selected.materialSource === "CustomerSupplied" ? <>
             {form.status === "Cancelled" && (selected.materialReceivedAt || selected.status === "MaterialInTransit") ? <Field label="Cancellation reason" hint="The project will move to Return Pending so material can be returned before closing."><TextArea required maxLength={1000} value={cancellationReason} onChange={setCancellationReason} /></Field> : null}
             {selected.workCancelledAt ? <p className="rv-hint">Studio work cancelled: {selected.cancellationReason}. Arrange a return-only invoice with zero service fee.</p> : null}
@@ -261,7 +277,7 @@ export default function AdminLapidaryRequestsPage() {
             {form.status === "ReturnShipped" ? <section className="rv-card rv-stack"><h3>Return tracking</h3><div className="rv-lapidary-admin__edit-grid"><Field label="Carrier"><TextInput maxLength={120} value={form.returnCarrier} onChange={(returnCarrier) => setForm({ ...form, returnCarrier })} /></Field><Field label="Tracking number"><TextInput maxLength={160} value={form.returnTrackingNumber} onChange={(returnTrackingNumber) => setForm({ ...form, returnTrackingNumber })} /></Field><Field label="Tracking link"><TextInput type="url" maxLength={1000} value={form.returnTrackingUrl} onChange={(returnTrackingUrl) => setForm({ ...form, returnTrackingUrl })} /></Field></div></section> : null}
           </> : null}
           <Field label="Internal notes"><TextArea value={form.adminNotes} onChange={(adminNotes) => setForm({ ...form, adminNotes })} rows={4} maxLength={8000} /></Field>
-          <p className="rv-hint">Status transitions are checked by the API. Every new request queues a secure account link; approved customer-supplied projects also email studio shipping instructions. Invoices are created when you move the project to Awaiting Payment.</p>
+          <p className="rv-hint">Status transitions are checked by the API and recorded with an internal reason. New requests queue a secure account link; approved customer-supplied projects also email studio shipping instructions. The invoice flow currently applies to customer-supplied material.</p>
           {error ? <p className="rv-error-text" role="alert">{error}</p> : null}
           <div className="rv-inline rv-lapidary-admin__actions"><Button onClick={() => setSelected(null)} disabled={saving}>Cancel</Button><Button type="submit" variant="primary" loading={saving}>Save request</Button></div>
         </form>

@@ -1027,6 +1027,7 @@ model SiteSetting {
 model LapidaryRequest {
   id                  String                 @id @default(cuid())
   requestNumber       String                 @unique
+  submissionKey       String?                @unique
   name                String
   email               String
   phone               String
@@ -1051,6 +1052,7 @@ model LapidaryRequest {
   items               LapidaryRequestItem[]
   media               LapidaryRequestMedia[]
   termsAcceptedAt     DateTime               @default(now())
+  termsVersion        String?
   status              LapidaryRequestStatus  @default(New)
   quoteAmount         Decimal?               @db.Decimal(12, 2)
   quoteCurrency       String                 @default("USD")

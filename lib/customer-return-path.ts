@@ -15,5 +15,5 @@ export function wholesaleRegistrationIntent(value: string): string | undefined {
 /** Preserve only the lapidary claim destination when an invited customer registers. */
 export function lapidaryRegistrationIntent(value: string): string | undefined {
   if (value === "/account/lapidary") return value;
-  return /^\/account\/lapidary\?claim=[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined;
+  return /^\/account\/lapidary\?claim=[A-Za-z0-9_-]{43}(?:&request=LR-\d{8}-\d{4,})?$/.test(value) ? value : undefined;
 }

@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, ChevronRight, Clock3, 
 import { useCart, useCopy } from "@/components/providers";
 import { LocalizedLink as Link } from "@/components/localized-link";
 import { CountryDropdown } from "@/components/country-dropdown";
+import { LapidaryProjectAccessRecovery } from "@/components/lapidary/project-access-recovery";
 import { canAccessWholesale, storefrontRoutes } from "@/lib/navigation";
 import { OTHER_COUNTRY_VALUE, countryCodeForName, countryNameForCode } from "@/lib/countries";
 import { ArrowIcon, ArrowLeftIcon, ArrowUpRightIcon, ChevronRightIcon, Icon } from "@/components/icons";
@@ -337,6 +338,7 @@ export function CustomerAccess({ mode, token = "" }: { mode: AccessMode; token?:
             {mode === "register" ? <span>Already have an account? <Link href={accountLink("/account/login")}>Sign in</Link></span> : !verified ? <span>New to RENDI VIRGO? <Link href={accountLink("/account/register")}>Create account</Link></span> : null}
           </nav>
           <Link className="customer-access__guest" href="/orders">Looking for a past guest order? <span>View order history <ArrowIcon size={15} /></span></Link>
+          {mode === "login" ? <LapidaryProjectAccessRecovery compact /> : null}
         </div>
       </div>
     </section>

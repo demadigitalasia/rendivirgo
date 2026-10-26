@@ -14,6 +14,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -89,6 +90,9 @@ export class LapidaryRequestComponentDto {
 }
 
 export class CreateLapidaryRequestDto {
+  @IsOptional() @IsUUID("4")
+  submissionKey?: string;
+
   @IsString() @MinLength(2) @MaxLength(120)
   name: string;
 
@@ -150,6 +154,9 @@ export class LapidaryRequestQueryDto extends PaginationQueryDto {
 }
 
 export class UpdateLapidaryRequestDto {
+  @IsOptional() @IsString() @MaxLength(1000)
+  statusReason?: string;
+
   @IsOptional() @IsBoolean()
   confirmMaterialReceived?: boolean;
   @IsOptional() @IsBoolean()
@@ -217,6 +224,14 @@ export class ConfirmLapidaryPaymentDto {
 export class ClaimLapidaryRequestDto {
   @IsString() @MinLength(32) @MaxLength(200)
   token: string;
+}
+
+export class RequestLapidaryAccessLinkDto {
+  @IsString() @Matches(/^LR-\d{8}-\d{4,}$/) @MaxLength(32)
+  requestNumber: string;
+
+  @IsEmail() @MaxLength(200)
+  email: string;
 }
 
 export class AcceptLapidaryEstimateDto {

@@ -14,6 +14,7 @@ import { cabochonShapes, standardCabochonKeys, cabochonAssetVersion } from "@/li
 
 import { defaultDomeSettings, type DomeSettings } from "@/lib/lapidary-dome-settings";
 import { defaultLapidaryServicePricing, type LapidaryServicePricing } from "@/lib/lapidary-service-pricing";
+import { LapidaryProjectAccessRecovery } from "@/components/lapidary/project-access-recovery";
 
 type Submission = { ok: true; requestNumber: string; accountLinked?: boolean };
 type LapidaryCustomerProfile = {
@@ -33,10 +34,19 @@ type CustomOrderDraft = {
   version: 1; savedAt: string; step: number; source: MaterialSource; materialDescription: string; materialOrigin: string; materialCondition: string; materialWeight: string; weightUnit: "g" | "kg"; items: WorkItem[]; selectedCatalogIds: string[]; finish: string; customFinish: string; additionalDetails: string; referenceLinks: string; targetDate: string;
 };
 const DRAFT_KEY = "rendi-lapidary-custom-order:v1";
+const SUBMISSION_KEY = "rendi-lapidary-custom-order:submission:v1";
 const phonePattern = /^\+[1-9]\d{7,14}$/;
 const phoneRegionsByCallingCode = Object.entries(COUNTRY_CALLING_CODES).sort((left, right) => right[1].length - left[1].length);
 const primaryRegionsByCallingCode: Readonly<Record<string, string>> = { "1": "US", "7": "RU", "44": "GB", "61": "AU", "262": "RE", "358": "FI", "590": "GP", "599": "CW" };
 const shapeKeys: ShapeKey[] = [...standardCabochonKeys, "custom"];
+
+function getLapidarySubmissionKey() {
+  const saved = sessionStorage.getItem(SUBMISSION_KEY);
+  if (saved && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved)) return saved;
+  const key = crypto.randomUUID();
+  sessionStorage.setItem(SUBMISSION_KEY, key);
+  return key;
+}
 
 const steps = [
   { en: "Material", id: "Material" },
@@ -91,28 +101,46 @@ function normalizeDraftItems(value: unknown): WorkItem[] | null {
   return normalized.length ? normalized : null;
 }
 
-export function CustomOrderForm({ language }: { language: Language }) {
-  const isId = language === "id";
+export function CustomOrderForm({ language: _language }: { language: Language }) {
+  const isId = false;
   const t = (en: string, id: string) => isId ? id : en;
   const [domeSettings, setDomeSettings] = useState<DomeSettings>(defaultDomeSettings);
   const [servicePricing, setServicePricing] = useState<LapidaryServicePricing>(defaultLapidaryServicePricing);
   const [servicePricingReady, setServicePricingReady] = useState(false);
+  const [servicePricingLoading, setServicePricingLoading] = useState(true);
+  const [servicePricingError, setServicePricingError] = useState(false);
+  const [servicePricingRetry, setServicePricingRetry] = useState(0);
   useEffect(() => {
     let active = true;
     fetch("/api/lapidary/content", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data) => {
       if (active && data?.domeSettings) setDomeSettings(data.domeSettings);
     }).catch(() => {});
-    fetch("/api/lapidary/service-pricing", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data) => {
-      if (!active || typeof data?.pendantUsd !== "number" || typeof data?.matchedPairUsd !== "number") return;
-      setServicePricing({ pendantUsd: data.pendantUsd, matchedPairUsd: data.matchedPairUsd });
-      setServicePricingReady(true);
-    }).catch(() => {});
+    setServicePricingLoading(true);
+    setServicePricingError(false);
+    setServicePricingReady(false);
+    void (async () => {
+      try {
+        const response = await fetch("/api/lapidary/service-pricing", { cache: "no-store" });
+        if (!response.ok) throw new Error("Pricing is unavailable");
+        const data = await response.json();
+        if (typeof data?.pendantUsd !== "number" || typeof data?.matchedPairUsd !== "number") throw new Error("Pricing response is invalid");
+        if (active) {
+          setServicePricing({ pendantUsd: data.pendantUsd, matchedPairUsd: data.matchedPairUsd });
+          setServicePricingReady(true);
+        }
+      } catch {
+        if (active) setServicePricingError(true);
+      } finally {
+        if (active) setServicePricingLoading(false);
+      }
+    })();
     return () => { active = false; };
-  }, []);
+  }, [servicePricingRetry]);
   const [step, setStep] = useState(0);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<Submission | null>(null);
+  const [referenceCopyMessage, setReferenceCopyMessage] = useState("");
   const [source, setSource] = useState<MaterialSource>("Undecided");
   const [materialDescription, setMaterialDescription] = useState("");
   const [materialOrigin, setMaterialOrigin] = useState("");
@@ -190,6 +218,11 @@ export function CustomOrderForm({ language }: { language: Language }) {
   }, []);
 
   useEffect(() => {
+    if (!draftReady || sessionStorage.getItem(SUBMISSION_KEY)) return;
+    sessionStorage.setItem(SUBMISSION_KEY, crypto.randomUUID());
+  }, [draftReady]);
+
+  useEffect(() => {
     setItems((current) => current.some((item) => !serviceChoices.some((choice) => choice.value === item.serviceType)) ? normalizeDraftItems(current) ?? [makeItem("work-1")] : current);
   }, []);
 
@@ -258,15 +291,15 @@ export function CustomOrderForm({ language }: { language: Language }) {
     setProductsLoading(true);
     setProductsError("");
     Promise.all((["rough", "slab"] as const).map(async (category) => {
-      const response = await fetch(`/api/products?category=${category}&inStock=true&page=1&pageSize=100`, { headers: { accept: "application/json", "x-rv-language": language }, cache: "no-store" });
+      const response = await fetch(`/api/products?category=${category}&inStock=true&page=1&pageSize=100`, { headers: { accept: "application/json", "x-rv-language": "en" }, cache: "no-store" });
       if (!response.ok) throw new Error("Could not load catalog stones");
       const payload = await response.json() as { items?: Product[]; pageCount?: number };
       return { category, items: payload.items ?? [], pageCount: payload.pageCount ?? 1 };
     })).then((groups) => { if (active) { setProducts(groups.flatMap((group) => group.items)); setCatalogPages({ rough: { current: 1, total: groups.find((group) => group.category === "rough")?.pageCount ?? 1 }, slab: { current: 1, total: groups.find((group) => group.category === "slab")?.pageCount ?? 1 } }); } })
-      .catch(() => { if (active) setProductsError(t("The stone catalog could not load. Please try again.", "Katalog batu belum dapat dimuat. Silakan coba lagi.")); })
+      .catch(() => { if (active) setProductsError("The stone catalog could not load. Please try again."); })
       .finally(() => { if (active) setProductsLoading(false); });
     return () => { active = false; };
-  }, [source, language]);
+  }, [source]);
 
   const selectedProductIds = selectedCatalogIds;
   const visibleProducts = products.filter((product) => product.categorySlug === catalogCategory && product.inStock && (!catalogSearch.trim() || `${product.name} ${product.stoneType} ${product.origin} ${product.sku}`.toLowerCase().includes(catalogSearch.trim().toLowerCase())));
@@ -346,6 +379,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
 
   function clearDraft() {
     sessionStorage.removeItem(DRAFT_KEY);
+    sessionStorage.removeItem(SUBMISSION_KEY);
     setShapePreviewKey(null);
     setShowAddSpecificationOptions(false);
     setNewSpecificationServiceType("");
@@ -460,7 +494,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
       referenceImageUrls: links, consent, website,
     };
     const data = new FormData();
-    data.append("payload", JSON.stringify(payload));
+    data.append("payload", JSON.stringify({ ...payload, submissionKey: getLapidarySubmissionKey() }));
     mediaFiles.forEach((file) => data.append("media", file, file.name));
     setSending(true); setError("");
     try {
@@ -472,10 +506,22 @@ export function CustomOrderForm({ language }: { language: Language }) {
         return;
       }
       sessionStorage.removeItem(DRAFT_KEY);
+      sessionStorage.removeItem(SUBMISSION_KEY);
+      setReferenceCopyMessage("");
       setResult(body);
     } catch {
       setError(t("We could not send your request. Please check your connection and try again.", "Permintaan belum dapat dikirim. Periksa koneksi Anda dan coba lagi."));
     } finally { setSending(false); }
+  }
+
+  async function copyRequestReference() {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result.requestNumber);
+      setReferenceCopyMessage("Project reference copied.");
+    } catch {
+      setReferenceCopyMessage("Copy is unavailable here. Select the project reference above to copy it.");
+    }
   }
 
   function addMedia(event: React.ChangeEvent<HTMLInputElement>) {
@@ -519,7 +565,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
     setLoadingMoreProducts(true); setProductsError("");
     try {
       const nextPage = page.current + 1;
-      const response = await fetch(`/api/products?category=${catalogCategory}&inStock=true&page=${nextPage}&pageSize=100`, { headers: { accept: "application/json", "x-rv-language": language }, cache: "no-store" });
+      const response = await fetch(`/api/products?category=${catalogCategory}&inStock=true&page=${nextPage}&pageSize=100`, { headers: { accept: "application/json", "x-rv-language": "en" }, cache: "no-store" });
       if (!response.ok) throw new Error("Could not load more catalog stones");
       const payload = await response.json() as { items?: Product[]; pageCount?: number };
       setProducts((current) => [...current, ...(payload.items ?? []).filter((product) => !current.some((existing) => existing.id === product.id))]);
@@ -567,7 +613,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
       </div>}
       {!shapePickerExpanded ? afterSummary : null}
       {selected && selected !== "custom" && shapePreviewKey !== pickerKey ? <button type="button" className="lapidary-shape-preview-trigger" onClick={() => setShapePreviewKey(pickerKey)}>{t(`Explore ${shapeOptions.find((entry) => entry.value === selected)?.en ?? "shape"} in 3D`, `Jelajahi ${shapeOptions.find((entry) => entry.value === selected)?.id ?? "bentuk"} dalam 3D`)} <span aria-hidden="true">↗</span></button> : null}
-      {selected && selected !== "custom" && shapePreviewKey === pickerKey ? <Cabochon3DPreview key={`${pickerKey}-${selected}-${matchedPair}`} domeHeight={domeSettings.enabled && workItem?.domeProfile !== "Studio" ? workItem?.domeHeightMm : undefined} domeProfile={workItem?.domeProfile} matchedPair={matchedPair} shape={selected as CabochonShape} language={language} onClose={() => setShapePreviewKey(null)} /> : null}
+      {selected && selected !== "custom" && shapePreviewKey === pickerKey ? <Cabochon3DPreview key={`${pickerKey}-${selected}-${matchedPair}`} domeHeight={domeSettings.enabled && workItem?.domeProfile !== "Studio" ? workItem?.domeHeightMm : undefined} domeProfile={workItem?.domeProfile} matchedPair={matchedPair} shape={selected as CabochonShape} language="en" onClose={() => setShapePreviewKey(null)} /> : null}
     </div>;
   }
 
@@ -585,12 +631,15 @@ export function CustomOrderForm({ language }: { language: Language }) {
       <span className="lapidary-form-success__mark" aria-hidden="true">✓</span>
       <p className="lapidary-eyebrow">{t("REQUEST REFERENCE", "REFERENSI PERMINTAAN")}</p>
       <h2>{result.requestNumber}</h2>
+      <button className="lapidary-button lapidary-form-success__copy" type="button" onClick={() => void copyRequestReference()}>{referenceCopyMessage === "Project reference copied." ? "Copied" : "Copy project reference"}</button>
+      {referenceCopyMessage ? <p role="status">{referenceCopyMessage}</p> : null}
       <p>{t("Your request and reference files are with our studio. We will review availability, scope, and the material arrangements, then contact you with next steps.", "Permintaan dan berkas referensi Anda sudah diterima studio. Kami akan meninjau ketersediaan, ruang lingkup, dan pengaturan material, lalu menghubungi Anda mengenai langkah berikutnya.")}</p>
       {result.accountLinked ? (
         <p>{t("This project is linked to your account. Email notifications will continue as well.", "Proyek ini sudah terhubung ke akun Anda. Notifikasi email tetap akan dikirimkan.")} <a href="/account/lapidary">{t("View your projects", "Lihat proyek Anda")}</a></p>
       ) : result.accountLinked === false ? (
         <p>{t("We’ll email a secure account link to the address you provided. Use that same email to sign in or create an account and follow this project. Email notifications will continue.", "Kami akan mengirim tautan akun yang aman ke alamat yang Anda berikan. Gunakan email yang sama untuk masuk atau membuat akun dan memantau proyek ini. Notifikasi email tetap dikirimkan.")}</p>
       ) : null}
+      {result.accountLinked === false ? <LapidaryProjectAccessRecovery initialRequestNumber={result.requestNumber} initialEmail={email} compact /> : null}
       <button className="lapidary-button" type="button" onClick={() => setResult(null)}>{t("Send another request", "Kirim permintaan lain")}<span aria-hidden="true">↗</span></button>
     </section>
   );
@@ -638,7 +687,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
         </div> : null}
 
         {source === "RendiVirgoStock" ? <div className="lapidary-wizard__branch">
-          <div className="lapidary-branch-heading"><div><h4>{t("Choose available Rough or Slab", "Pilih Rough atau Slab yang tersedia")}</h4><p>{t("Select the stones you want the studio to assess. Product availability will be checked again when you send the request.", "Pilih batu yang ingin dinilai oleh studio. Ketersediaan produk akan diperiksa lagi saat permintaan dikirim.")}</p><small>{t("The listed amount is for material per catalog unit. Studio work is quoted separately; selecting material does not reserve stock.", "Harga yang ditampilkan adalah harga material per satuan katalog. Biaya jasa studio ditawarkan terpisah; pemilihan material tidak memesan stok.")}</small></div><span>{selectedProductIds.length} {t("selected", "dipilih")}</span></div>
+          <div className="lapidary-branch-heading"><div><h4>{t("Choose available Rough or Slab", "Pilih Rough atau Slab yang tersedia")}</h4><p>{t("Select the stones you want the studio to assess. Availability is checked again when you submit and confirmed before a quote or approval.", "Pilih batu yang ingin dinilai oleh studio. Ketersediaan diperiksa kembali saat Anda mengirim dan dikonfirmasi sebelum penawaran atau persetujuan.")}</p><small>{t("The listed amount is for material per catalog unit. Studio work is quoted separately; selecting material does not reserve stock.", "Harga yang ditampilkan adalah harga material per satuan katalog. Biaya jasa studio ditawarkan terpisah; pemilihan material tidak memesan stok.")}</small></div><span>{selectedProductIds.length} {t("selected", "dipilih")}</span></div>
           <div className="lapidary-catalog-tabs" aria-label={t("Stone category", "Kategori batu")}><button type="button" aria-pressed={catalogCategory === "rough"} onClick={() => setCatalogCategory("rough")}>{t("Rough material", "Material Rough")}</button><button type="button" aria-pressed={catalogCategory === "slab"} onClick={() => setCatalogCategory("slab")}>{t("Slab material", "Material Slab")}</button></div>
           <label className="lapidary-field lapidary-catalog-search">{t("Search stones", "Cari batu")}<input type="search" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder={t("Name, type, origin, or SKU", "Nama, jenis, asal, atau SKU")} /></label>
           {productsLoading ? <p className="lapidary-wizard__loading">{t("Loading available stones…", "Memuat batu yang tersedia…")}</p> : productsError ? <p className="lapidary-form__error" role="alert">{productsError}</p> : visibleProducts.length ? <div className="lapidary-stock-grid">{visibleProducts.map((product) => {
@@ -722,7 +771,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
         </> : <p className="lapidary-wizard__hint">{t("You can add up to 8 shape specifications to this request.", "Anda dapat menambahkan maksimal 8 spesifikasi bentuk dalam satu permintaan.")}</p>}
         <div className="lapidary-field lapidary-date-field">
           <label htmlFor="lapidary-target-date">{t("Preferred completion date (optional)", "Tanggal selesai yang diharapkan (opsional)")}</label>
-          <LapidaryDatePicker id="lapidary-target-date" value={targetDate} minDate={today} language={language} onChange={setTargetDate} />
+          <LapidaryDatePicker id="lapidary-target-date" value={targetDate} minDate={today} language="en" onChange={setTargetDate} />
           <small id="lapidary-target-date-hint">{t("This is a preference, not a confirmed delivery date. We will confirm timing with your quote.", "Ini adalah preferensi, bukan tanggal penyelesaian yang dikonfirmasi. Jadwal akan disepakati bersama penawaran.")}</small>
         </div>
       </section> : null}
@@ -776,6 +825,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
                 {feePerUnit !== null ? <span className="lapidary-review__item-fee">{t("Estimated service fee", "Estimasi biaya jasa")}: {formatUsd(feePerUnit)} × {count} {feeUnit} = <strong>{formatUsd(feePerUnit * count)}</strong></span> : <span className="lapidary-review__item-fee">{item.serviceType === "Other" ? t("Service fee quoted after studio review", "Biaya jasa ditawarkan setelah ditinjau studio") : t("Service fee estimate unavailable", "Estimasi biaya jasa belum tersedia")}</span>}
               </dd></div>;
             })}
+            {!servicePricingReady ? <div className="lapidary-pricing-status" role="status"><p>{servicePricingLoading ? "Loading the current service estimate…" : servicePricingError ? "The current service estimate could not be loaded. You can still submit the request; the studio will confirm a written quote." : "The service estimate is unavailable."}</p>{!servicePricingLoading ? <button type="button" onClick={() => setServicePricingRetry((retry) => retry + 1)}>Retry estimate</button> : null}</div> : null}
             {pricedServiceCount ? <div className="lapidary-review__fee-total"><dt>{hasUnpricedService ? t("Estimated cabochon service subtotal", "Subtotal estimasi jasa cabochon") : t("Estimated service fees", "Estimasi biaya jasa")}</dt><dd><strong>{formatUsd(estimatedServiceFeeTotal)} USD</strong><small>{t("Indicative service fees only. Materials, shipping, and any Other work are not included; the studio will confirm the final written quote.", "Estimasi biaya jasa. Material, pengiriman, dan pengerjaan Lainnya belum termasuk; studio akan mengonfirmasi penawaran tertulis akhir.")}</small></dd></div> : null}
             <div><dt>{t("Finish", "Finishing")}</dt><dd>{finish === "HighGloss" ? t("High gloss", "Kilap tinggi") : finish === "SatinMatte" ? t("Satin or matte", "Satin atau matte") : finish === "Natural" ? t("Keep natural", "Pertahankan alami") : finish === "Other" ? `${t("Other", "Lainnya")} · ${customFinish}` : t("Studio recommendation", "Rekomendasi studio")}</dd></div>
             {additionalDetails.trim() ? <div><dt>{t("Additional notes", "Catatan tambahan")}</dt><dd>{additionalDetails}</dd></div> : null}
@@ -795,7 +845,7 @@ export function CustomOrderForm({ language }: { language: Language }) {
         <span className="lapidary-wizard__step-label">{isId ? steps[step].id : steps[step].en}</span>
         {step < 4 ? <button className="lapidary-button lapidary-wizard__next" type="button" onClick={advance}>{t("Continue", "Lanjutkan")}<span aria-hidden="true">→</span></button> : <button className="lapidary-button lapidary-wizard__next" type="submit" disabled={sending}>{sending ? t("Sending…", "Mengirim…") : t("Send quote request", "Kirim permintaan penawaran")}<span aria-hidden="true">→</span></button>}
       </div>
-      <p className="lapidary-form__privacy">{t("Your contact details and uploaded references are shared only with the RENDI VIRGO studio team for this request.", "Informasi kontak dan referensi yang diunggah hanya dibagikan kepada tim studio RENDI VIRGO untuk permintaan ini.")}</p>
+      <p className="lapidary-form__privacy">Your contact details and uploaded references are used to review this request and shared with the RENDI VIRGO studio team. Read our <a href="/privacy-policy">Privacy Policy</a>.</p>
     </form>
   </div>;
 }
