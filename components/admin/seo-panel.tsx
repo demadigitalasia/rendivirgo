@@ -104,12 +104,28 @@ export function SeoPanel({ input, translation, translationStatus, onMetadata, co
     </details>
     <p className="rv-hint rv-seo-panel__guidance">SEO title: {selected.metaTitle?.trim().length ?? 0} characters (guide: 30–60) · Description: {selected.metaDescription?.trim().length ?? 0} characters (guide: 120–160).</p>
     <p className="rv-hint rv-seo-panel__note">Editorial checklist, not a Google score or ranking prediction. Criteria differ by content type; compare within the same type. Alt text is checked for presence/fallback, not language or visual relevance. Search titles may include the brand, public metadata may use a fallback, and the technical HTML audit is separate.</p>
-    <details className="rv-seo-panel__checks"><summary><span>Checks and improvements</span><span className="rv-seo-panel__count">{incompleteChecks} to review</span></summary><ul className={`rv-seo-checks${compact ? " rv-seo-checks--compact" : ""}`}>{result.checks.map(check => {
-      const passed = check.status === "pass";
-      const tone = passed ? "green" : check.status === "action" ? "red" : "bronze";
-      const points = check.max === 0 ? "Review" : `${check.points}/${check.max}`;
-      return <li key={check.id} className={passed ? "is-complete" : "is-incomplete"}><div className="rv-seo-checks__title"><Badge tone={tone}>{points}</Badge><strong>{check.label}</strong></div>{!passed ? compact ? <details className="rv-seo-checks__advice"><summary>How to improve</summary><p>{check.advice}</p></details> : <p>{check.advice}</p> : null}</li>;
-    })}</ul></details>
+    <details className={`rv-seo-panel__checks rv-seo-panel__checks--improvements${incompleteChecks ? " has-review" : " is-complete"}`}>
+      <summary>
+        <span className="rv-seo-panel__checks-heading"><span>Checks and improvements</span><small>{result.checks.length} checks</small></span>
+        <span className={`rv-seo-panel__count${incompleteChecks ? " is-review" : " is-complete"}`}>
+          {incompleteChecks === 0 ? "All checks passed" : `${incompleteChecks} ${incompleteChecks === 1 ? "item" : "items"} to review`}
+        </span>
+      </summary>
+      <ul className={`rv-seo-checks${compact ? " rv-seo-checks--compact" : ""}`}>
+        {result.checks.map(check => {
+          const passed = check.status === "pass";
+          const tone = passed ? "green" : check.status === "action" ? "red" : "bronze";
+          const points = check.max === 0 ? "Review" : `${check.points}/${check.max}`;
+          return <li key={check.id} className={passed ? "is-complete" : "is-incomplete"}>
+            <div className="rv-seo-checks__title"><Badge tone={tone}>{points}</Badge><strong>{check.label}</strong></div>
+            {!passed ? compact
+              ? <details className="rv-seo-checks__advice"><summary>How to improve</summary><p>{check.advice}</p></details>
+              : <p className="rv-seo-checks__advice-text">{check.advice}</p>
+              : null}
+          </li>;
+        })}
+      </ul>
+    </details>
     {compact && aiDraft ? <details className="rv-seo-panel__ai"><summary><span>Draft metadata with AI</span><span className="rv-seo-panel__count">Optional</span></summary><p className="rv-hint">Creates only a meta title and description. Review the draft and save it from the editor.</p>{aiDraft}</details> : aiDraft ? <div className="rv-seo-panel__ai"><p className="rv-hint">Metadata-only draft. Review it, then save from the editor.</p>{aiDraft}</div> : null}
   </section>;
 }

@@ -615,6 +615,38 @@
   justify-content: flex-end;
 }
 
+/* Keep the shared SEO checklist card intact inside the compact editor rail. */
+.rv-seo-panel--blog-editor .rv-seo-panel__checks--improvements {
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(91, 112, 87, 0.2);
+  border-radius: 8px;
+  background: #fffdf9;
+}
+
+.rv-seo-panel--blog-editor .rv-seo-panel__checks--improvements > .rv-seo-checks {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid rgba(91, 112, 87, 0.18);
+}
+
+.rv-seo-panel--blog-editor .rv-seo-panel__checks--improvements > .rv-seo-checks > li {
+  padding: 8px 10px;
+  border-bottom: 1px solid #eeeae2;
+}
+
+.rv-seo-panel--blog-editor .rv-seo-panel__checks--improvements .rv-seo-panel__count.is-review {
+  border-color: #e9d7ae;
+  background: #fbf3df;
+  color: #795d29;
+}
+
+.rv-seo-panel--blog-editor .rv-seo-panel__checks--improvements .rv-seo-panel__count.is-complete {
+  border-color: #d5e4d8;
+  background: #eaf3ec;
+  color: #356448;
+}
+
 @media (max-width: 460px) {
   .rv-rich-editor__image-fields {
     grid-template-columns: minmax(0, 1fr);
