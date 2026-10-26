@@ -47,4 +47,9 @@ export class ReportsController {
   traffic() {
     return this.reportsService.traffic();
   }
+
+  @Get("campaigns")
+  campaigns(@Query() query: ReportRangeQueryDto) {
+    return this.reportsService.campaigns(query);
+  }
 }

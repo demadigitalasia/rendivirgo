@@ -581,6 +581,90 @@ export class ReportsService {
     return ["rank,productId,name,sku,quantity,revenue", ...rows].join("\n");
   }
 
+  // ------------------------------------------------------------ campaign attribution
+
+  async campaigns(query: ReportRangeQueryDto) {
+    const { from, to } = this.resolveRange(query.range);
+    const placedAt = { gte: from, lte: to };
+    const createdAt = { gte: from, lte: to };
+    const [orderGroups, requestGroups] = await Promise.all([
+      this.prisma.order.groupBy({
+        by: ["utmCampaign", "utmSource", "utmMedium", "utmContent", "utmTerm", "discountCode"],
+        where: {
+          placedAt,
+          paymentStatus: { in: [...PAID_PAYMENT_STATUSES] },
+          currency: "USD",
+          source: { in: ["Online", "Wholesale"] },
+          utmCampaign: { not: null },
+        },
+        _count: { _all: true },
+        _sum: { total: true, refundedAmount: true },
+      }),
+      this.prisma.lapidaryRequest.groupBy({
+        by: ["utmCampaign", "utmSource", "utmMedium", "utmContent", "utmTerm"],
+        where: { createdAt, utmCampaign: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    type CampaignRow = {
+      campaign: string;
+      source: string | null;
+      medium: string | null;
+      content: string | null;
+      term: string | null;
+      discountCode: string | null;
+      paidOrders: number;
+      revenue: number;
+      customRequests: number;
+    };
+    const rows = new Map<string, CampaignRow>();
+    const rowFor = (campaign: string | null, source: string | null, medium: string | null, content: string | null, term: string | null, discountCode: string | null) => {
+      const key = JSON.stringify([campaign, source, medium, content, term, discountCode]);
+      let row = rows.get(key);
+      if (!row) {
+        row = {
+          campaign: campaign ?? "(unknown)",
+          source,
+          medium,
+          content,
+          term,
+          discountCode,
+          paidOrders: 0,
+          revenue: 0,
+          customRequests: 0,
+        };
+        rows.set(key, row);
+      }
+      return row;
+    };
+
+    for (const group of orderGroups) {
+      const row = rowFor(group.utmCampaign, group.utmSource, group.utmMedium, group.utmContent, group.utmTerm, group.discountCode);
+      row.paidOrders = group._count._all;
+      row.revenue = round2(Number(group._sum.total ?? 0) - Number(group._sum.refundedAmount ?? 0));
+    }
+    for (const group of requestGroups) {
+      const row = rowFor(group.utmCampaign, group.utmSource, group.utmMedium, group.utmContent, group.utmTerm, null);
+      row.customRequests = group._count._all;
+    }
+
+    const campaigns = [...rows.values()].sort((a, b) =>
+      b.revenue - a.revenue || b.paidOrders - a.paidOrders || b.customRequests - a.customRequests,
+    );
+    return {
+      range: query.range,
+      from,
+      to,
+      totals: {
+        paidOrders: campaigns.reduce((total, row) => total + row.paidOrders, 0),
+        revenue: round2(campaigns.reduce((total, row) => total + row.revenue, 0)),
+        customRequests: campaigns.reduce((total, row) => total + row.customRequests, 0),
+      },
+      campaigns,
+    };
+  }
+
   // ------------------------------------------------------------ traffic
 
   traffic() {

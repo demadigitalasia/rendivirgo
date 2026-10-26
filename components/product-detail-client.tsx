@@ -255,6 +255,10 @@ export function ProductDetailClient({ product, related = [] }: { product: Produc
               <ShareIcon size={18} />
             </button>
           </div>
+          {product.inStock && ["rough", "slab"].includes(product.categorySlug) ? <Link className="product-detail__custom-order" href={`/lapidary/custom-order?source=stock&stone=${encodeURIComponent(product.slug)}`}>
+            {language === "id" ? "Minta batu ini dikerjakan" : "Request custom work with this stone"}
+            <ArrowUpRightIcon size={17} />
+          </Link> : null}
           <p className="product-detail__note">{t.product.stockNote}</p>
 
           <div className="product-detail__shipping-note"><GlobeIcon /><span>{t.product.shippingWorldwide}</span><Link href="/shipping-returns"><ArrowIcon /><span className="sr-only">{t.product.shippingTitle}</span></Link></div>

@@ -66,7 +66,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   };
 
   const entries: MetadataRoute.Sitemap = [
-    ...staticPaths.map(entry),
+    ...staticPaths
+      .filter(item => item.path !== "/lapidary/artists" || lapidary.artists.length > 0)
+      .map(entry),
     ...blogArchivePages.map(page => entry({ path: `/blog?page=${page}`, changeFrequency: "weekly", priority: 0.6 })),
     ...categories.map(category => entry({
       path: `/shop/${category.slug}`,

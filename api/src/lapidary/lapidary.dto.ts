@@ -105,6 +105,24 @@ export class CreateLapidaryRequestDto {
   @IsString() @MinLength(2) @MaxLength(100)
   country: string;
 
+  @IsOptional() @IsString() @MaxLength(120)
+  utmSource?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  utmMedium?: string;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  utmCampaign?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  utmContent?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  utmTerm?: string;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  landingPath?: string;
+
   @IsOptional() @IsString() @MaxLength(160)
   company?: string;
 

@@ -137,6 +137,9 @@
 .lapidary-field textarea, .lapidary-wizard textarea { resize: vertical; }
 .lapidary-field input:focus, .lapidary-field select:focus, .lapidary-field textarea:focus, .lapidary-wizard input:focus, .lapidary-wizard select:focus, .lapidary-wizard textarea:focus { outline: 2px solid #456b5066; border-color: var(--jade); }
 .lapidary-field small, .lapidary-wizard__hint { color: var(--muted); font: 400 .68rem/1.6 var(--font-body); }
+.lapidary-service-estimate { display: grid; gap: 4px; margin: 0; padding: 11px 13px; border: 1px solid #dbe2d7; border-radius: 4px; background: #f2f4ee; color: #526459; font-size: .68rem; line-height: 1.5; }
+.lapidary-service-estimate strong, .lapidary-service-estimate b { color: var(--forest); font-weight: 600; }
+.lapidary-service-estimate small { color: var(--muted); font-size: .62rem; line-height: 1.55; }
 .lapidary-input-with-unit { display: grid; grid-template-columns: minmax(0, 1fr) 82px; overflow: visible; border: 1px solid #d9d8ce; border-radius: 4px; background: #fffefa; transition: border-color .18s ease, box-shadow .18s ease; }
 .lapidary-input-with-unit:focus-within { border-color: var(--jade); box-shadow: 0 0 0 2px #456b5030; }
 .lapidary-form__grid .lapidary-input-with-unit input, .lapidary-form__grid .lapidary-input-with-unit select { width: 100%; min-height: 46px; border: 0; border-radius: 0; background-color: transparent; box-shadow: none; }

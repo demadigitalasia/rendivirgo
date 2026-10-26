@@ -23,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: { title, description, images: [artistsPresentation.heroImage] },
     twitter: { card: "summary_large_image", title, description, images: [artistsPresentation.heroImage] },
     alternates: localizedAlternates("/lapidary/artists", language, hasIndonesianTranslation),
+    ...(content.artists.length === 0 ? { robots: { index: false, follow: true } } : {}),
   };
 }
 

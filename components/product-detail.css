@@ -90,6 +90,8 @@
 .product-page .product-detail__share .rv-icon { width: 18px; height: 18px; }
 .product-page .product-detail__share:hover { text-decoration: underline; text-underline-offset: 4px; }
 .product-page .product-detail__note { margin-top: 14px; font: .68rem/1.8 var(--font-body); color: var(--muted); }
+.product-page .product-detail__custom-order { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 8px 0; color: var(--forest); font: 600 .73rem/1.5 var(--font-ui); text-decoration: underline; text-decoration-color: #a1ac9a; text-underline-offset: 4px; }
+.product-page .product-detail__custom-order:hover { color: var(--jade); text-decoration-color: currentColor; }
 .product-page .product-detail__shipping-note { display: flex; align-items: center; gap: 10px; margin-top: 23px; border-top: 1px solid var(--line); padding-top: 14px; font: .7rem/1.7 var(--font-ui); }
 .product-page .product-detail__shipping-note .rv-icon { width: 19px; height: 19px; color: var(--jade); }
 .product-page .product-detail__shipping-note a { display: grid; place-items: center; width: 44px; height: 44px; margin-left: auto; }

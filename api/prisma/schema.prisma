@@ -741,6 +741,12 @@ model Order {
   paymentStatus   PaymentStatus @default(Pending)
   paymentMethod   PaymentMethod @default(PayPal)
   source          OrderSource   @default(Online)
+  utmSource       String?       @db.VarChar(120)
+  utmMedium       String?       @db.VarChar(120)
+  utmCampaign     String?       @db.VarChar(160)
+  utmContent      String?       @db.VarChar(200)
+  utmTerm         String?       @db.VarChar(200)
+  landingPath     String?       @db.VarChar(500)
   fulfillmentMethod FulfillmentMethod @default(Shipping)
   paymentRef      String?
   paypalOrderId   String?       @unique
@@ -796,6 +802,7 @@ model Order {
   @@index([paymentMethod, paymentStatus, paymentProofUploadedAt])
   @@index([placedAt])
   @@index([source, placedAt])
+  @@index([utmCampaign, placedAt])
   @@index([email])
   @@index([customerId])
   @@index([customerId, placedAt])
@@ -1032,6 +1039,12 @@ model LapidaryRequest {
   email               String
   phone               String
   country             String?
+  utmSource            String?                @db.VarChar(120)
+  utmMedium            String?                @db.VarChar(120)
+  utmCampaign          String?                @db.VarChar(160)
+  utmContent           String?                @db.VarChar(200)
+  utmTerm              String?                @db.VarChar(200)
+  landingPath          String?                @db.VarChar(500)
   company             String?
   materialOrigin      String?
   materialCondition   String?
@@ -1088,6 +1101,7 @@ model LapidaryRequest {
   @@index([email, createdAt])
   @@index([customerId, createdAt])
   @@index([createdAt])
+  @@index([utmCampaign, createdAt])
 }
 
 model LapidaryProgressUpdate {

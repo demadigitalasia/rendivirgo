@@ -72,6 +72,12 @@ export type PreparedOrder = {
   total: Prisma.Decimal;
   discountId?: string | null;
   discountCode?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmContent?: string | null;
+  utmTerm?: string | null;
+  landingPath?: string | null;
   shippingName: string;
   carrier: string | null;
   totalWeightGram: number;
@@ -271,6 +277,12 @@ export class OrderLifecycleService implements OnModuleInit, OnModuleDestroy {
             : {}),
           customerId: orderCustomerId,
           source: input.source ?? "Online",
+          utmSource: input.utmSource ?? null,
+          utmMedium: input.utmMedium ?? null,
+          utmCampaign: input.utmCampaign ?? null,
+          utmContent: input.utmContent ?? null,
+          utmTerm: input.utmTerm ?? null,
+          landingPath: input.landingPath ?? null,
           email,
           customerName: input.customerName,
           phone: input.phone ?? null,

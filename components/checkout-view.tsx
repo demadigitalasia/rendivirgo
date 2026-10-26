@@ -9,6 +9,7 @@ import { ArrowIcon, ArrowUpRightIcon, RefreshIcon } from "@/components/icons";
 import { WholesaleApplication } from "@/components/wholesale-application";
 import { CountryDropdown } from "@/components/country-dropdown";
 import { formatUSD } from "@/lib/catalog";
+import { clearCampaignDiscountCode, getCampaignDiscountCode, getMarketingAttribution } from "@/lib/marketing-attribution";
 import { CheckoutOrderSummary } from "@/components/checkout/order-summary";
 import { CheckoutPaymentResult } from "@/components/checkout/payment-result";
 import { CheckoutPriceReview } from "@/components/checkout/price-review";
@@ -59,6 +60,7 @@ export function CheckoutView() {
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [discountLoading, setDiscountLoading] = useState(false);
+  const campaignDiscountAttempted = useRef<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
@@ -344,9 +346,9 @@ export function CheckoutView() {
     setRecoveryStatus("done");
   }, [cartHydrated, draftHydrated, lines.length, recoveryStatus, searchParams, recoverCheckout, checkoutScope]);
 
-  const applyDiscount = async () => {
+  const applyDiscount = useCallback(async (requestedCode?: string) => {
     if (isWholesaleCheckout) return;
-    const code = discountInput.trim();
+    const code = (requestedCode ?? discountInput).trim();
     if (!code) return;
     setDiscountLoading(true);
     setDiscountError(null);
@@ -377,7 +379,16 @@ export function CheckoutView() {
     } finally {
       setDiscountLoading(false);
     }
-  };
+  }, [discountInput, isWholesaleCheckout, language, lines, subtotal, t]);
+
+  useEffect(() => {
+    if (!cartHydrated || !lines.length || isWholesaleCheckout || discountInput.trim() || discount?.valid) return;
+    const code = getCampaignDiscountCode();
+    if (!code || campaignDiscountAttempted.current === code) return;
+    campaignDiscountAttempted.current = code;
+    setDiscountInput(code);
+    void applyDiscount(code);
+  }, [applyDiscount, cartHydrated, discount, discountInput, isWholesaleCheckout, lines.length, pathname, searchParams]);
 
   const placeOrder = async (acceptedQuote?: CheckoutPriceQuote) => {
     if (isWholesaleCheckout && wholesaleAccessStatus !== "approved") return;
@@ -407,6 +418,7 @@ export function CheckoutView() {
         customerNote: notes || undefined,
         shippingRateId: selectedOption?.id || undefined,
         discountCode: !isWholesaleCheckout && discount?.valid ? discount.code : undefined,
+        ...getMarketingAttribution(),
         items: lines.map((line) => ({ productId: line.id, variantId: line.variantId, quantity: line.quantity })),
       };
       const postJson = async (path: string, body: unknown) => fetch(path, {
@@ -460,6 +472,7 @@ export function CheckoutView() {
       }
 
       setPriceReview(null);
+      clearCampaignDiscountCode();
 
       const orderTotal = Number(payload.total ?? total);
       const stored: StoredOrder = {
@@ -721,7 +734,7 @@ export function CheckoutView() {
                 placeholder="WELCOME10"
               />
               {discount?.valid ? (
-                <button type="button" className="text-button" onClick={() => { setDiscount(null); setDiscountInput(""); }}>
+                <button type="button" className="text-button" onClick={() => { setDiscount(null); setDiscountInput(""); clearCampaignDiscountCode(); }}>
                   {t.checkout.removeDiscount}
                 </button>
               ) : (
