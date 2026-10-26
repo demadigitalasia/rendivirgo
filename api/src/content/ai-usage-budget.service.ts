@@ -56,7 +56,9 @@ export class AiUsageBudgetService {
 
     return this.prisma.$transaction(async (tx) => {
       // Serialize admission checks across API replicas. This lock is held only while the budget row is inspected and reserved.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(20261026, 41001)`;
+      // The lock function returns PostgreSQL `void`, which Prisma cannot deserialize from `$queryRaw`.
+      // We only need its transaction-scoped side effect, so execute it without requesting rows.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(20261026, 41001)`;
       const monthWhere = { action: AI_USAGE_ACTION, createdAt: { gte: monthStart } };
       const recordCount = await tx.auditLog.count({ where: monthWhere });
       if (recordCount > 5000) {
@@ -129,7 +131,7 @@ export class AiUsageBudgetService {
 
   async complete(reservationId: string, status: AiUsageStatus, details: UsageMetadata, durationMs: number): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(20261026, 41001)`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(20261026, 41001)`;
       const row = await tx.auditLog.findUnique({ where: { id: reservationId }, select: { metadata: true } });
       if (!row) throw new Error("AI usage reservation is missing.");
       const current = metadataObject(row.metadata);
