@@ -117,7 +117,9 @@ function validateSeoAuditInsights(value: unknown, snapshot: SeoAuditSnapshot): S
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new BadGatewayException("The AI returned invalid technical SEO recommendations. Please try again.");
   const insights = (value as Record<string, unknown>).insights;
   if (!Array.isArray(insights) || insights.length < 1 || insights.length > 5) throw new BadGatewayException("The AI returned an invalid number of technical SEO recommendations. Please try again.");
-  const allowedEvidence = new Map(snapshot.pages.flatMap(page => page.findings.map(finding => [`${page.path}\n${finding.id}`, { page, finding }] as const)));
+  const allowedEvidence = new Map<string, { page: SeoAuditPage; finding: SeoAuditFinding }>(
+    snapshot.pages.flatMap(page => page.findings.map(finding => [`${page.path}\n${finding.id}`, { page, finding }] as const)),
+  );
   return insights.map((candidate): SeoAuditInsight => {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new BadGatewayException("The AI returned an invalid technical SEO recommendation. Please try again.");
     const item = candidate as Record<string, unknown>;
@@ -158,7 +160,7 @@ function validateSearchConsoleInsights(value: unknown, sourceReport: Record<stri
   if (!Array.isArray(insights) || insights.length < 1 || insights.length > 5) {
     throw new BadGatewayException("The AI returned an invalid number of Search Console recommendations. Please try again.");
   }
-  return insights.map((item) => {
+  return insights.map((item): SearchConsoleInsight => {
     if (!item || typeof item !== "object" || Array.isArray(item)) {
       throw new BadGatewayException("The AI returned an invalid Search Console recommendation. Please try again.");
     }
@@ -180,21 +182,23 @@ function validateSearchConsoleInsights(value: unknown, sourceReport: Record<stri
     if (!Array.isArray(record.evidenceRows) || record.evidenceRows.length < 1 || record.evidenceRows.length > 5) {
       throw new BadGatewayException("The AI returned invalid Search Console evidence references. Please try again.");
     }
-    const evidenceRows = record.evidenceRows.map((reference) => {
+    const evidenceRows: SearchConsoleInsight["evidenceRows"] = record.evidenceRows.map((reference) => {
       if (!reference || typeof reference !== "object" || Array.isArray(reference)) throw new BadGatewayException("The AI returned invalid Search Console evidence references. Please try again.");
       const ref = reference as Record<string, unknown>;
       if ((ref.period !== "current" && ref.period !== "previous") || (ref.dimension !== "overview" && ref.dimension !== "query" && ref.dimension !== "page")) {
         throw new BadGatewayException("The AI returned invalid Search Console evidence references. Please try again.");
       }
-      const period = sourceReport[ref.period] as Record<string, unknown> | undefined;
+      const periodKey = ref.period;
+      const dimension = ref.dimension;
+      const period = sourceReport[periodKey] as Record<string, unknown> | undefined;
       if (!period) throw new BadGatewayException("The AI referenced a missing Search Console period. Please try again.");
       let source: Record<string, unknown> | undefined;
-      if (ref.dimension === "overview") {
+      if (dimension === "overview") {
         if (ref.key !== null) throw new BadGatewayException("The AI returned an invalid Search Console overview reference. Please try again.");
         source = period;
       } else {
         if (typeof ref.key !== "string") throw new BadGatewayException("The AI returned an invalid Search Console row reference. Please try again.");
-        const rows = period[ref.dimension === "query" ? "topQueries" : "topPages"];
+        const rows = period[dimension === "query" ? "topQueries" : "topPages"];
         source = Array.isArray(rows) ? rows.find((row) => Boolean(row && typeof row === "object" && (row as Record<string, unknown>).key === ref.key)) as Record<string, unknown> | undefined : undefined;
       }
       if (!source) throw new BadGatewayException("The AI cited a Search Console row that was not in the saved report. Please generate recommendations again.");
@@ -203,9 +207,9 @@ function validateSearchConsoleInsights(value: unknown, sourceReport: Record<stri
         return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : 0;
       };
       return {
-        period: ref.period,
-        dimension: ref.dimension,
-        key: ref.dimension === "overview" ? null : ref.key as string,
+        period: periodKey,
+        dimension,
+        key: dimension === "overview" ? null : ref.key as string,
         clicks: metric("clicks"),
         impressions: metric("impressions"),
         ctr: metric("ctr"),
