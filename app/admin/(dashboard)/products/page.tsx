@@ -1,5 +1,7 @@
 "use client";
 
+import { ProductImport } from "@/components/admin/product-import";
+
 import { SeoBadge } from "@/components/admin/seo-panel";
 import { productSeoInput } from "@/lib/seo-analysis";
 
@@ -25,11 +27,9 @@ import {
   Button,
   Card,
   Field,
-  Modal,
   PageHeader,
   Select,
   StatusBadge,
-  TextArea,
   TextInput,
 } from "@/components/admin/ui";
 import "./products.css";
@@ -38,7 +38,6 @@ type ApiCategory = { id: string; slug: string; name: string; productCount: numbe
 
 type BulkAction = "Publish" | "Unpublish" | "Archive" | "Restore";
 
-type ImportResult = { created: number; skipped: number; errors: string[] };
 
 const initialParams: ListParams = { page: 1, pageSize: 20, sort: "newest" };
 
@@ -71,9 +70,7 @@ export default function AdminProductsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [csv, setCsv] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
 
   const items = list.data?.items ?? [];
   const params = list.params;
@@ -131,35 +128,6 @@ export default function AdminProductsPage() {
     sort: params.sort,
   };
   const exportUrl = apiUrl("/api/admin/products/export.csv", exportParams);
-
-  const readFile = async (fileList: FileList | null) => {
-    const file = fileList?.[0];
-    if (!file) return;
-    try {
-      setCsv(await file.text());
-      setImportResult(null);
-    } catch (error) {
-      toast.error(errorMessage(error));
-    }
-  };
-
-  const runImport = async () => {
-    if (!csv.trim()) {
-      toast.error("Paste CSV content or choose a file first");
-      return;
-    }
-    setImporting(true);
-    try {
-      const result = await apiFetch<ImportResult>("/api/admin/products/import", { json: { csv } });
-      setImportResult(result);
-      toast.success(`Imported ${result.created} product(s)`);
-      list.refresh();
-    } catch (error) {
-      toast.error(errorMessage(error));
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const columns: Array<Column<ApiProduct>> = [
     {
@@ -262,7 +230,7 @@ export default function AdminProductsPage() {
         actions={
           <div className="rv-inline">
             <Button href={exportUrl}>Export CSV</Button>
-            <Button onClick={() => { setImportOpen(true); setImportResult(null); }}>Import CSV</Button>
+            <Button onClick={() => { setImportOpen(true); }}>Bulk import</Button>
             <Button variant="primary" href="/admin/products/new">
               New product
             </Button>
@@ -391,47 +359,7 @@ export default function AdminProductsPage() {
         {list.error ? <p className="rv-error-text">{list.error}</p> : null}
       </div>
 
-      <Modal
-        open={importOpen}
-        title="Import CSV"
-        onClose={() => setImportOpen(false)}
-        footer={
-          <>
-            <Button onClick={() => setImportOpen(false)}>Close</Button>
-            <Button variant="primary" loading={importing} onClick={runImport}>
-              Import
-            </Button>
-          </>
-        }
-      >
-        <div className="rv-stack">
-          <p className="rv-hint">
-            Columns: name, slug, sku, categorySlug, stoneType, origin, price, currency, unit, stockModel, stockQuantity,
-            weightGram, weightCarat, lengthMm, widthMm, heightMm, condition, status, tone, featured, fragile, description.
-          </p>
-          <Field label="CSV file">
-            <input className="rv-input" type="file" accept=".csv,text/csv,text/plain" onChange={(event) => readFile(event.target.files)} />
-          </Field>
-          <Field label="CSV content">
-            <TextArea value={csv} onChange={(value) => { setCsv(value); setImportResult(null); }} rows={10} code placeholder="name,price,categorySlug…" />
-          </Field>
-          {importResult ? (
-            <div className="rv-stack">
-              <div className="rv-inline">
-                <Badge tone="green">{importResult.created} created</Badge>
-                <Badge tone={importResult.skipped ? "amber" : "gray"}>{importResult.skipped} skipped</Badge>
-              </div>
-              {importResult.errors.length ? (
-                <ul className="rv-import-errors">
-                  {importResult.errors.map((message, index) => (
-                    <li key={index}>{message}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </Modal>
+      <ProductImport open={importOpen} onClose={() => setImportOpen(false)} onImported={() => list.refresh()} />
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { ProductImportService } from "./product-import.service";
 import { Module } from "@nestjs/common";
 import { CategoriesService } from "./categories.service";
 import { AdminCategoriesController, CategoriesController } from "./categories.controller";
@@ -13,7 +14,7 @@ import { EtsyIntegrationModule } from "../etsy/etsy-integration.module";
 @Module({
   imports: [SettingsModule, ContentCopyModule, EtsyIntegrationModule],
   controllers: [CategoriesController, AdminCategoriesController, ConditionsController, AdminConditionsController, ProductsController, AdminProductsController],
-  providers: [CategoriesService, ConditionsService, ProductsService, CatalogPdfService],
+  providers: [ProductImportService, CategoriesService, ConditionsService, ProductsService, CatalogPdfService],
   exports: [CategoriesService, ProductsService],
 })
 export class CatalogModule {}

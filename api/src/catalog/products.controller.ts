@@ -1,4 +1,8 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ProductImportService } from "./product-import.service";
+import { importColumns, readProductTable, type ImportRecord } from "./product-import";
+import { createXlsxBuffer } from "../settings/xlsx";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, Res, UploadedFile, UseInterceptors, BadRequestException } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import { Public } from "../common/decorators/public.decorator";
@@ -43,6 +47,7 @@ export class AdminProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly contentCopyService: ContentCopyService,
+    private readonly productImport: ProductImportService,
   ) {}
 
   @Get()
@@ -64,6 +69,26 @@ export class AdminProductsController {
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader("Content-Disposition", `attachment; filename="rendi-virgo-catalog-${Date.now()}.pdf"`);
     response.send(pdf);
+  }
+
+  @Get("import/template")
+  template(@Res() response: Response) {
+    response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    response.setHeader("Content-Disposition", 'attachment; filename="product-import-template.xlsx"');
+    response.send(createXlsxBuffer([{ name: "Products", headers: importColumns, rows: [] }]));
+  }
+
+  @Post("import/preview")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
+  async previewImport(@UploadedFile() file: { originalname: string; buffer: Buffer } | undefined, @Body("mode") mode: string) {
+    if (!file?.buffer) throw new BadRequestException("Choose a product file");
+    const records = readProductTable(file);
+    return { ...await this.productImport.preview(records, mode || "create"), records };
+  }
+
+  @Post("import/commit")
+  commitImport(@Body("records") records: ImportRecord[], @Body("mode") mode: string, @Body("photos") photos: Record<string, string[]>, @Req() request: AuthenticatedRequest) {
+    return this.productImport.execute(records, mode, photos ?? {}, auditContextFrom(request));
   }
 
   @Post("import")
