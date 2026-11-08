@@ -266,6 +266,7 @@ model Admin {
   updatedAt    DateTime  @updatedAt
 
   sessions AdminSession[]
+  apiKeys AdminApiKey[]
   auditLogs AuditLog[]
   orderEvents OrderEvent[]
   returnReviews OrderReturnRequest[]
@@ -285,6 +286,23 @@ model AdminSession {
 
   @@index([adminId])
   @@index([expiresAt])
+}
+
+model AdminApiKey {
+  id         String    @id @default(cuid())
+  adminId    String
+  name       String
+  keyHash    String    @unique
+  keyPrefix  String
+  scopes     String[]  @default([])
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
 }
 
 model AuditLog {

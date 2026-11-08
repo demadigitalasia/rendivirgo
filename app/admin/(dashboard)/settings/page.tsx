@@ -8,6 +8,7 @@ import { WatermarkPositionEditor } from "@/components/admin/watermark-position-e
 import { Badge, Button, Card, Field, Loading, PageHeader, Select, Switch, Tabs, TextArea, TextInput } from "@/components/admin/ui";
 import { defaultProductWatermark } from "@/lib/product-watermark";
 import { EtsySettingsPanel } from "./etsy-panel";
+import { ApiKeysPanel } from "./api-keys-panel";
 
 type GroupedSettings = Record<"general" | "seo" | "notifications" | "payments", Record<string, unknown>>;
 type OpenRouterSettings = {
@@ -195,7 +196,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     const url = new URL(window.location.href);
     const requestedTab = url.searchParams.get("tab");
-    if (requestedTab === "etsy") setTab("etsy");
+    if (requestedTab === "etsy" || requestedTab === "api-keys") setTab(requestedTab);
     const etsyResult = url.searchParams.get("etsy");
     if (etsyResult === "connected") toast.success("Etsy shop connected; product listings are queued for sync");
     if (etsyResult === "error") toast.error("Etsy connection could not be completed. Check the Etsy app settings and try again.");
@@ -423,6 +424,7 @@ export default function AdminSettingsPage() {
                   { value: "payments", label: "Payments" },
                   { value: "ai", label: "AI & API" },
                   { value: "etsy", label: "Etsy" },
+                  { value: "api-keys", label: "API keys" },
                 ]}
                 value={tab}
                 onChange={setTab}
@@ -777,6 +779,7 @@ export default function AdminSettingsPage() {
             ) : null}
 
             {tab === "etsy" ? <EtsySettingsPanel /> : null}
+            {tab === "api-keys" ? <ApiKeysPanel /> : null}
           </>
         ) : null}
       </div>
