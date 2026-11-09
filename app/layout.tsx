@@ -1,4 +1,6 @@
 import { siteUrl } from "@/lib/seo";
+import { gaMeasurementId } from "@/lib/analytics";
+import Script from "next/script";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getPublicSettings } from "@/lib/storefront";
@@ -45,10 +47,19 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const requestHeaders = await headers();
   const language = normalizeLanguage(requestHeaders.get(languageHeaderName));
+  const gaId = gaMeasurementId();
 
   return (
     <html lang={language === "id" ? "id-ID" : "en-GB"} data-scroll-behavior="smooth">
       <body>{children}</body>
+      {gaId ? (
+        <>
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
+          <Script id="ga4-init" strategy="afterInteractive">
+            {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`}
+          </Script>
+        </>
+      ) : null}
     </html>
   );
 }
