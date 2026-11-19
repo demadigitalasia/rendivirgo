@@ -11,7 +11,16 @@ const productionSecurityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000" },
   {
     key: "Content-Security-Policy-Report-Only",
-    value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' https://www.googletagmanager.com",
+      "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
+      "img-src 'self' https://www.googletagmanager.com https://*.google-analytics.com",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "form-action 'self'",
+    ].join("; "),
   },
 ];
 

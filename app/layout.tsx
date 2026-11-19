@@ -2,6 +2,7 @@ import { siteUrl } from "@/lib/seo";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getPublicSettings } from "@/lib/storefront";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import "./globals.css";
 import { localizedPath, languageHeaderName, normalizeLanguage, originalPathHeaderName, stripLocalePrefix } from "@/lib/locale";
 
@@ -48,7 +49,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   return (
     <html lang={language === "id" ? "id-ID" : "en-GB"} data-scroll-behavior="smooth">
-      <body>{children}</body>
+      <body>
+        <GoogleAnalytics />
+        {children}
+      </body>
     </html>
   );
 }
