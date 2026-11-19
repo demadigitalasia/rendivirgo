@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath("/", language) : "/", heroDocument.slides.find(slide => slide.isActive)?.imageUrl || content.heroImage),
+    ...socialMetadata(title, description, hasIndonesianTranslation ? localizedPath("/", language) : "/"),
     alternates: localizedAlternates("/", language, hasIndonesianTranslation),
   };
 }
