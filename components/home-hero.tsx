@@ -75,6 +75,9 @@ export function HomeHero({ document, language, preview = false }: { document: He
   };
   if (!slides.length) return null;
 
+  // Start fetching the LCP hero image at HTML parse time instead of after CSS/JS.
+  const firstImageProps = preview ? null : imageProps(failed.has(0) ? FALLBACK_IMAGE : slides[0].imageUrl || FALLBACK_IMAGE);
+
   return (
     <section ref={root} className={`hero hero-slider${preview ? " hero-slider--preview" : ""}`} aria-label={id ? "Jelajahi RENDI VIRGO" : "Discover RENDI VIRGO"}
       aria-roledescription={id ? "slideshow" : "carousel"} aria-busy={pending !== null} data-animation={settings.textAnimation} data-image-motion={settings.imageMotion && !reducedMotion}
@@ -133,6 +136,7 @@ export function HomeHero({ document, language, preview = false }: { document: He
           {settings.autoplay && !reducedMotion ? <button type="button" onClick={() => { setPaused(value => !value); setHovered(false); setFocused(false); }} aria-label={paused ? (id ? "Putar slideshow" : "Play slideshow") : (id ? "Jeda slideshow" : "Pause slideshow")}>{paused ? "▷" : "Ⅱ"}</button> : null}
         </div>
       </div> : <div className="hero__caption" aria-hidden="true">RENDI VIRGO — INDONESIA</div>}
+      {firstImageProps ? <link rel="preload" as="image" href={firstImageProps.src} imageSrcSet={firstImageProps.srcSet} imageSizes={firstImageProps.sizes} fetchPriority="high" /> : null}
       <span className="hero-slider__announcement" aria-live={paused ? "polite" : "off"} aria-atomic="true">{index + 1} / {slides.length}: {heroCopy(slides[index], language).label}</span>
     </section>
   );

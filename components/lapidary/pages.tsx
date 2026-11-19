@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { LocalizedLink } from "@/components/localized-link";
 import type { LapidaryArtistProfile, LapidaryArtistsPresentation, LapidaryStudioImage, LapidaryStudioPresentation } from "@/lib/storefront";
 import type { LapidaryProcessPresentation } from "@/lib/lapidary-process";
@@ -70,7 +71,7 @@ const lapidaryPathIcons = [
 
 function LapidaryPathIcon({ index }: { index: number }) {
   const src = lapidaryPathIcons[index] ?? lapidaryPathIcons[0];
-  return <img src={src} alt="" width={48} height={48} loading="lazy" decoding="async" />;
+  return <Image src={src} alt="" width={48} height={48} loading="lazy" />;
 }
 
 function SubpageHeader({ language, eyebrow, title, body }: { language: Language; eyebrow: string; title: string; body: string }) {
@@ -99,13 +100,13 @@ export function LapidaryLanding({ language }: { language: Language }) {
           <p className="lapidary-hero__note">{text.note}</p>
         </div>
         <figure className="lapidary-hero__visual">
-          <img
+          <Image
             className="lapidary-hero__image"
             src="/images/lapidary/lapidary-bench-polishing.webp"
             alt={language === "id" ? "Tangan pengrajin memoles cabochon moss agate menggunakan roda poles" : "An artisan's hands polish a moss-agate cabochon at the wheel"}
             width={1254}
             height={1254}
-            fetchPriority="high"
+            priority
           />
           <figcaption><span>{language === "id" ? "PROSES" : "PROCESS"}</span>{language === "id" ? "PEMOLESAN MANUAL" : "FINISHED BY HAND"}</figcaption>
         </figure>
@@ -170,7 +171,7 @@ export function LapidaryStudio({ language, heroImage, images, presentation }: { 
   return (
     <div className={`lapidary-page page-container lapidary-studio lapidary-studio--${presentation.visualStyle} lapidary-studio--hero-${presentation.heroImagePosition}${presentation.motionEnabled ? " lapidary-studio--motion" : ""}`}>
       <section className="lapidary-studio-hero">
-        {heroImage ? <img className="lapidary-studio-hero__image" src={heroImage} alt="" fetchPriority="high" /> : null}
+        {heroImage ? <Image className="lapidary-studio-hero__image" src={heroImage} alt="" fill sizes="100vw" priority /> : null}
         <div className="lapidary-studio-hero__content">
           <LocalizedLink href="/lapidary" className="lapidary-back">← {backLabel || copy[language as PageLanguage].sub.back}</LocalizedLink>
           <p className="lapidary-studio-hero__eyebrow"><span />{eyebrow || text.eyebrow}</p>
@@ -188,7 +189,7 @@ export function LapidaryStudio({ language, heroImage, images, presentation }: { 
       <section className="lapidary-gallery lapidary-studio-gallery">
         <div className="lapidary-section-heading"><p className="lapidary-eyebrow">{galleryEyebrow || (language === "id" ? "DARI RUANG KERJA" : "A LOOK INSIDE")}</p><h2>{galleryTitle || text.gallery}</h2></div>
         {images.length ? <div className="lapidary-gallery-grid">{images.map((image, index) => <figure key={`${image.url}-${index}`}>
-          <img src={image.url} alt={language === "id" ? image.altId || image.altEn : image.altEn} loading="lazy" />
+          <Image src={image.url} alt={language === "id" ? image.altId || image.altEn : image.altEn} fill sizes="(max-width: 720px) 92vw, 46vw" />
           <figcaption><span>{String(index + 1).padStart(2, "0")}</span><span>{(language === "id" ? image.captionId : image.captionEn) || photoCountLabel || text.photoCount}</span></figcaption>
         </figure>)}</div> : <p className="lapidary-empty-state">{text.empty}</p>}
       </section>
@@ -204,7 +205,7 @@ export function LapidaryArtists({ language, artists, presentation, samplePreview
   return (
     <div className={`lapidary-page page-container lapidary-artists lapidary-artists--${presentation.visualStyle}${presentation.motionEnabled ? " lapidary-artists--motion" : ""}`}>
       <section className="lapidary-artists-hero">
-        <img className="lapidary-artists-hero__image" src={presentation.heroImage} alt={value(presentation.heroAltEn, presentation.heroAltId)} fetchPriority="high" style={{ objectPosition: `${presentation.heroImagePosition} center` }} />
+        <Image className="lapidary-artists-hero__image" src={presentation.heroImage} alt={value(presentation.heroAltEn, presentation.heroAltId)} fill sizes="100vw" priority style={{ objectPosition: `${presentation.heroImagePosition} center` }} />
         <div className="lapidary-artists-hero__content">
           <LocalizedLink href="/lapidary" className="lapidary-back">← {language === "id" ? "Lapidary" : "Lapidary"}</LocalizedLink>
           <p className="lapidary-eyebrow lapidary-artists-hero__eyebrow"><span aria-hidden="true" />{value(presentation.eyebrowEn, presentation.eyebrowId)}</p>
@@ -229,7 +230,7 @@ export function LapidaryArtists({ language, artists, presentation, samplePreview
           <span className="lapidary-artists-directory__count"><strong>{String(artists.length).padStart(2, "0")}</strong>{text.directoryCount}</span>
         </header>
         <section className="lapidary-artists-grid" aria-label={en ? "Lapidary artists" : "Pengrajin lapidary"}>{artists.map((artist, index) => <LocalizedLink className="lapidary-artist-card" href={`/lapidary/artists/${artist.slug}`} key={artist.id} style={{ animationDelay: `${Math.min(index, 8) * 65}ms` }}>
-        <div className="lapidary-artist-card__photo">{artist.imageUrl ? <img src={artist.imageUrl} alt={artist.imageAlt || artist.name} loading="lazy" style={{ objectPosition: `${artist.imagePosition} center` }} /> : <span aria-hidden="true">{artist.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)}</span>}{samplePreview ? <span className="lapidary-artist-card__sample">{text.sampleBadge}</span> : null}<span className="lapidary-artist-card__number">{String(index + 1).padStart(2, "0")}</span><span className="lapidary-artist-card__arrow" aria-hidden="true">↗</span></div>
+        <div className="lapidary-artist-card__photo">{artist.imageUrl ? <Image src={artist.imageUrl} alt={artist.imageAlt || artist.name} fill sizes="(max-width: 720px) 92vw, 440px" style={{ objectPosition: `${artist.imagePosition} center` }} /> : <span aria-hidden="true">{artist.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)}</span>}{samplePreview ? <span className="lapidary-artist-card__sample">{text.sampleBadge}</span> : null}<span className="lapidary-artist-card__number">{String(index + 1).padStart(2, "0")}</span><span className="lapidary-artist-card__arrow" aria-hidden="true">↗</span></div>
         <div className="lapidary-artist-card__body"><p className="lapidary-eyebrow">{artist.signatureStyle || text.craft}</p><h2>{artist.name}</h2>{artist.location ? <p className="lapidary-artist-location">{text.location} · {artist.location}</p> : null}<p className="lapidary-artist-card__bio">{artist.bio}</p>{artist.stoneExperience.length ? <><strong>{text.stones}</strong><div className="lapidary-specialties">{artist.stoneExperience.map((stone) => <span key={stone}>{stone}</span>)}</div></> : null}<span className="lapidary-artist-card__link">{text.viewProfile}<span aria-hidden="true">↗</span></span></div>
       </LocalizedLink>)}</section>
       </> : <section className="lapidary-artists-empty"><p className="lapidary-eyebrow">{text.craft}</p><h2>{value(presentation.emptyTitleEn, presentation.emptyTitleId)}</h2><p>{value(presentation.emptyBodyEn, presentation.emptyBodyId)}</p><LocalizedLink className="lapidary-button" href={emptyCtaHref}>{value(presentation.ctaLabelEn, presentation.ctaLabelId)}<span aria-hidden="true">↗</span></LocalizedLink></section>}
@@ -245,12 +246,12 @@ export function LapidaryArtistDetail({ language, artist, presentation, samplePre
     <LocalizedLink href="/lapidary/artists" className="lapidary-artist-detail__back">← {en ? "All artists" : "Semua pengrajin"}</LocalizedLink>
     {samplePreview ? <aside className="lapidary-sample-notice" role="note">{en ? "Preview only: this profile and portrait are sample content. Replace them with approved artist information in the admin dashboard." : "Hanya pratinjau: profil dan foto ini adalah data contoh. Ganti dengan informasi pengrajin yang sudah disetujui melalui dashboard admin."}</aside> : null}
     <section className="lapidary-artist-detail__hero">
-      <div className="lapidary-artist-detail__portrait">{artist.imageUrl ? <img src={artist.imageUrl} alt={artist.imageAlt || artist.name} fetchPriority="high" style={{ objectPosition: `${artist.imagePosition} center` }} /> : <span aria-hidden="true">{artist.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)}</span>}</div>
+      <div className="lapidary-artist-detail__portrait">{artist.imageUrl ? <Image src={artist.imageUrl} alt={artist.imageAlt || artist.name} fill sizes="(max-width: 720px) 100vw, 520px" priority style={{ objectPosition: `${artist.imagePosition} center` }} /> : <span aria-hidden="true">{artist.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)}</span>}</div>
       <div className="lapidary-artist-detail__copy"><p className="lapidary-eyebrow">{artist.signatureStyle || (en ? "LAPIDARY ARTIST" : "PENGRAJIN LAPIDARY")}</p><h1>{artist.name}</h1>{artist.location ? <p className="lapidary-artist-location">{en ? "Based in" : "Berbasis di"} · {artist.location}</p> : null}<p className="lapidary-artist-detail__bio">{artist.bio}</p>{artist.experience ? <div className="lapidary-artist-detail__experience"><span>{en ? "EXPERIENCE" : "PENGALAMAN"}</span><p>{artist.experience}</p></div> : null}</div>
     </section>
     <section className="lapidary-artist-detail__practice"><div><p className="lapidary-eyebrow">{en ? "A SHARED PRACTICE" : "PRAKTIK BERSAMA"}</p><h2>{value(presentation.capabilityTitleEn, presentation.capabilityTitleId)}</h2></div><p>{value(presentation.capabilityBodyEn, presentation.capabilityBodyId)}</p></section>
     {artist.stoneExperience.length ? <section className="lapidary-artist-detail__stones"><p className="lapidary-eyebrow">{en ? "MATERIAL FAMILIARITY" : "PENGALAMAN MATERIAL"}</p><div>{artist.stoneExperience.map((stone) => <span key={stone}>{stone}</span>)}</div></section> : null}
-    {artist.portfolioImages.length ? <section className="lapidary-artist-detail__portfolio"><div className="lapidary-section-heading"><p className="lapidary-eyebrow">{en ? "SELECTED WORK" : "KARYA PILIHAN"}</p><h2>{en ? "A closer look." : "Melihat karya lebih dekat."}</h2></div><div className="lapidary-artist-detail__gallery">{artist.portfolioImages.map((image, index) => <figure key={`${image.url}-${index}`}><img src={image.url} alt={image.altText} loading="lazy" /><figcaption><span>{String(index + 1).padStart(2, "0")}</span>{image.caption}</figcaption></figure>)}</div></section> : null}
+    {artist.portfolioImages.length ? <section className="lapidary-artist-detail__portfolio"><div className="lapidary-section-heading"><p className="lapidary-eyebrow">{en ? "SELECTED WORK" : "KARYA PILIHAN"}</p><h2>{en ? "A closer look." : "Melihat karya lebih dekat."}</h2></div><div className="lapidary-artist-detail__gallery">{artist.portfolioImages.map((image, index) => <figure key={`${image.url}-${index}`}><Image src={image.url} alt={image.altText} width={1200} height={900} loading="lazy" /><figcaption><span>{String(index + 1).padStart(2, "0")}</span>{image.caption}</figcaption></figure>)}</div></section> : null}
     <section className="lapidary-artist-detail__cta"><p>{en ? "Planning a piece of your own?" : "Ingin merencanakan karya Anda?"}</p><LocalizedLink className="lapidary-button" href={detailCtaHref}>{en ? "Start a custom request" : "Mulai permintaan custom"}<span aria-hidden="true">↗</span></LocalizedLink></section>
   </div>;
 }
@@ -263,7 +264,7 @@ export function LapidaryStandards({ language, presentation }: { language: Langua
   return (
     <div className={`lapidary-page page-container lapidary-process-page lapidary-process-page--${presentation.visualStyle} lapidary-process-page--${presentation.layout}${presentation.motionEnabled ? " lapidary-process-page--motion" : ""}`}>
       <header className="lapidary-process-hero">
-        <img className="lapidary-process-hero__image" src={presentation.heroImage} alt={value(presentation.heroAltEn, presentation.heroAltId)} fetchPriority="high" style={{ objectPosition: `${presentation.heroImagePosition} center` }} />
+        <Image className="lapidary-process-hero__image" src={presentation.heroImage} alt={value(presentation.heroAltEn, presentation.heroAltId)} fill sizes="100vw" priority style={{ objectPosition: `${presentation.heroImagePosition} center` }} />
         <div className="lapidary-process-hero__content">
           <LocalizedLink href="/lapidary" className="lapidary-process-back">← {value(presentation.backLabelEn, presentation.backLabelId)}</LocalizedLink>
           <p className="lapidary-process-eyebrow"><span aria-hidden="true" />{value(presentation.eyebrowEn, presentation.eyebrowId)}</p>

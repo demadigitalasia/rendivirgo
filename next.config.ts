@@ -30,6 +30,10 @@ const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : "standalone",
   images: {
     dangerouslyAllowLocalIP: true,
+    // Optimizer output for /images/* sources only inherits the short upstream TTL
+    // (max-age=0), so cold re-generation (~1s per variant) would otherwise recur
+    // every 4h. 31 days per Next docs; replace fixed-name /images files via deploy.
+    minimumCacheTTL: 2678400,
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
