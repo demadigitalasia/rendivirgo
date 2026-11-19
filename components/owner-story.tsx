@@ -101,7 +101,7 @@ export function OwnerStory({ content }: { content: SiteContent }) {
                   <div className="owner-story__stage">
                     <span className="owner-story__cutout">
                       <span className="owner-story__sprite">
-                        <Image src={owner.src} alt={owner.alt} fill unoptimized
+                        <Image src={owner.src} alt={owner.alt} fill
                           sizes="(max-width: 720px) 42vw, 230px"
                           onError={index === 0 ? () => { if (source !== portrait) setSource(portrait); } : undefined} />
                       </span>

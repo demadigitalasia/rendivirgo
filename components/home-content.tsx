@@ -72,7 +72,7 @@ export function HomeContent({ featured, categories, siteContent, testimonials, a
                 <Link className={`category-tile ${categoryImage ? "category-tile--has-image" : editorialForm ? "category-tile--editorial" : ""}`}
                   key={category.slug} href={`/shop/${category.slug}`} lang={category.contentLocale}>
                   {categoryImage ? <Image className="category-tile__image" src={categoryImage} alt="" fill
-                    sizes="(max-width: 720px) 45vw, 20vw" unoptimized /> : editorialForm ? (
+                    sizes="(max-width: 720px) 45vw, 20vw" /> : editorialForm ? (
                       <span className={`category-tile__stone category-tile__stone--${editorialForm}`} aria-hidden="true" />
                     ) : <span className="category-tile__mineral" aria-hidden="true" />}
                   <span className="category-tile__index" aria-hidden="true">0{index + 1}</span>

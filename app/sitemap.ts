@@ -61,7 +61,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...(item.lastModified ? { lastModified: item.lastModified } : {}),
       ...(item.changeFrequency ? { changeFrequency: item.changeFrequency } : {}),
       ...(item.priority !== undefined ? { priority: item.priority } : {}),
-      alternates: { languages: { en: url } },
     };
   };
 

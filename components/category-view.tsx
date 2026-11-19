@@ -34,7 +34,7 @@ export function CategoryView({
     <>
       <section className={`page-hero ${imageUrl ? "page-hero--image" : ""}`}>
         {imageUrl ? (
-          <Image className="page-hero__image" src={imageUrl} alt="" fill sizes="100vw" unoptimized />
+          <Image className="page-hero__image" src={imageUrl} alt="" fill sizes="100vw" />
         ) : null}
         <div className="page-container page-hero__content">
           <Breadcrumb contained={false} tone="light" items={[{ key: "shop", href: "/shop" }, { label: name }]} />

@@ -39,9 +39,8 @@ export function localizedHref(href: string, language: Language): string {
 }
 
 export function localizedAlternates(pathname: string, _language: Language, _hasIndonesianTranslation = true) {
-  const basePath = stripLocalePrefix(pathname);
+  // Single-language site: canonical only, no self-referential hreflang noise.
   return {
-    canonical: basePath,
-    languages: { en: basePath },
+    canonical: stripLocalePrefix(pathname),
   };
 }

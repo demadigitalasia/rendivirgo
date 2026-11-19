@@ -9,8 +9,12 @@ import { heroCopy, type HeroDocument } from "@/lib/hero-slides";
 import "./home-hero.css";
 
 const FALLBACK_IMAGE = "/images/rendi-virgo-hero-stones.webp";
+// Optimize every image the loader can handle (same-origin paths and our own /uploads URLs);
+// truly foreign hosts stay unoptimized.
+const OPTIMIZABLE_UPLOAD = /^https:\/\/rendivirgo\.com\/uploads\//;
 function imageProps(src: string) {
-  return getImageProps({ src, alt: "", fill: true, sizes: "100vw", unoptimized: !src.startsWith("/") }).props;
+  const optimized = src.startsWith("/") || OPTIMIZABLE_UPLOAD.test(src);
+  return getImageProps({ src, alt: "", fill: true, sizes: "100vw", unoptimized: !optimized }).props;
 }
 
 export function HomeHero({ document, language, preview = false }: { document: HeroDocument; language: "en" | "id"; preview?: boolean }) {
