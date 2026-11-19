@@ -34,13 +34,18 @@ export async function generateMetadata({
     ? { en: localizedPath(pagePath, "en") }
     : undefined;
 
-  const title = page > 1
-    ? `${language === "id" ? "Halaman" : "Page"} ${page} — ${journal.eyebrow} — RENDI VIRGO`
-    : `${journal.eyebrow} — RENDI VIRGO`;
+  const title = activeTag
+    ? `${activeTag} — ${journal.eyebrow} — RENDI VIRGO`
+    : page > 1
+      ? `${language === "id" ? "Halaman" : "Page"} ${page} — ${journal.eyebrow} — RENDI VIRGO`
+      : `${journal.eyebrow} — RENDI VIRGO`;
+  const description = activeTag
+    ? `${journal.intro} ${language === "id" ? "Topik" : "Topic"}: ${activeTag}.`
+    : journal.intro;
   return {
     title,
-    ...socialMetadata(title, journal.intro, canonicalPath),
-    description: journal.intro,
+    ...socialMetadata(title, description, canonicalPath),
+    description,
     alternates: activeTag || page > 1
       ? { canonical: canonicalPath, ...(paginatedLanguages ? { languages: paginatedLanguages } : {}) }
       : localizedAlternates("/blog", language),

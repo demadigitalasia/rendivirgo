@@ -28,7 +28,8 @@ export async function generateMetadata({ params, searchParams }: {
   const page = Math.max(1, Number(rawPage) || 1);
   const path = `/shop/${category.slug}${page > 1 ? `?page=${page}` : ""}`;
   const note = category.description ?? (language === "id" ? "Batu alam dari Indonesia" : "Indonesian natural stones");
-  const title = (!englishFallback && category.metaTitle?.trim()) || `${category.name} | RENDI VIRGO`;
+  const baseTitle = (!englishFallback && category.metaTitle?.trim()) || `${category.name} | RENDI VIRGO`;
+  const title = page > 1 ? `${baseTitle} — ${language === "id" ? "Halaman" : "Page"} ${page}` : baseTitle;
   const description = englishFallback
     ? `${dictionaries.id.draft.fallback} ${category.name}. ${note}.`
     : category.metaDescription?.trim() || `${category.name} from RENDI VIRGO. ${note}`.slice(0, 160);

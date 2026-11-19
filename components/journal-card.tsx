@@ -19,7 +19,7 @@ export function JournalCard({ post, index, featured = false, showReadLink = fals
   return (
     <Link href={`/blog/${post.slug}`} className="journal-card">
       <div className="journal-card__visual" aria-hidden="true">
-        <JournalCover src={post.coverImage} slug={post.slug} alt="" width={640} height={420}
+        <JournalCover src={post.coverImage} slug={post.slug} alt={post.title} width={640} height={420}
           sizes="(max-width: 720px) 100vw, (max-width: 1100px) 50vw, 33vw" />
         <span className="journal-card__index">{String(index + 1).padStart(2, "0")}</span>
         {featured ? <span className="journal-card__feature">{t.journal.featured}</span> : null}

@@ -46,7 +46,30 @@ const nextConfig: NextConfig = {
     ],
   },
   async redirects() {
+    // Product slug corrections (typo fixes): old indexed URLs must keep resolving.
+    const slugRedirects = [
+      ["orbicural-agate-cabochon", "orbicular-agate-cabochon"],
+      ["orbicural-agate-cabochon-2", "orbicular-agate-cabochon-2"],
+      ["orbicural-agate-cabochon-3", "orbicular-agate-cabochon-3"],
+      ["orbicural-agate-cabochon-4", "orbicular-agate-cabochon-4"],
+      ["orbicural-agate-cabochon-5", "orbicular-agate-cabochon-5"],
+      ["orbicural-agate-cabochon-10", "orbicular-agate-cabochon-10"],
+      ["orbicural-agate-cabochon-11", "orbicular-agate-cabochon-11"],
+      ["orbicural-agate-cabochon-12", "orbicular-agate-cabochon-12"],
+      ["orbicural-agate-cabochon-13", "orbicular-agate-cabochon-13"],
+      ["orbicural-cabochon", "orbicular-jasper-cabochon"],
+      ["orbicural-cabochon-2", "orbicular-jasper-cabochon-2"],
+      ["orbicular-cabochon-1", "orbicular-jasper-cabochon-1"],
+      ["bumbelbee-jasper-cabochon", "bumblebee-jasper-cabochon"],
+      ["bumbelbee-jasper-cabochon-2", "bumblebee-jasper-cabochon-2"],
+      ["bumbelbee-jasper-cabochons", "bumblebee-jasper-cabochons"],
+    ].map(([from, to]) => ({
+      source: `/shop/cabochons/${from}`,
+      destination: `/shop/cabochons/${to}`,
+      permanent: true,
+    }));
     return [
+      ...slugRedirects,
       {
         source: "/:path*",
         has: [{ type: "host", value: "www.rendivirgo.com" }],
