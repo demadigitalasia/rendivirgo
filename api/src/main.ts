@@ -88,11 +88,13 @@ async function bootstrap() {
   app.use(
     "/uploads",
     express.static(join(process.cwd(), config.get<string>("UPLOAD_DIR") ?? "uploads"), {
-      maxAge: "7d",
+      maxAge: "365d",
       fallthrough: true,
       index: false,
       dotfiles: "deny",
       setHeaders: (response) => {
+        // Upload filenames are stable per upload (no overwrite-in-place), so they cache forever.
+        response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setHeader("Content-Disposition", "inline");
         response.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
