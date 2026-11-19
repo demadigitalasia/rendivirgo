@@ -687,7 +687,7 @@ export async function getPublicSettings(): Promise<PublicSettings> {
     store: {
       name: value("store.name", "RENDI VIRGO"),
       tagline: value("store.tagline", "Indonesian natural stones, from our hands to yours."),
-      email: value("store.email", "cs@rendivirgo.com"),
+      email: value("store.email", "info@rendivirgo.com"),
       whatsapp: value("store.whatsapp", ""),
       whatsappSecondary: value("store.whatsappSecondary", ""),
       currency: value("store.currency", "USD"),

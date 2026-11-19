@@ -10,7 +10,7 @@ import { PrismaService } from "../prisma/prisma.service";
 export const SETTINGS_DEFAULTS: Record<string, unknown> = {
   "store.name": "RENDI VIRGO",
   "store.tagline": "",
-  "store.email": "cs@rendivirgo.com",
+  "store.email": "info@rendivirgo.com",
   "store.whatsapp": "",
   "store.whatsappSecondary": "",
   "store.currency": "USD",

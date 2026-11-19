@@ -16,7 +16,7 @@ export default async function ContactPage() {
 
   return (
     <ContactContent
-      email={store.email || "cs@rendivirgo.com"}
+      email={store.email || "info@rendivirgo.com"}
       whatsapp={store.whatsapp}
       whatsappHref={whatsappDigits ? `https://wa.me/${whatsappDigits}` : null}
       address={store.address}

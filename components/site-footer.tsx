@@ -63,7 +63,7 @@ export function SiteFooter({ socials, email }: { socials?: Record<string, string
   };
 
   const socialEntries = Object.entries(socials ?? {}).filter(([, url]) => url.trim());
-  const contactEmail = email?.trim() || "cs@rendivirgo.com";
+  const contactEmail = email?.trim() || "info@rendivirgo.com";
 
   return (
     <footer className="site-footer">

@@ -61,7 +61,7 @@ export default async function AboutPage() {
       aboutRendiImage={siteContent.aboutRendiImage}
       aboutPajarImage={siteContent.aboutPajarImage}
       heroImage={siteContent.heroImage}
-      email={store.store.email || "cs@rendivirgo.com"}
+      email={store.store.email || "info@rendivirgo.com"}
       storyParagraphs={storyParagraphs.length ? storyParagraphs : fallbackStory}
       contentLanguage={page?.contentLocale ?? "en"}
     />
